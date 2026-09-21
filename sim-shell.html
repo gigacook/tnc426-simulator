@@ -1,0 +1,233 @@
+<title>TNC 426 Simulator</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  --void:#02050a; --void-2:#070b12; --panel:#161d29; --panel-2:#1e2733;
+  --line:#3a4655; --line-2:#546274; --ink:#f2f6fb; --ink-dim:#b3bfd0; --ink-faint:#8b99ad;
+  --crt:#04121f; --crt-2:#0c2740; --cyan:#6fdcff; --mint:#63e6b0; --amber:#ffb03a;
+  --red:#ff5347; --violet:#a596ff; --axX:#ff6b5e; --axY:#7ddc7d; --axZ:#6fa8ff;
+}
+html,body{height:100%}
+body{margin:0;background:var(--void);color:var(--ink);
+  font-family:"IBM Plex Sans",system-ui,sans-serif;-webkit-font-smoothing:antialiased;overflow:hidden}
+*{box-sizing:border-box}
+.mono{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums}
+button{font:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--amber);outline-offset:1px}
+
+/* ---------- frame ---------- */
+.app{display:flex;flex-direction:column;height:100%}
+.bar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:8px 14px;
+  background:var(--panel);border-bottom:1px solid var(--line);flex:none}
+.logo{font-family:"Saira Condensed",sans-serif;font-weight:700;font-size:13px;letter-spacing:.22em;
+  color:#06111c;background:var(--cyan);padding:3px 7px 2px;border-radius:2px}
+.ttl{font-family:"Saira Condensed",sans-serif;font-weight:700;font-size:21px;letter-spacing:.05em}
+.modes{display:flex;gap:2px;margin-left:auto;flex-wrap:wrap}
+.mode{font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.04em;padding:6px 10px;
+  background:var(--panel-2);color:var(--ink-dim);border:1px solid var(--line);border-radius:2px}
+.mode b{color:var(--ink-faint);font-weight:400;margin-right:5px}
+.mode[aria-pressed="true"]{background:var(--cyan);color:#06111c;border-color:var(--cyan)}
+.mode[aria-pressed="true"] b{color:#0b3550}
+
+.main{flex:1;display:grid;grid-template-columns:minmax(400px,1fr) minmax(400px,1.15fr) 288px;
+  gap:1px;background:var(--line);min-height:0}
+@media (max-width:1200px){.main{grid-template-columns:1fr 1fr;grid-template-rows:1fr auto}
+  .col-side{grid-column:1/-1;max-height:250px}}
+@media (max-width:820px){.main{grid-template-columns:1fr;overflow-y:auto}
+  body{overflow:auto} .col{min-height:400px}}
+.col{background:var(--void-2);display:flex;flex-direction:column;min-height:0;min-width:0}
+.ch{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 10px;
+  background:var(--panel);border-bottom:1px solid var(--line);flex:none;
+  font-family:"Saira Condensed",sans-serif;font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint)}
+.ch .rt{font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:0;text-transform:none;color:var(--amber)}
+
+/* ---------- program listing (CRT) ---------- */
+.crt{flex:1;background:var(--crt);overflow:auto;position:relative;min-height:0}
+.crt:after{content:"";position:fixed;inset:0;pointer-events:none;z-index:1;
+  background:repeating-linear-gradient(to bottom,rgba(255,255,255,.022) 0 1px,transparent 1px 3px)}
+.plist{font-family:"IBM Plex Mono",monospace;font-size:14px;line-height:1.5;padding:4px 0}
+.blk{display:grid;grid-template-columns:42px 1fr;gap:8px;padding:1px 10px;white-space:pre;cursor:pointer}
+.blk:hover{background:rgba(111,220,255,.06)}
+.blk .bn{color:#7699b3;text-align:right}
+.blk.cur{background:#1c5f92}
+.blk.cur .bn{color:#bfe9ff}
+.blk.exec{background:rgba(99,230,176,.13)}
+.blk.ind .bt{padding-left:22px}
+.blk.err{background:rgba(255,83,71,.16)}
+.blk.err .bt{color:#ffb3ad}
+.bt{color:#e8f3fd}
+.t-key{color:#fff} .t-num{color:#abdfff} .t-q{color:var(--amber)}
+.t-cm{color:#7fabc6;font-style:italic} .t-m{color:var(--violet)} .t-f{color:var(--mint)}
+
+/* dialog / entry line */
+.dlg{flex:none;background:var(--crt-2);border-top:1px solid #16405f;padding:6px 10px;
+  font-family:"IBM Plex Mono",monospace;font-size:14px;display:flex;align-items:center;gap:8px}
+.dlg .pr{color:var(--amber);flex:none}
+.dlg input{flex:1;background:#041320;border:1px solid #1d557d;color:#eaf6ff;
+  font:inherit;padding:4px 7px;border-radius:2px;min-width:0}
+.dlg input:disabled{opacity:.4}
+.dlg .hint{color:#4e6e8a;font-size:12px;flex:none}
+
+/* softkeys */
+.sks{flex:none;display:grid;grid-template-columns:repeat(8,1fr);gap:3px;padding:6px;background:var(--panel)}
+.sk{font-family:"IBM Plex Mono",monospace;font-size:10.5px;line-height:1.2;text-align:center;
+  background:linear-gradient(#57616f,#434c59);color:#f3f7fb;border:1px solid #232a33;
+  border-bottom:2px solid #1b2129;border-radius:2px;padding:7px 3px;min-height:42px}
+.sk:hover{background:linear-gradient(#66717f,#4e5866)}
+.sk:active{transform:translateY(1px);border-bottom-width:1px}
+.sk[data-on="1"]{background:linear-gradient(#1f668f,#154b6b);color:#bfe9ff;border-color:#0d3350}
+
+/* ---------- graphics ---------- */
+.gfx{flex:1;position:relative;min-height:0;background:#04070d}
+#gl{display:block;width:100%;height:100%}
+.ovl{position:absolute;font-family:"IBM Plex Mono",monospace;font-size:12px;pointer-events:none;line-height:1.7}
+.ovl-tl{top:8px;left:10px;color:var(--ink-faint)}
+.ovl-tr{top:8px;right:10px;text-align:right;color:var(--ink-faint)}
+.ovl b{font-weight:500}
+.lgd{position:absolute;bottom:8px;left:10px;display:flex;gap:12px;font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--ink-faint);pointer-events:none}
+.lgd i{display:inline-block;width:14px;height:2px;vertical-align:middle;margin-right:4px}
+
+/* transport */
+.tp{flex:none;background:var(--panel);border-top:1px solid var(--line);padding:8px 10px;display:flex;flex-direction:column;gap:7px}
+.tp-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.tb{font-family:"Saira Condensed",sans-serif;font-weight:600;font-size:13px;letter-spacing:.1em;
+  text-transform:uppercase;background:var(--panel-2);color:var(--ink-dim);border:1px solid var(--line);
+  padding:6px 11px;border-radius:2px}
+.tb:hover{border-color:var(--line-2);color:var(--ink)}
+.tb.go{background:#2f7d4c;border-color:#3f9a5c;color:#eafff1}
+.tb.go:hover{background:#3a9159}
+.tb.stop{background:#8f3229;border-color:#b53a30;color:#ffeceb}
+.tb.stop:hover{background:#a53a30}
+.tb[data-on="1"]{background:var(--cyan);border-color:var(--cyan);color:#06111c}
+.tb small{opacity:.55;margin-left:5px;font-size:11px}
+.scrub{width:100%;accent-color:var(--cyan)}
+.spd{display:flex;gap:2px;margin-left:auto}
+.spd button{font-family:"IBM Plex Mono",monospace;font-size:12px;padding:5px 8px;
+  background:var(--panel-2);border:1px solid var(--line);color:var(--ink-dim);border-radius:2px}
+.spd button[data-on="1"]{background:var(--amber);border-color:var(--amber);color:#2a1a02;font-weight:600}
+
+/* ---------- side ---------- */
+.col-side{overflow-y:auto}
+.card{border-bottom:1px solid var(--line)}
+.card>h3{margin:0;padding:7px 10px;font-family:"Saira Condensed",sans-serif;font-size:12px;
+  letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint);background:var(--panel);
+  display:flex;justify-content:space-between;align-items:center;gap:6px}
+.card>h3 .tagx{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:0;text-transform:none}
+.card .in{padding:8px 10px}
+.dro{display:grid;gap:3px}
+.drow{display:grid;grid-template-columns:20px 1fr;align-items:baseline;gap:6px;
+  font-family:"IBM Plex Mono",monospace;font-size:15px;padding:3px 6px;background:var(--void-2);
+  border-radius:2px;border-left:2px solid var(--line)}
+.drow .ax{font-weight:600}.drow .val{text-align:right;color:#f7fafd}
+.drow.x{border-left-color:var(--axX)}.drow.x .ax{color:var(--axX)}
+.drow.y{border-left-color:var(--axY)}.drow.y .ax{color:var(--axY)}
+.drow.z{border-left-color:var(--axZ)}.drow.z .ax{color:var(--axZ)}
+.drow.s{border-left-color:var(--violet)}.drow.s .ax{color:var(--violet)}
+.drow.f{border-left-color:var(--mint)}.drow.f .ax{color:var(--mint)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:2px 8px;font-size:13px}
+.kv dt{color:var(--ink-faint)}
+.kv dd{margin:0;font-family:"IBM Plex Mono",monospace;text-align:right;font-size:12.5px;color:var(--ink)}
+.kv dd.up{color:var(--red)}.kv dd.dn{color:var(--mint)}.kv dd.eq{color:var(--ink-faint)}
+.klist{display:grid;gap:2px;font-family:"IBM Plex Mono",monospace;font-size:12px}
+.klist div{display:grid;grid-template-columns:96px 1fr;gap:6px;padding:2px 5px;background:var(--void-2);border-radius:2px}
+.klist kbd{color:#ffc766;font-family:inherit}
+.klist span{color:var(--ink-dim)}
+.elist{font-family:"IBM Plex Mono",monospace;font-size:12px;display:grid;gap:3px;max-height:150px;overflow:auto}
+.elist div{padding:3px 6px;background:rgba(255,83,71,.1);border-left:2px solid var(--red);border-radius:2px;color:#ffb3ad}
+.elist div.ok{background:rgba(99,230,176,.08);border-left-color:var(--mint);color:var(--mint)}
+.cmp{display:grid;grid-template-columns:auto auto auto auto;gap:2px 7px;font-size:12px;align-items:baseline}
+.cmp .h{color:var(--ink-faint);font-size:11px;letter-spacing:.08em;text-transform:uppercase;border-bottom:1px solid var(--line);padding-bottom:3px}
+.cmp .l{color:var(--ink-faint)}
+.cmp .v{font-family:"IBM Plex Mono",monospace;text-align:right;color:var(--ink)}
+.cmp .d{font-family:"IBM Plex Mono",monospace;text-align:right;font-size:11.5px}
+.cmp .d.up{color:var(--red)}.cmp .d.dn{color:var(--mint)}.cmp .d.eq{color:var(--ink-faint)}
+.mini{width:100%;background:var(--panel-2);border:1px solid var(--line);color:var(--ink-dim);
+  font-family:"Saira Condensed",sans-serif;font-size:12px;letter-spacing:.12em;text-transform:uppercase;
+  padding:5px;border-radius:2px;margin-top:6px}
+.mini:hover{border-color:var(--cyan);color:var(--cyan)}
+textarea#raw{width:100%;height:100%;min-height:200px;background:var(--crt);color:#d5e8f7;border:0;
+  font-family:"IBM Plex Mono",monospace;font-size:14px;line-height:1.5;padding:8px 10px;resize:none}
+textarea#raw:focus{outline:none}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:50;
+  background:var(--panel);border:1px solid var(--line-2);color:var(--ink);padding:8px 16px;border-radius:3px;
+  font-family:"IBM Plex Mono",monospace;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.on{opacity:1}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="app">
+ <div class="bar">
+   <span class="logo">HDH</span>
+   <span class="ttl">TNC 426</span>
+   <span class="mono" style="font-size:10px;color:var(--ink-faint)">CNC SIMULATOR &middot; NC SW 280 476-17</span>
+   <div class="modes" id="modes">
+     <button class="mode" data-m="edit"   aria-pressed="false"><b>F1</b>PROGRAMMING AND EDITING</button>
+     <button class="mode" data-m="test"   aria-pressed="true"><b>F2</b>TEST RUN</button>
+     <button class="mode" data-m="single" aria-pressed="false"><b>F3</b>PGM RUN, SINGLE BLOCK</button>
+     <button class="mode" data-m="full"   aria-pressed="false"><b>F4</b>PGM RUN, FULL SEQ.</button>
+   </div>
+ </div>
+
+ <div class="main">
+   <!-- PROGRAM -->
+   <div class="col">
+     <div class="ch"><span>Program</span><span class="rt" id="pgm-path">TNC:\BRACKET.H</span></div>
+     <div class="crt" id="crt"><div class="plist" id="plist"></div></div>
+     <textarea id="raw" hidden spellcheck="false"></textarea>
+     <div class="dlg">
+       <span class="pr" id="dlg-pr">BLOCK</span>
+       <input id="dlg-in" spellcheck="false" autocomplete="off" disabled>
+       <span class="hint" id="dlg-hint">ENT accept &middot; ESC cancel</span>
+     </div>
+     <div class="sks" id="sks"></div>
+   </div>
+
+   <!-- GRAPHICS -->
+   <div class="col">
+     <div class="ch"><span>Test graphics</span><span class="rt" id="gfx-rt">3-D VIEW</span></div>
+     <div class="gfx">
+       <canvas id="gl"></canvas>
+       <div class="ovl ovl-tl" id="ovl-l"></div>
+       <div class="ovl ovl-tr" id="ovl-r"></div>
+       <div class="lgd">
+         <span><i style="background:var(--amber)"></i>RAPID</span>
+         <span><i style="background:var(--cyan)"></i>FEED</span>
+         <span><i style="background:var(--mint)"></i>CUT</span>
+         <span>DRAG ORBIT &middot; WHEEL ZOOM</span>
+       </div>
+     </div>
+     <div class="tp">
+       <input type="range" class="scrub" id="scrub" min="0" max="1000" value="0" step="1">
+       <div class="tp-row">
+         <button class="tb go" id="b-start">NC Start<small>SPACE</small></button>
+         <button class="tb stop" id="b-stop">NC Stop<small>SPACE</small></button>
+         <button class="tb" id="b-step">Step<small>S</small></button>
+         <button class="tb" id="b-reset">Reset<small>R</small></button>
+         <div class="spd" id="spd">
+           <button data-s="1">1&times;</button><button data-s="4" data-on="1">4&times;</button>
+           <button data-s="16">16&times;</button><button data-s="64">64&times;</button>
+           <button data-s="0">MAX</button>
+         </div>
+       </div>
+     </div>
+   </div>
+
+   <!-- SIDE -->
+   <div class="col col-side">
+     <div class="card"><h3>Position <span class="tagx" id="dro-t">ACTL MM</span></h3>
+       <div class="in"><div class="dro" id="dro"></div></div></div>
+     <div class="card"><h3>Run <span class="tagx" id="run-state">READY</span></h3>
+       <div class="in"><dl class="kv" id="runkv"></dl></div></div>
+     <div class="card"><h3>Compare <span class="tagx" id="cmp-t">no reference</span></h3>
+       <div class="in"><div class="cmp" id="cmp"></div>
+         <button class="mini" id="b-snap">Store as reference (A)</button>
+         <button class="mini" id="b-restore">Restore reference program</button></div></div>
+     <div class="card"><h3>Error register <span class="tagx" id="errc">0</span></h3>
+       <div class="in"><div class="elist" id="elist"></div></div></div>
+     <div class="card"><h3>Keys</h3>
+       <div class="in"><div class="klist" id="klist"></div></div></div>
+   </div>
+ </div>
+</div>
+<div class="toast" id="toast"></div>
