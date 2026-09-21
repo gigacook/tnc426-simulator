@@ -45,10 +45,23 @@ Fully editable — block by block, or as raw text.
 | `SPACE` | NC START / NC STOP | | `F1`–`F4` | Operating mode |
 | `S` / `R` | Single block / reset | | `+` `−` | Feed override |
 
-## Known simplification
+## Known simplifications
 
-Radius compensation `RL` / `RR` is parsed and displayed, but the path is drawn on the tool
-centreline rather than offset. Contours therefore sit one tool radius off compared to a real TNC.
+These are deliberate, and they are why the disclaimer at the bottom matters.
+
+- **Radius compensation** `RL` / `RR` is parsed and displayed, but the path is drawn on the tool
+  centreline rather than offset. Contours sit one tool radius off compared to a real TNC.
+- **INCH is recorded, not converted.** `BEGIN PGM … INCH` sets the unit flag, but values are used
+  as programmed. Write in millimetres.
+- **Cycle time excludes dwell.** `Q210` / `Q211` are honoured as cycle structure but add no
+  seconds; the estimate is `sum(length / feed)` over the toolpath and ignores acceleration,
+  tool changes and dwell, so it reads optimistic against a real machine.
+- **Chip breaking** in cycle 203 (`Q213`) is a short in-place retract rather than the exact
+  HEIDENHAIN distribution, which the manual leaves ambiguous.
+- **Narrow pockets in cycle 4** collapse their innermost passes to a slot traversed out and back.
+  Geometrically correct for a closed contour, but it emits one redundant return pass.
+- **Material removal** is a height field, so it models what the tool tip sweeps from above.
+  Undercuts and side-wall engagement below an overhang are not represented.
 
 ## Build
 
