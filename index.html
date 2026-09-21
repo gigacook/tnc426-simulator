@@ -159,6 +159,29 @@ textarea#raw:focus{outline:none}
   background:var(--panel);border:1px solid var(--line-2);color:var(--ink);padding:8px 16px;border-radius:3px;
   font-family:"IBM Plex Mono",monospace;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.on{opacity:1}
+.sub-ttl{font-size:12px;color:var(--ink-faint)}
+.devbtn{font-family:"Saira Condensed",sans-serif;font-weight:700;font-size:13px;letter-spacing:.22em;
+  color:#1f0f00;background:#ff8a1f;border:1px solid #ffb066;padding:5px 12px 4px;border-radius:2px;
+  box-shadow:0 0 14px rgba(255,138,31,.55);animation:devglow 1.8s ease-in-out infinite}
+.devbtn:hover{background:#ffa04a}
+@keyframes devglow{50%{box-shadow:0 0 4px 2px rgba(255,138,31,.35),0 0 28px rgba(255,138,31,.95)}}
+.chsel{font-family:"IBM Plex Mono",monospace;font-size:12px;background:var(--crt);color:var(--amber);
+  border:1px solid #16405f;border-radius:2px;padding:3px 6px;max-width:60%}
+.dev{position:fixed;inset:0;z-index:60;background:rgba(2,5,10,.8);backdrop-filter:blur(4px);
+  display:grid;place-items:center;padding:16px}
+.dev-card{width:min(900px,100%);max-height:min(88vh,100%);display:flex;flex-direction:column;
+  background:var(--panel);border:1px solid #ff8a1f;border-radius:4px;box-shadow:0 30px 80px -20px #000;min-height:0}
+.dev-hd{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 14px;border-bottom:1px solid var(--line);
+  font-family:"Saira Condensed",sans-serif;font-weight:700;letter-spacing:.2em;font-size:14px;color:#ffb066}
+.dev-sub{font-family:"IBM Plex Mono",monospace;font-weight:400;letter-spacing:0;font-size:12px;color:var(--ink-faint)}
+.dev-hd button{margin-left:auto;font-family:"Saira Condensed",sans-serif;font-weight:600;font-size:13px;letter-spacing:.12em;
+  text-transform:uppercase;background:var(--panel-2);color:var(--ink-dim);border:1px solid var(--line);padding:6px 12px;border-radius:2px}
+.dev-hd button:hover{border-color:#ff8a1f;color:#ffb066}
+.dev-hd button small{opacity:.55;margin-left:4px;font-size:11px}
+.dev pre{margin:0;padding:14px 16px;overflow:auto;min-height:0;font-family:"IBM Plex Mono",monospace;
+  font-size:13px;line-height:1.55;color:var(--ink);white-space:pre}
+@media (max-width:640px){.dev pre{font-size:11.5px}.sub-ttl{display:none}}
+@media (prefers-reduced-motion:reduce){.devbtn{animation:none}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 
@@ -169,7 +192,8 @@ textarea#raw:focus{outline:none}
  <div class="bar">
    <span class="logo">HDH</span>
    <span class="ttl">TNC 426</span>
-   <span class="mono" style="font-size:10px;color:var(--ink-faint)">CNC SIMULATOR &middot; NC SW 280 476-17</span>
+   <span class="mono sub-ttl">CNC SIMULATOR &middot; NC SW 280 476-17</span>
+   <button class="devbtn" id="b-dev" title="What is live, done and in progress">DEV</button>
    <div class="modes" id="modes">
      <button class="mode" data-m="edit"   aria-pressed="false"><b>F1</b>PROGRAMMING AND EDITING</button>
      <button class="mode" data-m="test"   aria-pressed="true"><b>F2</b>TEST RUN</button>
@@ -181,7 +205,7 @@ textarea#raw:focus{outline:none}
  <div class="main">
    <!-- PROGRAM -->
    <div class="col">
-     <div class="ch"><span>Program</span><span class="rt" id="pgm-path">TNC:\BRACKET.H</span></div>
+     <div class="ch"><span>Program</span><select id="pgm-sel" class="chsel" aria-label="Program on the control"></select></div>
      <div class="crt" id="crt"><div class="plist" id="plist"></div></div>
      <textarea id="raw" hidden spellcheck="false"></textarea>
      <div class="dlg">
@@ -240,6 +264,14 @@ textarea#raw:focus{outline:none}
  </div>
 </div>
 <div class="toast" id="toast"></div>
+<div class="dev" id="dev" hidden>
+  <div class="dev-card" role="dialog" aria-modal="true" aria-labelledby="dev-t">
+    <div class="dev-hd"><span id="dev-t">DEV &mdash; FEATURE LOG</span>
+      <span class="dev-sub">live &middot; done &middot; in progress</span>
+      <button id="dev-x">Close <small>ESC</small></button></div>
+    <pre id="dev-pre"></pre>
+  </div>
+</div>
 
 <script>/* ===== three.js r128 — MIT, Three.js Authors ===== */
 /**
@@ -1327,6 +1359,7 @@ var TNC = (function () {
     { t: 6,  name: 'FACEMILL_50',   l: 52.300,  r: 25.00  },
     { t: 7,  name: 'BORE_HEAD',     l: 142.00,  r: 16.00  },
     { t: 8,  name: 'CHAMFER_45',    l: 58.900,  r: 5.000  },
+    { t: 9,  name: 'ENDMILL_3',     l: 58.000,  r: 1.500  },
     { t: 11, name: 'PROBE_TS640',   l: 155.00,  r: 3.000  },
     { t: 42, name: 'REAMER_H7',     l: 101.30,  r: 5.000  }
   ];
@@ -1599,10 +1632,18 @@ var TNC = (function () {
   function parse(text) {
     var blocks = [], errors = [];
     var lines = String(text === undefined || text === null ? '' : text).split(/\r?\n/);
+    var nc = 0, owner = 0;
     for (var i = 0; i < lines.length; i++) {
       var b = parseLine(lines[i], blocks.length);
+      /* HEIDENHAIN numbering: a CYCL DEF and its Q-parameter lines are ONE NC
+         block, so parameter lines carry their CYCL DEF's number and do not
+         advance the count. Blank lines are not NC blocks and carry none. */
+      if (b.kind === 'CYCLPARM') b.n = owner;
+      else if (b.kind === 'BLANK') b.n = null;
+      else { b.n = nc++; owner = b.n; }
       blocks.push(b);
-      if (b.error) errors.push({ block: b.n, msg: b.error });
+      // errors always reference the index into blocks[], like compile() does
+      if (b.error) errors.push({ block: blocks.length - 1, msg: b.error });
     }
     return { blocks: blocks, errors: errors };
   }
@@ -1639,7 +1680,8 @@ var TNC = (function () {
       pos: { x: 0, y: 0, z: 0 },
       feed: DEFAULT_FEED,
       tool: { t: 0, name: '', r: 3, l: 0 },
-      spindle: 0,
+      spindle: 0,          // effective: sRpm * spinDir
+      sRpm: 0, spinDir: 0,
       coolant: false,
       cc: null,
       Q: {},
@@ -1687,16 +1729,21 @@ var TNC = (function () {
     if (st.moves.length >= MAX_MOVES) { st.abort = true; fail(st, bi, 'EXCESSIVE SUBPROGRAM NESTING'); }
   }
 
-  function applyM(st, list) {
-    if (!list) return;
-    for (var i = 0; i < list.length; i++) {
+  /* M-functions take effect either at block start (M3 M4 M8 M13 M14) or at
+     block end (M5 M9 M2 M30), as on the TNC. `phase` is 'start' or 'end'. */
+  function applyM(st, list, phase) {
+    if (list) for (var i = 0; i < list.length; i++) {
       var m = list[i];
-      if (m === 3) st.spindle = Math.abs(st.spindle) || 0;
-      else if (m === 4) st.spindle = -Math.abs(st.spindle);
-      else if (m === 5) st.spindle = 0;
-      else if (m === 8) st.coolant = true;
-      else if (m === 9) st.coolant = false;
+      if (phase === 'start') {
+        if (m === 3 || m === 13) st.spinDir = 1;
+        else if (m === 4 || m === 14) st.spinDir = -1;
+        if (m === 8 || m === 13 || m === 14) st.coolant = true;
+      } else {
+        if (m === 5 || m === 2 || m === 30) st.spinDir = 0;
+        if (m === 9 || m === 2 || m === 30) st.coolant = false;
+      }
     }
+    st.spindle = st.sRpm * st.spinDir;
   }
 
   function hasM99(list) {
@@ -1921,7 +1968,7 @@ var TNC = (function () {
 
   function doLine(st, b, bi) {
     var a = b.args;
-    applyM(st, a.m);
+    applyM(st, a.m, 'start');
     if (a.f !== undefined) {
       var fv = resolve(a.f, st.Q);
       if (fv === null || fv <= 0) fail(st, bi, 'FEED RATE MISSING');
@@ -1937,6 +1984,7 @@ var TNC = (function () {
         emit(st, 'feed', to, st.feed, bi, null);
       }
     }
+    applyM(st, a.m, 'end');
   }
 
   function doCC(st, b) {
@@ -1951,7 +1999,7 @@ var TNC = (function () {
 
   function doArcC(st, b, bi) {
     var a = b.args;
-    applyM(st, a.m);
+    applyM(st, a.m, 'start');
     if (a.f !== undefined) { var fv = resolve(a.f, st.Q); if (fv > 0) st.feed = fv; }
     if (!st.cc) { fail(st, bi, 'CIRCLE CENTER UNDEFINED'); return; }
     var to = targetOf(a, st);
@@ -1961,11 +2009,12 @@ var TNC = (function () {
     if (r1 < EPS || Math.abs(r1 - r2) > ARC_TOL) { fail(st, bi, 'ARC END POS. INCORRECT'); return; }
     if (!(st.feed > 0)) { fail(st, bi, 'FEED RATE MISSING'); return; }
     emit(st, 'arc', to, st.feed, bi, null, { cx: st.cc.x, cy: st.cc.y, ccw: a.dr !== '-' });
+    applyM(st, a.m, 'end');
   }
 
   function doArcCR(st, b, bi) {
     var a = b.args;
-    applyM(st, a.m);
+    applyM(st, a.m, 'start');
     if (a.f !== undefined) { var fv = resolve(a.f, st.Q); if (fv > 0) st.feed = fv; }
     var R = resolve(a.r, st.Q);
     if (R === null || Math.abs(R) < EPS) { fail(st, bi, 'ARC END POS. INCORRECT'); return; }
@@ -1989,16 +2038,21 @@ var TNC = (function () {
     if (!(st.feed > 0)) { fail(st, bi, 'FEED RATE MISSING'); return; }
     st.cc = { x: pick.x, y: pick.y };
     emit(st, 'arc', to, st.feed, bi, null, { cx: pick.x, cy: pick.y, ccw: ccw });
+    applyM(st, a.m, 'end');
   }
 
   function doToolCall(st, b, bi) {
     var t = resolve(b.args.t, st.Q);
     t = (t === null) ? 0 : Math.round(t);
     if (!b.args.axis) fail(st, bi, 'TOOL AXIS MISSING');
+    /* The tool change stops the spindle (as on practically every machine);
+       S only sets the programmed speed. M3/M4 is needed to start it again. */
+    if (st.tool.t !== t) st.spinDir = 0;
     if (b.args.s !== null && b.args.s !== undefined) {
       var s = resolve(b.args.s, st.Q);
-      if (s !== null) st.spindle = (st.spindle < 0 ? -1 : 1) * Math.abs(s);
+      if (s !== null) st.sRpm = Math.abs(s);
     }
+    st.spindle = st.sRpm * st.spinDir;
     if (t === 0) { st.tool = { t: 0, name: '', r: 3, l: 0 }; return; }
     var e = toolByNumber(t);
     if (!e) { fail(st, bi, 'TOOL ' + t + ' NOT DEFINED'); st.tool = { t: t, name: 'UNDEFINED', r: 3, l: 0 }; }
@@ -2064,8 +2118,9 @@ var TNC = (function () {
           break;
         case 'CYCLPARM': break;                    // consumed by the CYCL DEF above
         case 'CYCLCALL':
-          applyM(st, b.args.m);
+          applyM(st, b.args.m, 'start');
           runCycle(st, i);
+          applyM(st, b.args.m, 'end');
           break;
         case 'LBL': break;
         case 'LBLEND': if (depth > 0) return; break;
@@ -2093,7 +2148,8 @@ var TNC = (function () {
         }
         case 'FN': doFN(st, b, i); break;
         case 'STOP':
-          applyM(st, b.args.m);
+          applyM(st, b.args.m, 'start');
+          applyM(st, b.args.m, 'end');
           if (hasEndM(b.args.m)) { st.done = true; return; }
           break;
         default: break;
@@ -2204,6 +2260,424 @@ var TNC = (function () {
 if (typeof module !== 'undefined') module.exports = TNC;
 
 </script>
+<script>/* ===== Simulation checks ===== */
+/* ============================================================
+   TNC_SIM — shared simulation helpers + safety checks.
+   Pure: no DOM, no three.js. Used by the UI and by node tests.
+
+   TNC_SIM.expand(res)            -> { segs, total }   timed, arc-tessellated
+   TNC_SIM.grid(stock, segs)      -> { NX, NY, DX, DY } height-field resolution
+   TNC_SIM.analyse(res, ex, g)    -> events[]          crashes + warnings
+   TNC_SIM.isCone(toolNumber)     -> Boolean           chamfer / spot tools
+   ============================================================ */
+var TNC_SIM = (function () {
+  'use strict';
+
+  var TOOLS = (typeof TNC !== 'undefined' && TNC.TOOLS) ||
+              (typeof require !== 'undefined' ? require('./core.js').TOOLS : []);
+  var CONE = {}, FLUTES = {};
+  TOOLS.forEach(function (t) {
+    if (/CHAMFER|SPOT/.test(t.name)) CONE[t.t] = true;
+    if (/FACEMILL/.test(t.name)) FLUTES[t.t] = 5;
+    else if (/ENDMILL/.test(t.name)) FLUTES[t.t] = 3;
+  });
+  function isCone(t) { return !!CONE[t]; }
+
+  /* ---------- arcs -> short chords ---------- */
+  function tessArc(mv, out) {
+    var f = mv.from, to = mv.to, cx = mv.cx, cy = mv.cy;
+    var r = Math.hypot(f.x - cx, f.y - cy);
+    var a0 = Math.atan2(f.y - cy, f.x - cx), a1 = Math.atan2(to.y - cy, to.x - cx);
+    var sw = a1 - a0;
+    if (mv.ccw) { while (sw <= 1e-9) sw += Math.PI * 2; }
+    else        { while (sw >= -1e-9) sw -= Math.PI * 2; }
+    var n = Math.max(6, Math.ceil(Math.abs(sw) / (Math.PI / 36)));
+    var prev = f;
+    for (var i = 1; i <= n; i++) {
+      var a = a0 + sw * (i / n);
+      var p = { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a), z: f.z + (to.z - f.z) * (i / n) };
+      out.push([prev, p]); prev = p;
+    }
+  }
+
+  /* ---------- moves -> timed segments ---------- */
+  function expand(res) {
+    var segs = [], t = 0, rapid = (res.stats && res.stats.rapidRate) || 18000;
+    (res.moves || []).forEach(function (mv) {
+      var pairs = [];
+      if (mv.kind === 'arc' && mv.cx != null) tessArc(mv, pairs);
+      else pairs.push([mv.from, mv.to]);
+      pairs.forEach(function (pr) {
+        var a = pr[0], b = pr[1];
+        var len = Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
+        if (len < 1e-9) return;
+        var f = mv.kind === 'rapid' ? rapid : Math.max(1, mv.feed || 500);
+        var dt = len / f * 60;
+        segs.push({ a: a, b: b, len: len, f: f, kind: mv.kind === 'rapid' ? 'rapid' : 'feed',
+                    block: mv.block, tool: mv.tool, toolR: mv.toolR || 3, cone: isCone(mv.tool),
+                    spindle: mv.spindle || 0, coolant: !!mv.coolant, cycle: mv.cycle || null,
+                    t0: t, t1: t + dt });
+        t += dt;
+      });
+    });
+    return { segs: segs, total: t };
+  }
+
+  /* ---------- height-field resolution: follow the smallest cutter ---------- */
+  function grid(st, segs) {
+    var w = Math.max(1, st.x1 - st.x0), h = Math.max(1, st.y1 - st.y0);
+    var minR = Infinity;
+    for (var i = 0; i < segs.length; i++) if (segs[i].kind === 'feed' && segs[i].toolR < minR) minR = segs[i].toolR;
+    if (!isFinite(minR)) minR = 3;
+    var cell = Math.max(0.3, Math.min(0.8, minR / 2));
+    while ((w / cell + 1) * (h / cell + 1) > 150000) cell *= 1.08;
+    var NX = Math.max(30, Math.round(w / cell) + 1), NY = Math.max(30, Math.round(h / cell) + 1);
+    return { NX: NX, NY: NY, DX: w / (NX - 1), DY: h / (NY - 1) };
+  }
+
+  /* ---------- disc visit: stamp or probe ---------- */
+  function disc(hm, st, g, cx, cy, z, r, cone, stamp) {
+    var i0 = Math.max(0, Math.floor((cx - r - st.x0) / g.DX)), i1 = Math.min(g.NX - 1, Math.ceil((cx + r - st.x0) / g.DX));
+    var j0 = Math.max(0, Math.floor((cy - r - st.y0) / g.DY)), j1 = Math.min(g.NY - 1, Math.ceil((cy + r - st.y0) / g.DY));
+    var r2 = r * r, hit = false;
+    for (var j = j0; j <= j1; j++) {
+      var dy = st.y0 + j * g.DY - cy;
+      for (var i = i0; i <= i1; i++) {
+        var dx = st.x0 + i * g.DX - cx, d2 = dx * dx + dy * dy;
+        if (d2 > r2) continue;
+        var zz = cone ? z + Math.sqrt(d2) : z, k = j * g.NX + i;
+        if (hm[k] > zz + 0.05 && hm[k] > st.z0 + 1e-6) {   // a column cut to the bottom holds no material
+          hit = true;
+          if (stamp) hm[k] = Math.max(st.z0, zz); else return true;
+        }
+      }
+    }
+    return hit;
+  }
+
+  /* ---------- safety analysis ---------- */
+  var MSG = {
+    RAPID_IN_MATERIAL: 'CRASH: RAPID TRAVERSE INTO MATERIAL',
+    SPINDLE_OFF:       'CRASH: CUTTING WITH SPINDLE STOPPED',
+    BELOW_BLANK:       'CRASH: TOOL MORE THAN 3 MM BELOW BLANK — INTO THE PARALLELS / TABLE',
+    THROUGH_CUT:       'NOTE: TOOL BREAKS THROUGH THE BLANK BOTTOM — ASSUMES PARALLELS UNDER THE PART',
+    CHIP_LOAD:         'WARNING: CHIP LOAD HIGH FOR THIS CUTTER'
+  };
+
+  function analyse(res, ex, g) {
+    var st = res.stock, ev = [], seen = {};
+    var hm = new Float32Array(g.NX * g.NY); hm.fill(st.z1);
+    function add(code, sev, s, idx, t, p, extra) {
+      var key = code === 'CHIP_LOAD' ? code + ':' + s.tool + ':' + s.f
+              : code === 'THROUGH_CUT' ? code + ':' + s.tool
+              : code + ':' + s.block;
+      if (seen[key] || ev.length >= 60) return;
+      seen[key] = 1;
+      ev.push({ code: code, sev: sev, msg: MSG[code] + (extra || ''), block: s.block, seg: idx, t: t,
+                at: { x: p.x, y: p.y, z: p.z }, tool: s.tool });
+    }
+    function inside(p, r) {
+      return p.x > st.x0 - r && p.x < st.x1 + r && p.y > st.y0 - r && p.y < st.y1 + r;
+    }
+    ex.segs.forEach(function (s, idx) {
+      var step = Math.max(0.3, Math.min(s.toolR * 0.45, 1.5));
+      var n = Math.max(1, Math.ceil(s.len / step));
+      for (var i = 0; i <= n; i++) {
+        var u = i / n, t = s.t0 + (s.t1 - s.t0) * u;
+        var p = { x: s.a.x + (s.b.x - s.a.x) * u, y: s.a.y + (s.b.y - s.a.y) * u, z: s.a.z + (s.b.z - s.a.z) * u };
+        if (s.kind === 'rapid') {
+          if (disc(hm, st, g, p.x, p.y, p.z, s.toolR, s.cone, false)) {
+            add('RAPID_IN_MATERIAL', 'crash', s, idx, t, p); break;
+          }
+          continue;
+        }
+        if (inside(p, s.toolR)) {
+          if (p.z < st.z0 - 3) add('BELOW_BLANK', 'crash', s, idx, t, p);
+          else if (p.z < st.z0 - 0.01) add('THROUGH_CUT', 'info', s, idx, t, p);
+        }
+        var cut = disc(hm, st, g, p.x, p.y, p.z, s.toolR, s.cone, true);
+        if (cut) {
+          if (s.spindle === 0) add('SPINDLE_OFF', 'crash', s, idx, t, p);
+          var z = FLUTES[s.tool];
+          var lateral = Math.hypot(s.b.x - s.a.x, s.b.y - s.a.y) > Math.abs(s.b.z - s.a.z);
+          if (z && s.spindle && lateral) {
+            var D = 2 * s.toolR, fz = s.f / (Math.abs(s.spindle) * z), lim = 0.012 * D + 0.005;
+            if (fz > lim) add('CHIP_LOAD', 'warn', s, idx, t, p,
+              ' — fz ' + fz.toFixed(3) + ' MM/TOOTH, SUGGEST ≤ ' + lim.toFixed(3) +
+              ' (F' + Math.floor(lim * Math.abs(s.spindle) * z) + ' AT S' + Math.abs(s.spindle) + ')');
+          }
+        }
+      }
+    });
+    return ev;
+  }
+
+  return { expand: expand, grid: grid, analyse: analyse, isCone: isCone, MSG: MSG };
+})();
+if (typeof module !== 'undefined') module.exports = TNC_SIM;
+
+</script>
+<script>/* ===== Programs on the control ===== */
+/* Programs stored on the control. First entry loads on open. */
+var TNC_PROGRAMS = {
+
+'TRIFUNOVIC.H': [
+'BEGIN PGM TRIFUNOVIC MM',
+'BLK FORM 0.1 Z X+0 Y+0 Z-20',
+'BLK FORM 0.2 X+300 Y+200 Z+0',
+'; ------------------------------------------------',
+'; TRIFUNOVIC - GARAGE PLATE 300 X 200 X 20',
+'; LETTERS 20 HIGH, 15 WIDE, 2 DEEP, GAP 2',
+'; TEXT FIELD X+66 TO X+234, CENTRED ON Y+100',
+'; T9 = END MILL 3 MM   S3000   F1000',
+'; ------------------------------------------------',
+'TOOL CALL 9 Z S3000',
+'L Z+50 R0 FMAX M3',
+'FN 0: Q1 = -1                ; INFEED PER PASS',
+'FN 0: Q2 = +0                ; CURRENT DEPTH',
+'LBL 1',
+'FN 1: Q2 = +Q2 + +Q1',
+'; ---------- T ----------',
+'L X+67.5 Y+108.5 R0 FMAX',
+'L Z+Q2 F400',
+'L X+79.5 R0 F1000',
+'L Z+2 R0 FMAX',
+'L X+73.5 Y+108.5 R0 FMAX',
+'L Z+Q2 F400',
+'L Y+91.5 R0 F1000',
+'L Z+2 R0 FMAX',
+'; ---------- R ----------',
+'L X+84.5 Y+91.5 R0 FMAX',
+'L Z+Q2 F400',
+'L Y+108.5 R0 F1000',
+'L X+94 R0',
+'L X+96.5 Y+106 R0',
+'L Y+103 R0',
+'L X+94 Y+100.5 R0',
+'L X+84.5 R0',
+'L Z+2 R0 FMAX',
+'L X+91 Y+100.5 R0 FMAX',
+'L Z+Q2 F400',
+'L X+96.5 Y+91.5 R0 F1000',
+'L Z+2 R0 FMAX',
+'; ---------- I ----------',
+'L X+107.5 Y+108.5 R0 FMAX',
+'L Z+Q2 F400',
+'L Y+91.5 R0 F1000',
+'L Z+2 R0 FMAX',
+'; ---------- F ----------',
+'L X+118.5 Y+91.5 R0 FMAX',
+'L Z+Q2 F400',
+'L Y+108.5 R0 F1000',
+'L X+128 R0',
+'L X+130.5 Y+106 R0',
+'L Z+2 R0 FMAX',
+'L X+118.5 Y+100.5 R0 FMAX',
+'L Z+Q2 F400',
+'L X+128 R0 F1000',
+'L Z+2 R0 FMAX',
+'; ---------- U ----------',
+'L X+135.5 Y+108.5 R0 FMAX',
+'L Z+Q2 F400',
+'L Y+94 R0 F1000',
+'L X+138 Y+91.5 R0',
+'L X+145 R0',
+'L X+147.5 Y+94 R0',
+'L Y+108.5 R0',
+'L Z+2 R0 FMAX',
+'; ---------- N ----------',
+'L X+152.5 Y+91.5 R0 FMAX',
+'L Z+Q2 F400',
+'L Y+108.5 R0 F1000',
+'L X+164.5 Y+91.5 R0',
+'L Y+108.5 R0',
+'L Z+2 R0 FMAX',
+'; ---------- O ----------',
+'L X+172 Y+91.5 R0 FMAX',
+'L Z+Q2 F400',
+'L X+179 R0 F1000',
+'L X+181.5 Y+94 R0',
+'L Y+106 R0',
+'L X+179 Y+108.5 R0',
+'L X+172 R0',
+'L X+169.5 Y+106 R0',
+'L Y+94 R0',
+'L X+172 Y+91.5 R0',
+'L Z+2 R0 FMAX',
+'; ---------- V ----------',
+'L X+186.5 Y+108.5 R0 FMAX',
+'L Z+Q2 F400',
+'L X+191.5 Y+91.5 R0 F1000',
+'L X+193.5 R0',
+'L X+198.5 Y+108.5 R0',
+'L Z+2 R0 FMAX',
+'; ---------- I ----------',
+'L X+209.5 Y+108.5 R0 FMAX',
+'L Z+Q2 F400',
+'L Y+91.5 R0 F1000',
+'L Z+2 R0 FMAX',
+'; ---------- C ----------',
+'L X+232.5 Y+106 R0 FMAX',
+'L Z+Q2 F400',
+'L X+230 Y+108.5 R0 F1000',
+'L X+223 R0',
+'L X+220.5 Y+106 R0',
+'L Y+94 R0',
+'L X+223 Y+91.5 R0',
+'L X+230 R0',
+'L X+232.5 Y+94 R0',
+'L Z+2 R0 FMAX',
+'; ---------- RULES ABOVE AND BELOW ----------',
+'L X+60 Y+122 R0 FMAX',
+'L Z+Q2 F400',
+'L X+240 R0 F1000',
+'L Z+2 R0 FMAX',
+'L X+60 Y+78 R0 FMAX',
+'L Z+Q2 F400',
+'L X+240 R0 F1000',
+'L Z+2 R0 FMAX',
+'L X+60 Y+122 R0 FMAX',
+'L Z+Q2 F400',
+'L Y+128 R0 F1000',
+'L Z+2 R0 FMAX',
+'L X+240 Y+122 R0 FMAX',
+'L Z+Q2 F400',
+'L Y+128 R0 F1000',
+'L Z+2 R0 FMAX',
+'L X+60 Y+78 R0 FMAX',
+'L Z+Q2 F400',
+'L Y+72 R0 F1000',
+'L Z+2 R0 FMAX',
+'L X+240 Y+78 R0 FMAX',
+'L Z+Q2 F400',
+'L Y+72 R0 F1000',
+'L Z+2 R0 FMAX',
+'; ---------- INNER FRAME ----------',
+'L X+47 Y+40 R0 FMAX',
+'L Z+Q2 F400',
+'L X+253 R0 F1000',
+'L X+260 Y+47 R0',
+'L Y+153 R0',
+'L X+253 Y+160 R0',
+'L X+47 R0',
+'L X+40 Y+153 R0',
+'L Y+47 R0',
+'L X+47 Y+40 R0',
+'L Z+2 R0 FMAX',
+'; ---------- OUTER FRAME ----------',
+'L X+44 Y+34 R0 FMAX',
+'L Z+Q2 F400',
+'L X+256 R0 F1000',
+'L X+266 Y+44 R0',
+'L Y+156 R0',
+'L X+256 Y+166 R0',
+'L X+44 R0',
+'L X+34 Y+156 R0',
+'L Y+44 R0',
+'L X+44 Y+34 R0',
+'L Z+2 R0 FMAX',
+'CALL LBL 1 REP 1/1           ; 2 PASSES = 2 MM DEEP',
+'L Z+50 R0 FMAX',
+'; ---------- BREAK THE PLATE EDGE 1 X 45 ----------',
+'TOOL CALL 8 Z S2400',
+'L Z+50 R0 FMAX M3',
+'L X-10 Y+0 R0 FMAX',
+'L Z+2 R0 FMAX',
+'L Z-1 R0 F300',
+'L X+300 R0 F800',
+'L Y+200 R0',
+'L X+0 R0',
+'L Y+0 R0',
+'L Z+50 R0 FMAX',
+'; ---------- MOUNTING HOLES ----------',
+'TOOL CALL 2 Z S2400',
+'CYCL DEF 200 DRILLING',
+'  Q200=2   ;SET-UP CLEARANCE',
+'  Q201=-22 ;DEPTH',
+'  Q206=180 ;FEED RATE FOR PLNGNG',
+'  Q202=6   ;PLUNGING DEPTH',
+'  Q210=0   ;DWELL TIME AT TOP',
+'  Q203=+0  ;SURFACE COORDINATE',
+'  Q204=30  ;2ND SET-UP CLEARANCE',
+'L Z+50 R0 FMAX M3',
+'L X+20 Y+20 R0 FMAX M99',
+'L X+280 Y+20 R0 FMAX M99',
+'L X+280 Y+180 R0 FMAX M99',
+'L X+20 Y+180 R0 FMAX M99',
+'L Z+100 R0 FMAX M9',
+'TOOL CALL 0 Z',
+'L Z+250 R0 FMAX M2',
+'END PGM TRIFUNOVIC MM'
+].join('\n'),
+
+'TRIFUNOVIC_V2.H': "BEGIN PGM TRIFUNOVIC_V2 MM\nBLK FORM 0.1 Z X+0 Y+0 Z-10\nBLK FORM 0.2 X+220 Y+60 Z+0\n; ------------------------------------------------\n; TRIFUNOVIC V2 - ENGRAVING WITH TRUE ARCS\n; BLANK 220 X 60 X 10 ALU, DATUM LOWER LEFT, TOP Z+0\n; LETTERS 20 HIGH, 15 WIDE, 2 DEEP\n; CELLS 15 X 20, GAP 3, PITCH 18\n; TEXT FIELD X+21.5 TO X+198.5, Y+20 TO Y+40\n; CENTRE LINES INSET 1.5 = TOOL RADIUS, R0\n; O C U AND R BOWL: CC + C / CR ARCS\n; T9 ENDMILL 3 CARBIDE 3 FL  S7500\n; F600 (FZ 0.027)  PLUNGE F150\n; 4 PASSES X 0.5 = 2.0 DEEP (Q1 INFEED)\n; LBL 1 ... CALL LBL 1 REP 3/3 = 4 PASSES\n; ------------------------------------------------\nTOOL CALL 9 Z S7500\nL Z+50 R0 FMAX M3\nFN 0: Q1 = -0.5              ; INFEED PER PASS\nFN 0: Q2 = +0                ; CURRENT DEPTH\nFN 0: Q3 = +600              ; CUTTING FEED\nFN 0: Q4 = +150              ; PLUNGE FEED\nL X+23 Y+38.5 R0 FMAX M8\nL Z+2 R0 FMAX\nLBL 1\nFN 1: Q2 = +Q2 + +Q1\n; ---------- T  X+21.5 TO X+36.5 ----------\nL X+23 Y+38.5 R0 FMAX\nL Z+Q2 FQ4\nL X+35 Y+38.5 R0 FQ3\nL Z+2 R0 FMAX\nL X+29 Y+38.5 R0 FMAX\nL Z+Q2 FQ4\nL X+29 Y+21.5 R0 FQ3\nL Z+2 R0 FMAX\n; ---------- R  X+39.5 TO X+54.5 ----------\nL X+41 Y+21.5 R0 FMAX\nL Z+Q2 FQ4\nL X+41 Y+38.5 R0 FQ3\nL X+48 Y+38.5 R0\nCR X+48 Y+30 R+4.25 DR-\nL X+41 Y+30 R0\nL Z+2 R0 FMAX\nL X+47 Y+30 R0 FMAX\nL Z+Q2 FQ4\nL X+53 Y+21.5 R0 FQ3\nL Z+2 R0 FMAX\n; ---------- I  X+57.5 TO X+72.5 ----------\nL X+65 Y+38.5 R0 FMAX\nL Z+Q2 FQ4\nL X+65 Y+21.5 R0 FQ3\nL Z+2 R0 FMAX\n; ---------- F  X+75.5 TO X+90.5 ----------\nL X+77 Y+21.5 R0 FMAX\nL Z+Q2 FQ4\nL X+77 Y+38.5 R0 FQ3\nL X+89 Y+38.5 R0\nL Z+2 R0 FMAX\nL X+77 Y+30.5 R0 FMAX\nL Z+Q2 FQ4\nL X+86.5 Y+30.5 R0 FQ3\nL Z+2 R0 FMAX\n; ---------- U  X+93.5 TO X+108.5 ----------\nL X+95 Y+38.5 R0 FMAX\nL Z+Q2 FQ4\nL X+95 Y+27.5 R0 FQ3\nCC X+101 Y+27.5\nC X+107 Y+27.5 DR+\nL X+107 Y+38.5 R0\nL Z+2 R0 FMAX\n; ---------- N  X+111.5 TO X+126.5 ----------\nL X+113 Y+21.5 R0 FMAX\nL Z+Q2 FQ4\nL X+113 Y+38.5 R0 FQ3\nL X+125 Y+21.5 R0\nL X+125 Y+38.5 R0\nL Z+2 R0 FMAX\n; ---------- O  X+129.5 TO X+144.5 ----------\nL X+131 Y+32.5 R0 FMAX\nL Z+Q2 FQ4\nL X+131 Y+27.5 R0 FQ3\nCC X+137 Y+27.5\nC X+143 Y+27.5 DR+\nL X+143 Y+32.5 R0\nCC X+137 Y+32.5\nC X+131 Y+32.5 DR+\nL Z+2 R0 FMAX\n; ---------- V  X+147.5 TO X+162.5 ----------\nL X+149 Y+38.5 R0 FMAX\nL Z+Q2 FQ4\nL X+155 Y+21.5 R0 FQ3\nL X+161 Y+38.5 R0\nL Z+2 R0 FMAX\n; ---------- I  X+165.5 TO X+180.5 ----------\nL X+173 Y+38.5 R0 FMAX\nL Z+Q2 FQ4\nL X+173 Y+21.5 R0 FQ3\nL Z+2 R0 FMAX\n; ---------- C  X+183.5 TO X+198.5 ----------\nL X+196.196 Y+35.5 R0 FMAX\nL Z+Q2 FQ4\nCC X+191 Y+32.5\nC X+185 Y+32.5 DR+ FQ3\nL X+185 Y+27.5 R0\nCC X+191 Y+27.5\nC X+196.196 Y+24.5 DR+\nL Z+2 R0 FMAX\nCALL LBL 1 REP 3/3\nL Z+50 R0 FMAX M5 M9\nTOOL CALL 0 Z\nL Z+100 R0 FMAX M2\nEND PGM TRIFUNOVIC_V2 MM",
+
+'BRACKET.H': [
+'BEGIN PGM BRACKET MM',
+'BLK FORM 0.1 Z X+0 Y+0 Z-20',
+'BLK FORM 0.2 X+120 Y+80 Z+0',
+'; ---------- FACE THE TOP ----------',
+'TOOL CALL 6 Z S1200',
+'L Z+50 R0 FMAX M3',
+'L X-30 Y+15 R0 FMAX M8',
+'L Z-0.5 R0 FMAX',
+'L X+150 R0 F900',
+'L Y+40 R0 FMAX',
+'L X-30 R0 F900',
+'L Y+65 R0 FMAX',
+'L X+150 R0 F900',
+'L Z+50 R0 FMAX',
+'; ---------- RECTANGULAR POCKET, 4 PASSES ----------',
+'TOOL CALL 5 Z S3200',
+'FN 0: Q1 = -3',
+'FN 0: Q2 = +0',
+'L Z+50 R0 FMAX M3',
+'L X+30 Y+25 R0 FMAX',
+'L Z+1 R0 FMAX',
+'LBL 1',
+'FN 1: Q2 = +Q2 + +Q1',
+'L Z+Q2 R0 F220',
+'L X+90 Y+25 R0 F700',
+'L X+90 Y+55 R0',
+'L X+30 Y+55 R0',
+'L X+30 Y+25 R0',
+'CALL LBL 1 REP 3/3',
+'L Z+50 R0 FMAX',
+'; ---------- CIRCULAR SLOT ----------',
+'L X+78 Y+40 R0 FMAX',
+'L Z+1 R0 FMAX',
+'L Z-6 R0 F200',
+'CC X+60 Y+40',
+'C X+42 Y+40 DR+',
+'C X+78 Y+40 DR+',
+'L Z+50 R0 FMAX',
+'; ---------- 4 HOLES ----------',
+'TOOL CALL 2 Z S2400',
+'CYCL DEF 200 DRILLING',
+'  Q200=2   ;SET-UP CLEARANCE',
+'  Q201=-22 ;DEPTH',
+'  Q206=180 ;FEED RATE FOR PLNGNG',
+'  Q202=6   ;PLUNGING DEPTH',
+'  Q210=0   ;DWELL TIME AT TOP',
+'  Q203=+0  ;SURFACE COORDINATE',
+'  Q204=30  ;2ND SET-UP CLEARANCE',
+'L Z+50 R0 FMAX M3',
+'L X+15 Y+15 R0 FMAX M99',
+'L X+105 Y+15 R0 FMAX M99',
+'L X+105 Y+65 R0 FMAX M99',
+'L X+15 Y+65 R0 FMAX M99',
+'L Z+100 R0 FMAX M9',
+'TOOL CALL 0 Z',
+'L Z+250 R0 FMAX M2',
+'END PGM BRACKET MM'
+].join('\n')
+};
+if (typeof module !== 'undefined') module.exports = TNC_PROGRAMS;
+
+</script>
+<script>/* ===== Dev feature log ===== */
+window.TNC_DEVLOG = "TNC 426 SIMULATOR - DEVELOPER FEATURE LOG\n2026-09-21\n\nLIVE - EARLIER PUSHES\n==============================================================================\n37b63a5  TNC 426 Klartext CNC simulator\ne971807  Document interpreter simplifications in README\n\nINTERPRETER:\n  - Klartext parser/interpreter: linear moves (L) with modal feed and\n    incremental IX/IY/IZ; circular moves via CC + C and CR, DR+/DR-.\n  - Drilling cycles CYCL DEF 200/201/203 and pocket cycle CYCL DEF 4\n    (spiral-out rectangular clearing).\n  - LBL as both subprogram call and program-section repeat via\n    CALL LBL n REP r/r (r + 1 passes total); Q parameters with FN 0-4.\n  - M3/M4/M5/M8/M9/M2/M30, M99 blockwise cycle call, tool table via\n    TOOL CALL, TNC-style error register (FEED RATE MISSING, ARC END\n    POS. INCORRECT, LABEL NUMBER NOT FOUND, etc).\n\nSIMULATOR:\n  - Height-field material removal: the tool stamps its real radius\n    along every feed move; scrubbing backwards rebuilds the blank;\n    removed volume integrated from the height field.\n  - Four operating modes as on the control (PROGRAMMING AND EDITING,\n    TEST RUN, PGM RUN SINGLE BLOCK, PGM RUN FULL SEQ), each with its\n    own soft-key row; speeds 1x/4x/16x/64x/MAX; views 3D/TOP/FRONT/SIDE.\n  - Run comparison: store a finished run as reference A, run again,\n    read the delta on cycle time, feed/rapid path, moves, min Z, volume.\n  - Keyboard: arrows, ENTER, ESC, SPACE, S, R, E/I/D/C, TAB, G, 1-5,\n    F1-F4, +/-, HOME/END, PGUP/PGDN.\n\nBUILD / DOCS:\n  - build.py bundles everything into one self-contained index.html.\n  - README lists known simplifications: RL/RR drawn on the centreline,\n    INCH not converted, dwell not counted in cycle time, Q213 chip\n    breaking approximated, height field cannot show undercuts.\n\nLIVE - THIS PUSH\n==============================================================================\nINTERPRETER:\n  - T9 ENDMILL_3 (R1.5) added to the tool table for engraving.\n  - Block numbering as on the TNC: a CYCL DEF and its Q-parameter lines\n    are one NC block; blank lines carry no number.\n  - Spindle as on the TNC: S in TOOL CALL only sets the speed, a tool\n    change stops the spindle, M3/M4 start it. M3/M4/M8/M13/M14 act at\n    block start, M5/M9/M2/M30 at block end.\n  - Parse errors and run errors both reference the same block index.\n\nSIMULATOR:\n  - Height-field resolution follows the smallest cutter, so a Z3\n    engraving resolves (TRIFUNOVIC: 401 x 268 cells, 0.75 mm).\n  - sim.js: shared timing/arc tessellation and a safety analysis\n    (rapid into material, cutting with spindle stopped, tool more than\n    3 mm below the blank, through-cut note, chip load above\n    0.012 x D + 0.005 mm/tooth). Analysis runs in tests; it is not\n    shown in the UI yet.\n\nPROGRAMS (selector in the Program header, TRIFUNOVIC.H opens first):\n  - TRIFUNOVIC.H - V1 garage plate 300 x 200 x 20: chamfered letters\n    20 x 15 x 2 deep with T9, rules and two frames, 1 x 45 edge break\n    on the real plate edge with T8, four mounting holes with CYCL 200.\n    Runs clean; the simulator flags F1000 at S3000 on a Z3 cutter as\n    high chip load (fz 0.111 against 0.041).\n  - TRIFUNOVIC_V2.H - 220 x 60 x 10: letters with real CC/C and CR\n    arcs for O, C, U and the R bowl, S7500 F600 plunge F150, four\n    passes of 0.5 mm. Zero errors, zero warnings. For A/B against V1.\n  - BRACKET.H - fixed: the T5 pocket had no M3 after the tool change.\n\nUI:\n  - DEV tab behind the orange button (this log).\n  - Program listing shows no block number on Q-parameter lines.\n\nIN PROGRESS\n==============================================================================\n  - UI: PGM MGT program manager (arrow keys, ENT, ESC); NEW PGM from\n    scratch with the MM and BLK FORM dialog; save as .H with Ctrl+S in\n    numbered TNC listing format; undo/redo per program (Ctrl+Z,\n    Ctrl+Shift+Z / Ctrl+Y); mobile layout with a bottom tab bar\n    (Program / Graphics / Status) and touch-sized controls.\n  - PERSISTENCE: programs and projects in browser storage, user\n    settings in a cookie; projects panel to create a project, append\n    programs, download a project as .zip.\n  - SIMULATOR: safety checks shown during the run, crash alarm that\n    stops the run; chamfer and spot tools rendered as 45-degree cones.\n  - HELP: LEARN (6 lessons), BREAK IT (8 famous ways to wreck a\n    machine, with the fix), power-user MANUAL.\n  - AI PROGRAM GENERATION: the third way to make a program, via\n    OpenRouter with the user's own key, DeepSeek V4.1 Flash by default;\n    the simulator checks the AI's program and sends errors back for\n    one repair pass; setup guide included.\n  - EFFECTS: metal chips that land on the part, sparks, coolant spray on\n    M8, smoke and fire (toggle, off by default), crash burst.\n";
+</script>
 <script>/* ===== Simulator UI ===== */
 /* ============================================================
    TNC 426 SIMULATOR — UI, graphics and machine behaviour
@@ -2275,7 +2749,9 @@ const SAMPLE = [
 
 /* ---------- state ---------- */
 const S = {
-  text: SAMPLE,
+  pgms: Object.assign({'BRACKET.H':SAMPLE}, window.TNC_PROGRAMS||{}),
+  pgm: (window.TNC_PROGRAMS&&TNC_PROGRAMS['TRIFUNOVIC.H'])?'TRIFUNOVIC.H':'BRACKET.H',
+  text: (window.TNC_PROGRAMS&&TNC_PROGRAMS['TRIFUNOVIC.H'])||SAMPLE,
   res: null,          // TNC.run result
   segs: [],           // expanded, timed segments
   total: 0,           // total seconds
@@ -2342,6 +2818,7 @@ function expand(res){
 }
 
 function compile(){
+  S.pgms[S.pgm]=S.text;
   let res;
   try { res = TNC.run(S.text); }
   catch(e){ res={blocks:[],moves:[],stock:{x0:0,y0:0,z0:-20,x1:120,y1:80,z1:0},
@@ -2383,9 +2860,9 @@ function buildScene(){
   const st = S.res.stock || {x0:0,y0:0,z0:-20,x1:120,y1:80,z1:0};
   ST=st;
   const w=Math.max(1,st.x1-st.x0), h=Math.max(1,st.y1-st.y0);
-  NX=Math.min(200,Math.max(30,Math.round(w/0.8)));
-  NY=Math.min(160,Math.max(30,Math.round(h/0.8)));
-  DX=w/(NX-1); DY=h/(NY-1);
+  if(window.TNC_SIM){ const g=TNC_SIM.grid(st,S.segs); NX=g.NX; NY=g.NY; DX=g.DX; DY=g.DY; }
+  else { NX=Math.min(200,Math.max(30,Math.round(w/0.8))); NY=Math.min(160,Math.max(30,Math.round(h/0.8)));
+         DX=w/(NX-1); DY=h/(NY-1); }
   HM=new Float32Array(NX*NY).fill(st.z1);
 
   /* top surface */
@@ -2620,7 +3097,7 @@ function renderList(keep){
     const cls=['blk']; if(i===S.cursor)cls.push('cur');
     if(i===execB&&i!==S.cursor)cls.push('exec');
     if(b.indent)cls.push('ind'); if(b.error)cls.push('err');
-    return `<div class="${cls.join(' ')}" data-i="${i}"><span class="bn">${b.n}</span><span class="bt">${hi(b.raw||'')}</span></div>`;
+    return `<div class="${cls.join(' ')}" data-i="${i}"><span class="bn">${b.indent||b.n==null?'':b.n}</span><span class="bt">${hi(b.raw||'')}</span></div>`;
   }).join('');
   if(!keep||true){
     const el=plist.children[S.cursor];
@@ -2638,7 +3115,7 @@ function renderErrors(){
   const er=S.res.errors||[];
   $('errc').textContent=er.length?er.length+' active':'0';
   $('elist').innerHTML = er.length
-    ? er.map(e=>`<div>BLOCK ${e.block==null?'--':e.block} &nbsp; ${esc(e.msg)}</div>`).join('')
+    ? er.map(e=>{const b=S.res.blocks[e.block]; return `<div>BLOCK ${b&&b.n!=null?b.n:'--'} &nbsp; ${esc(e.msg)}</div>`;}).join('')
     : '<div class="ok">NO ERRORS &mdash; PROGRAM CHECKED OK</div>';
 }
 
@@ -2773,7 +3250,7 @@ function srcIndexOf(blockIdx){
 function beginEdit(){
   const b=S.res.blocks[S.cursor]; if(!b)return;
   S.editing=true; dlgIn.disabled=false; dlgIn.value=b.raw||'';
-  dlgPr.textContent='BLOCK '+b.n; dlgHint.textContent='ENT accept · ESC cancel';
+  dlgPr.textContent='BLOCK '+(b.n==null?'':b.n); dlgHint.textContent='ENT accept · ESC cancel';
   dlgIn.focus(); dlgIn.select();
 }
 function endEdit(accept){
@@ -2914,12 +3391,12 @@ function tick(now){
     if(nt>=S.total){ seek(S.total); S.running=false; setState('PROGRAM END — M2'); }
     else seek(nt);
   }
-  if(hmDirty){ acc+=dt; if(acc>.05){ paintHM(); acc=0; } }
+  if(hmDirty){ acc+=dt; if(acc>(NX*NY>60000?.1:.05)){ paintHM(); acc=0; } }
   if(gPath){ const n=S.segs.length?segAt(S.t)+1:0; gPath.geometry.setDrawRange(0,n*2); }
   renderDro();
   if(!tick._k||now-tick._k>200){ renderKV(); tick._k=now;
     $('ovl-l').innerHTML='PGM <b style="color:var(--cyan)">'+((/PGM (\S+)/.exec(S.text)||[,'—'])[1])+'</b><br>'+
-      'BLOCK <b>'+(S.res.blocks[S.cursor]?S.res.blocks[S.cursor].n:'--')+'</b> / '+(S.res.blocks.length-1)+'<br>'+
+      'BLOCK <b>'+(S.res.blocks[S.cursor]&&S.res.blocks[S.cursor].n!=null?S.res.blocks[S.cursor].n:'--')+'</b> / '+((S.res.blocks.filter(b=>b.n!=null).pop()||{n:0}).n)+'<br>'+
       'STOCK <b>'+(ST.x1-ST.x0)+'×'+(ST.y1-ST.y0)+'×'+(ST.z1-ST.z0)+'</b> mm';
     $('ovl-r').innerHTML=S.view+' &middot; '+(S.speed?S.speed+'×':'MAX')+'<br>'+
       fmtT(S.t)+' / '+fmtT(S.total)+'<br>OVR <b style="color:var(--amber)">'+S.ovr+'%</b>';
@@ -2927,6 +3404,30 @@ function tick(now){
   controls.update(); renderer.render(scene,camera);
   requestAnimationFrame(tick);
 }
+
+/* ---------- program selector ---------- */
+const pgmSel=$('pgm-sel');
+function fillPgmSel(){
+  pgmSel.innerHTML=Object.keys(S.pgms).map(n=>`<option value="${n}"${n===S.pgm?' selected':''}>TNC:\\${n}</option>`).join('');
+}
+pgmSel.addEventListener('change',()=>{
+  S.pgms[S.pgm]=S.text; S.pgm=pgmSel.value; S.text=S.pgms[S.pgm];
+  raw.value=S.text; S.cursor=0; compile(); pgmSel.blur(); say('PGM '+S.pgm+' SELECTED');
+});
+fillPgmSel();
+
+/* ---------- DEV panel ---------- */
+const dev=$('dev');
+function openDev(){ $('dev-pre').textContent=window.TNC_DEVLOG||'devlog.txt missing from this build.';
+  dev.hidden=false; S.running=false; $('dev-x').focus(); }
+function closeDev(){ dev.hidden=true; $('b-dev').focus(); }
+$('b-dev').onclick=openDev; $('dev-x').onclick=closeDev;
+dev.addEventListener('click',e=>{ if(e.target===dev) closeDev(); });
+addEventListener('keydown',e=>{            // capture: the panel owns the keyboard while open
+  if(dev.hidden) return;
+  if(e.key==='Escape'){ e.preventDefault(); closeDev(); }
+  e.stopImmediatePropagation();
+},true);
 
 /* ---------- boot ---------- */
 raw.value=S.text;

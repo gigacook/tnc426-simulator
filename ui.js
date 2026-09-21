@@ -68,7 +68,9 @@ const SAMPLE = [
 
 /* ---------- state ---------- */
 const S = {
-  text: SAMPLE,
+  pgms: Object.assign({'BRACKET.H':SAMPLE}, window.TNC_PROGRAMS||{}),
+  pgm: (window.TNC_PROGRAMS&&TNC_PROGRAMS['TRIFUNOVIC.H'])?'TRIFUNOVIC.H':'BRACKET.H',
+  text: (window.TNC_PROGRAMS&&TNC_PROGRAMS['TRIFUNOVIC.H'])||SAMPLE,
   res: null,          // TNC.run result
   segs: [],           // expanded, timed segments
   total: 0,           // total seconds
@@ -135,6 +137,7 @@ function expand(res){
 }
 
 function compile(){
+  S.pgms[S.pgm]=S.text;
   let res;
   try { res = TNC.run(S.text); }
   catch(e){ res={blocks:[],moves:[],stock:{x0:0,y0:0,z0:-20,x1:120,y1:80,z1:0},
@@ -176,9 +179,9 @@ function buildScene(){
   const st = S.res.stock || {x0:0,y0:0,z0:-20,x1:120,y1:80,z1:0};
   ST=st;
   const w=Math.max(1,st.x1-st.x0), h=Math.max(1,st.y1-st.y0);
-  NX=Math.min(200,Math.max(30,Math.round(w/0.8)));
-  NY=Math.min(160,Math.max(30,Math.round(h/0.8)));
-  DX=w/(NX-1); DY=h/(NY-1);
+  if(window.TNC_SIM){ const g=TNC_SIM.grid(st,S.segs); NX=g.NX; NY=g.NY; DX=g.DX; DY=g.DY; }
+  else { NX=Math.min(200,Math.max(30,Math.round(w/0.8))); NY=Math.min(160,Math.max(30,Math.round(h/0.8)));
+         DX=w/(NX-1); DY=h/(NY-1); }
   HM=new Float32Array(NX*NY).fill(st.z1);
 
   /* top surface */
@@ -413,7 +416,7 @@ function renderList(keep){
     const cls=['blk']; if(i===S.cursor)cls.push('cur');
     if(i===execB&&i!==S.cursor)cls.push('exec');
     if(b.indent)cls.push('ind'); if(b.error)cls.push('err');
-    return `<div class="${cls.join(' ')}" data-i="${i}"><span class="bn">${b.n}</span><span class="bt">${hi(b.raw||'')}</span></div>`;
+    return `<div class="${cls.join(' ')}" data-i="${i}"><span class="bn">${b.indent||b.n==null?'':b.n}</span><span class="bt">${hi(b.raw||'')}</span></div>`;
   }).join('');
   if(!keep||true){
     const el=plist.children[S.cursor];
@@ -431,7 +434,7 @@ function renderErrors(){
   const er=S.res.errors||[];
   $('errc').textContent=er.length?er.length+' active':'0';
   $('elist').innerHTML = er.length
-    ? er.map(e=>`<div>BLOCK ${e.block==null?'--':e.block} &nbsp; ${esc(e.msg)}</div>`).join('')
+    ? er.map(e=>{const b=S.res.blocks[e.block]; return `<div>BLOCK ${b&&b.n!=null?b.n:'--'} &nbsp; ${esc(e.msg)}</div>`;}).join('')
     : '<div class="ok">NO ERRORS &mdash; PROGRAM CHECKED OK</div>';
 }
 
@@ -566,7 +569,7 @@ function srcIndexOf(blockIdx){
 function beginEdit(){
   const b=S.res.blocks[S.cursor]; if(!b)return;
   S.editing=true; dlgIn.disabled=false; dlgIn.value=b.raw||'';
-  dlgPr.textContent='BLOCK '+b.n; dlgHint.textContent='ENT accept · ESC cancel';
+  dlgPr.textContent='BLOCK '+(b.n==null?'':b.n); dlgHint.textContent='ENT accept · ESC cancel';
   dlgIn.focus(); dlgIn.select();
 }
 function endEdit(accept){
@@ -707,12 +710,12 @@ function tick(now){
     if(nt>=S.total){ seek(S.total); S.running=false; setState('PROGRAM END — M2'); }
     else seek(nt);
   }
-  if(hmDirty){ acc+=dt; if(acc>.05){ paintHM(); acc=0; } }
+  if(hmDirty){ acc+=dt; if(acc>(NX*NY>60000?.1:.05)){ paintHM(); acc=0; } }
   if(gPath){ const n=S.segs.length?segAt(S.t)+1:0; gPath.geometry.setDrawRange(0,n*2); }
   renderDro();
   if(!tick._k||now-tick._k>200){ renderKV(); tick._k=now;
     $('ovl-l').innerHTML='PGM <b style="color:var(--cyan)">'+((/PGM (\S+)/.exec(S.text)||[,'—'])[1])+'</b><br>'+
-      'BLOCK <b>'+(S.res.blocks[S.cursor]?S.res.blocks[S.cursor].n:'--')+'</b> / '+(S.res.blocks.length-1)+'<br>'+
+      'BLOCK <b>'+(S.res.blocks[S.cursor]&&S.res.blocks[S.cursor].n!=null?S.res.blocks[S.cursor].n:'--')+'</b> / '+((S.res.blocks.filter(b=>b.n!=null).pop()||{n:0}).n)+'<br>'+
       'STOCK <b>'+(ST.x1-ST.x0)+'×'+(ST.y1-ST.y0)+'×'+(ST.z1-ST.z0)+'</b> mm';
     $('ovl-r').innerHTML=S.view+' &middot; '+(S.speed?S.speed+'×':'MAX')+'<br>'+
       fmtT(S.t)+' / '+fmtT(S.total)+'<br>OVR <b style="color:var(--amber)">'+S.ovr+'%</b>';
@@ -720,6 +723,30 @@ function tick(now){
   controls.update(); renderer.render(scene,camera);
   requestAnimationFrame(tick);
 }
+
+/* ---------- program selector ---------- */
+const pgmSel=$('pgm-sel');
+function fillPgmSel(){
+  pgmSel.innerHTML=Object.keys(S.pgms).map(n=>`<option value="${n}"${n===S.pgm?' selected':''}>TNC:\\${n}</option>`).join('');
+}
+pgmSel.addEventListener('change',()=>{
+  S.pgms[S.pgm]=S.text; S.pgm=pgmSel.value; S.text=S.pgms[S.pgm];
+  raw.value=S.text; S.cursor=0; compile(); pgmSel.blur(); say('PGM '+S.pgm+' SELECTED');
+});
+fillPgmSel();
+
+/* ---------- DEV panel ---------- */
+const dev=$('dev');
+function openDev(){ $('dev-pre').textContent=window.TNC_DEVLOG||'devlog.txt missing from this build.';
+  dev.hidden=false; S.running=false; $('dev-x').focus(); }
+function closeDev(){ dev.hidden=true; $('b-dev').focus(); }
+$('b-dev').onclick=openDev; $('dev-x').onclick=closeDev;
+dev.addEventListener('click',e=>{ if(e.target===dev) closeDev(); });
+addEventListener('keydown',e=>{            // capture: the panel owns the keyboard while open
+  if(dev.hidden) return;
+  if(e.key==='Escape'){ e.preventDefault(); closeDev(); }
+  e.stopImmediatePropagation();
+},true);
 
 /* ---------- boot ---------- */
 raw.value=S.text;

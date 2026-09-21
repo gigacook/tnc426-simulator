@@ -26,6 +26,7 @@ var TNC = (function () {
     { t: 6,  name: 'FACEMILL_50',   l: 52.300,  r: 25.00  },
     { t: 7,  name: 'BORE_HEAD',     l: 142.00,  r: 16.00  },
     { t: 8,  name: 'CHAMFER_45',    l: 58.900,  r: 5.000  },
+    { t: 9,  name: 'ENDMILL_3',     l: 58.000,  r: 1.500  },
     { t: 11, name: 'PROBE_TS640',   l: 155.00,  r: 3.000  },
     { t: 42, name: 'REAMER_H7',     l: 101.30,  r: 5.000  }
   ];
@@ -298,10 +299,18 @@ var TNC = (function () {
   function parse(text) {
     var blocks = [], errors = [];
     var lines = String(text === undefined || text === null ? '' : text).split(/\r?\n/);
+    var nc = 0, owner = 0;
     for (var i = 0; i < lines.length; i++) {
       var b = parseLine(lines[i], blocks.length);
+      /* HEIDENHAIN numbering: a CYCL DEF and its Q-parameter lines are ONE NC
+         block, so parameter lines carry their CYCL DEF's number and do not
+         advance the count. Blank lines are not NC blocks and carry none. */
+      if (b.kind === 'CYCLPARM') b.n = owner;
+      else if (b.kind === 'BLANK') b.n = null;
+      else { b.n = nc++; owner = b.n; }
       blocks.push(b);
-      if (b.error) errors.push({ block: b.n, msg: b.error });
+      // errors always reference the index into blocks[], like compile() does
+      if (b.error) errors.push({ block: blocks.length - 1, msg: b.error });
     }
     return { blocks: blocks, errors: errors };
   }
@@ -338,7 +347,8 @@ var TNC = (function () {
       pos: { x: 0, y: 0, z: 0 },
       feed: DEFAULT_FEED,
       tool: { t: 0, name: '', r: 3, l: 0 },
-      spindle: 0,
+      spindle: 0,          // effective: sRpm * spinDir
+      sRpm: 0, spinDir: 0,
       coolant: false,
       cc: null,
       Q: {},
@@ -386,16 +396,21 @@ var TNC = (function () {
     if (st.moves.length >= MAX_MOVES) { st.abort = true; fail(st, bi, 'EXCESSIVE SUBPROGRAM NESTING'); }
   }
 
-  function applyM(st, list) {
-    if (!list) return;
-    for (var i = 0; i < list.length; i++) {
+  /* M-functions take effect either at block start (M3 M4 M8 M13 M14) or at
+     block end (M5 M9 M2 M30), as on the TNC. `phase` is 'start' or 'end'. */
+  function applyM(st, list, phase) {
+    if (list) for (var i = 0; i < list.length; i++) {
       var m = list[i];
-      if (m === 3) st.spindle = Math.abs(st.spindle) || 0;
-      else if (m === 4) st.spindle = -Math.abs(st.spindle);
-      else if (m === 5) st.spindle = 0;
-      else if (m === 8) st.coolant = true;
-      else if (m === 9) st.coolant = false;
+      if (phase === 'start') {
+        if (m === 3 || m === 13) st.spinDir = 1;
+        else if (m === 4 || m === 14) st.spinDir = -1;
+        if (m === 8 || m === 13 || m === 14) st.coolant = true;
+      } else {
+        if (m === 5 || m === 2 || m === 30) st.spinDir = 0;
+        if (m === 9 || m === 2 || m === 30) st.coolant = false;
+      }
     }
+    st.spindle = st.sRpm * st.spinDir;
   }
 
   function hasM99(list) {
@@ -620,7 +635,7 @@ var TNC = (function () {
 
   function doLine(st, b, bi) {
     var a = b.args;
-    applyM(st, a.m);
+    applyM(st, a.m, 'start');
     if (a.f !== undefined) {
       var fv = resolve(a.f, st.Q);
       if (fv === null || fv <= 0) fail(st, bi, 'FEED RATE MISSING');
@@ -636,6 +651,7 @@ var TNC = (function () {
         emit(st, 'feed', to, st.feed, bi, null);
       }
     }
+    applyM(st, a.m, 'end');
   }
 
   function doCC(st, b) {
@@ -650,7 +666,7 @@ var TNC = (function () {
 
   function doArcC(st, b, bi) {
     var a = b.args;
-    applyM(st, a.m);
+    applyM(st, a.m, 'start');
     if (a.f !== undefined) { var fv = resolve(a.f, st.Q); if (fv > 0) st.feed = fv; }
     if (!st.cc) { fail(st, bi, 'CIRCLE CENTER UNDEFINED'); return; }
     var to = targetOf(a, st);
@@ -660,11 +676,12 @@ var TNC = (function () {
     if (r1 < EPS || Math.abs(r1 - r2) > ARC_TOL) { fail(st, bi, 'ARC END POS. INCORRECT'); return; }
     if (!(st.feed > 0)) { fail(st, bi, 'FEED RATE MISSING'); return; }
     emit(st, 'arc', to, st.feed, bi, null, { cx: st.cc.x, cy: st.cc.y, ccw: a.dr !== '-' });
+    applyM(st, a.m, 'end');
   }
 
   function doArcCR(st, b, bi) {
     var a = b.args;
-    applyM(st, a.m);
+    applyM(st, a.m, 'start');
     if (a.f !== undefined) { var fv = resolve(a.f, st.Q); if (fv > 0) st.feed = fv; }
     var R = resolve(a.r, st.Q);
     if (R === null || Math.abs(R) < EPS) { fail(st, bi, 'ARC END POS. INCORRECT'); return; }
@@ -688,16 +705,21 @@ var TNC = (function () {
     if (!(st.feed > 0)) { fail(st, bi, 'FEED RATE MISSING'); return; }
     st.cc = { x: pick.x, y: pick.y };
     emit(st, 'arc', to, st.feed, bi, null, { cx: pick.x, cy: pick.y, ccw: ccw });
+    applyM(st, a.m, 'end');
   }
 
   function doToolCall(st, b, bi) {
     var t = resolve(b.args.t, st.Q);
     t = (t === null) ? 0 : Math.round(t);
     if (!b.args.axis) fail(st, bi, 'TOOL AXIS MISSING');
+    /* The tool change stops the spindle (as on practically every machine);
+       S only sets the programmed speed. M3/M4 is needed to start it again. */
+    if (st.tool.t !== t) st.spinDir = 0;
     if (b.args.s !== null && b.args.s !== undefined) {
       var s = resolve(b.args.s, st.Q);
-      if (s !== null) st.spindle = (st.spindle < 0 ? -1 : 1) * Math.abs(s);
+      if (s !== null) st.sRpm = Math.abs(s);
     }
+    st.spindle = st.sRpm * st.spinDir;
     if (t === 0) { st.tool = { t: 0, name: '', r: 3, l: 0 }; return; }
     var e = toolByNumber(t);
     if (!e) { fail(st, bi, 'TOOL ' + t + ' NOT DEFINED'); st.tool = { t: t, name: 'UNDEFINED', r: 3, l: 0 }; }
@@ -763,8 +785,9 @@ var TNC = (function () {
           break;
         case 'CYCLPARM': break;                    // consumed by the CYCL DEF above
         case 'CYCLCALL':
-          applyM(st, b.args.m);
+          applyM(st, b.args.m, 'start');
           runCycle(st, i);
+          applyM(st, b.args.m, 'end');
           break;
         case 'LBL': break;
         case 'LBLEND': if (depth > 0) return; break;
@@ -792,7 +815,8 @@ var TNC = (function () {
         }
         case 'FN': doFN(st, b, i); break;
         case 'STOP':
-          applyM(st, b.args.m);
+          applyM(st, b.args.m, 'start');
+          applyM(st, b.args.m, 'end');
           if (hasEndM(b.args.m)) { st.done = true; return; }
           break;
         default: break;

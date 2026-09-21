@@ -1,0 +1,92 @@
+TNC 426 SIMULATOR - DEVELOPER FEATURE LOG
+2026-09-21
+
+LIVE - EARLIER PUSHES
+==============================================================================
+37b63a5  TNC 426 Klartext CNC simulator
+e971807  Document interpreter simplifications in README
+
+INTERPRETER:
+  - Klartext parser/interpreter: linear moves (L) with modal feed and
+    incremental IX/IY/IZ; circular moves via CC + C and CR, DR+/DR-.
+  - Drilling cycles CYCL DEF 200/201/203 and pocket cycle CYCL DEF 4
+    (spiral-out rectangular clearing).
+  - LBL as both subprogram call and program-section repeat via
+    CALL LBL n REP r/r (r + 1 passes total); Q parameters with FN 0-4.
+  - M3/M4/M5/M8/M9/M2/M30, M99 blockwise cycle call, tool table via
+    TOOL CALL, TNC-style error register (FEED RATE MISSING, ARC END
+    POS. INCORRECT, LABEL NUMBER NOT FOUND, etc).
+
+SIMULATOR:
+  - Height-field material removal: the tool stamps its real radius
+    along every feed move; scrubbing backwards rebuilds the blank;
+    removed volume integrated from the height field.
+  - Four operating modes as on the control (PROGRAMMING AND EDITING,
+    TEST RUN, PGM RUN SINGLE BLOCK, PGM RUN FULL SEQ), each with its
+    own soft-key row; speeds 1x/4x/16x/64x/MAX; views 3D/TOP/FRONT/SIDE.
+  - Run comparison: store a finished run as reference A, run again,
+    read the delta on cycle time, feed/rapid path, moves, min Z, volume.
+  - Keyboard: arrows, ENTER, ESC, SPACE, S, R, E/I/D/C, TAB, G, 1-5,
+    F1-F4, +/-, HOME/END, PGUP/PGDN.
+
+BUILD / DOCS:
+  - build.py bundles everything into one self-contained index.html.
+  - README lists known simplifications: RL/RR drawn on the centreline,
+    INCH not converted, dwell not counted in cycle time, Q213 chip
+    breaking approximated, height field cannot show undercuts.
+
+LIVE - THIS PUSH
+==============================================================================
+INTERPRETER:
+  - T9 ENDMILL_3 (R1.5) added to the tool table for engraving.
+  - Block numbering as on the TNC: a CYCL DEF and its Q-parameter lines
+    are one NC block; blank lines carry no number.
+  - Spindle as on the TNC: S in TOOL CALL only sets the speed, a tool
+    change stops the spindle, M3/M4 start it. M3/M4/M8/M13/M14 act at
+    block start, M5/M9/M2/M30 at block end.
+  - Parse errors and run errors both reference the same block index.
+
+SIMULATOR:
+  - Height-field resolution follows the smallest cutter, so a Z3
+    engraving resolves (TRIFUNOVIC: 401 x 268 cells, 0.75 mm).
+  - sim.js: shared timing/arc tessellation and a safety analysis
+    (rapid into material, cutting with spindle stopped, tool more than
+    3 mm below the blank, through-cut note, chip load above
+    0.012 x D + 0.005 mm/tooth). Analysis runs in tests; it is not
+    shown in the UI yet.
+
+PROGRAMS (selector in the Program header, TRIFUNOVIC.H opens first):
+  - TRIFUNOVIC.H - V1 garage plate 300 x 200 x 20: chamfered letters
+    20 x 15 x 2 deep with T9, rules and two frames, 1 x 45 edge break
+    on the real plate edge with T8, four mounting holes with CYCL 200.
+    Runs clean; the simulator flags F1000 at S3000 on a Z3 cutter as
+    high chip load (fz 0.111 against 0.041).
+  - TRIFUNOVIC_V2.H - 220 x 60 x 10: letters with real CC/C and CR
+    arcs for O, C, U and the R bowl, S7500 F600 plunge F150, four
+    passes of 0.5 mm. Zero errors, zero warnings. For A/B against V1.
+  - BRACKET.H - fixed: the T5 pocket had no M3 after the tool change.
+
+UI:
+  - DEV tab behind the orange button (this log).
+  - Program listing shows no block number on Q-parameter lines.
+
+IN PROGRESS
+==============================================================================
+  - UI: PGM MGT program manager (arrow keys, ENT, ESC); NEW PGM from
+    scratch with the MM and BLK FORM dialog; save as .H with Ctrl+S in
+    numbered TNC listing format; undo/redo per program (Ctrl+Z,
+    Ctrl+Shift+Z / Ctrl+Y); mobile layout with a bottom tab bar
+    (Program / Graphics / Status) and touch-sized controls.
+  - PERSISTENCE: programs and projects in browser storage, user
+    settings in a cookie; projects panel to create a project, append
+    programs, download a project as .zip.
+  - SIMULATOR: safety checks shown during the run, crash alarm that
+    stops the run; chamfer and spot tools rendered as 45-degree cones.
+  - HELP: LEARN (6 lessons), BREAK IT (8 famous ways to wreck a
+    machine, with the fix), power-user MANUAL.
+  - AI PROGRAM GENERATION: the third way to make a program, via
+    OpenRouter with the user's own key, DeepSeek V4.1 Flash by default;
+    the simulator checks the AI's program and sends errors back for
+    one repair pass; setup guide included.
+  - EFFECTS: metal chips that land on the part, sparks, coolant spray on
+    M8, smoke and fire (toggle, off by default), crash burst.

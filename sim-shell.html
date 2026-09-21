@@ -153,6 +153,29 @@ textarea#raw:focus{outline:none}
   background:var(--panel);border:1px solid var(--line-2);color:var(--ink);padding:8px 16px;border-radius:3px;
   font-family:"IBM Plex Mono",monospace;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.on{opacity:1}
+.sub-ttl{font-size:12px;color:var(--ink-faint)}
+.devbtn{font-family:"Saira Condensed",sans-serif;font-weight:700;font-size:13px;letter-spacing:.22em;
+  color:#1f0f00;background:#ff8a1f;border:1px solid #ffb066;padding:5px 12px 4px;border-radius:2px;
+  box-shadow:0 0 14px rgba(255,138,31,.55);animation:devglow 1.8s ease-in-out infinite}
+.devbtn:hover{background:#ffa04a}
+@keyframes devglow{50%{box-shadow:0 0 4px 2px rgba(255,138,31,.35),0 0 28px rgba(255,138,31,.95)}}
+.chsel{font-family:"IBM Plex Mono",monospace;font-size:12px;background:var(--crt);color:var(--amber);
+  border:1px solid #16405f;border-radius:2px;padding:3px 6px;max-width:60%}
+.dev{position:fixed;inset:0;z-index:60;background:rgba(2,5,10,.8);backdrop-filter:blur(4px);
+  display:grid;place-items:center;padding:16px}
+.dev-card{width:min(900px,100%);max-height:min(88vh,100%);display:flex;flex-direction:column;
+  background:var(--panel);border:1px solid #ff8a1f;border-radius:4px;box-shadow:0 30px 80px -20px #000;min-height:0}
+.dev-hd{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 14px;border-bottom:1px solid var(--line);
+  font-family:"Saira Condensed",sans-serif;font-weight:700;letter-spacing:.2em;font-size:14px;color:#ffb066}
+.dev-sub{font-family:"IBM Plex Mono",monospace;font-weight:400;letter-spacing:0;font-size:12px;color:var(--ink-faint)}
+.dev-hd button{margin-left:auto;font-family:"Saira Condensed",sans-serif;font-weight:600;font-size:13px;letter-spacing:.12em;
+  text-transform:uppercase;background:var(--panel-2);color:var(--ink-dim);border:1px solid var(--line);padding:6px 12px;border-radius:2px}
+.dev-hd button:hover{border-color:#ff8a1f;color:#ffb066}
+.dev-hd button small{opacity:.55;margin-left:4px;font-size:11px}
+.dev pre{margin:0;padding:14px 16px;overflow:auto;min-height:0;font-family:"IBM Plex Mono",monospace;
+  font-size:13px;line-height:1.55;color:var(--ink);white-space:pre}
+@media (max-width:640px){.dev pre{font-size:11.5px}.sub-ttl{display:none}}
+@media (prefers-reduced-motion:reduce){.devbtn{animation:none}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 
@@ -160,7 +183,8 @@ textarea#raw:focus{outline:none}
  <div class="bar">
    <span class="logo">HDH</span>
    <span class="ttl">TNC 426</span>
-   <span class="mono" style="font-size:10px;color:var(--ink-faint)">CNC SIMULATOR &middot; NC SW 280 476-17</span>
+   <span class="mono sub-ttl">CNC SIMULATOR &middot; NC SW 280 476-17</span>
+   <button class="devbtn" id="b-dev" title="What is live, done and in progress">DEV</button>
    <div class="modes" id="modes">
      <button class="mode" data-m="edit"   aria-pressed="false"><b>F1</b>PROGRAMMING AND EDITING</button>
      <button class="mode" data-m="test"   aria-pressed="true"><b>F2</b>TEST RUN</button>
@@ -172,7 +196,7 @@ textarea#raw:focus{outline:none}
  <div class="main">
    <!-- PROGRAM -->
    <div class="col">
-     <div class="ch"><span>Program</span><span class="rt" id="pgm-path">TNC:\BRACKET.H</span></div>
+     <div class="ch"><span>Program</span><select id="pgm-sel" class="chsel" aria-label="Program on the control"></select></div>
      <div class="crt" id="crt"><div class="plist" id="plist"></div></div>
      <textarea id="raw" hidden spellcheck="false"></textarea>
      <div class="dlg">
@@ -231,3 +255,11 @@ textarea#raw:focus{outline:none}
  </div>
 </div>
 <div class="toast" id="toast"></div>
+<div class="dev" id="dev" hidden>
+  <div class="dev-card" role="dialog" aria-modal="true" aria-labelledby="dev-t">
+    <div class="dev-hd"><span id="dev-t">DEV &mdash; FEATURE LOG</span>
+      <span class="dev-sub">live &middot; done &middot; in progress</span>
+      <button id="dev-x">Close <small>ESC</small></button></div>
+    <pre id="dev-pre"></pre>
+  </div>
+</div>
