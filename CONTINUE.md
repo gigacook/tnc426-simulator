@@ -34,12 +34,17 @@ The Serbian questions for the machinist (pivot lengths, axis limits, which head 
 3. **Sonnet: particle effects on three.quarks.** `window.QUARKS` is loaded but unused. Move `fx.js` chips, sparks and coolant onto it, keeping `fx.js`'s public API. Speed over polish, no testing.
 4. **Thread milling cycles 262, 263, 264, 265, 267.** Small; helix geometry already exists (see `cycleBoreMill`). Parameters are in the manual; tests go in `tests/manual.js`.
 5. **TNC 430 multi-axis.** Large (about 3-4 sessions).
-   - **Machine layout (answered by the user 2026-09-27):**
-     - X Y Z linear.
-     - A and B are rotary axes in a **swivel head** (tool side).
-     - **Sometimes** a C **rotary table** is added (workpiece side), making 6 axes: X Y Z A B C.
-     - So the config needs head axes A+B, plus an optional table axis C toggled per machine profile or setup.
-     - Still to ask the user when implementing: the head's pivot lengths/offsets, the axis limits, and which of A/B is the outer (primary) head axis.
+   - **Machine layout.** The user answered the layout question on 2026-09-27, and the operator's machine-parameter file followed. The digest is in `private/` (gitignored); these are its non-identifying facts:
+     - Active axes are X Y Z B A. Axis 4 is B, axis 5 is A. A and B are a swivel head.
+     - MP 7510 chain Z,Y,A,X,Z,B suggests A is inner and B is outer (to be confirmed).
+     - A C rotary table exists but is NOT in this parameter set.
+     - Software limits: X +2..+1250.2, Y −850.2..+0.2, Z −500.2..+0.2, B −180.1..+0.1°, A −195..+15°.
+     - Rapids: X 9000, Y 10000, Z 5000 mm/min; B 1000, A 4000 °/min. Max feed 1500 mm/min (B 720, A 800 °/min). Acceleration 0.4 m/s².
+     - Spindle max 2500 rpm (2 gear ranges).
+     - MP 7500 = %101: cycle 19 is active and positions the axes itself.
+     - **MP 7530 = 0 on all elements.** The control uses zero pivot lengths.
+     - Other settings: MP 7431 arc tolerance 0.006 mm; MP 7430 pocket overlap 1.1; MP 7440 M89 is a modal cycle call; MP 7230 dialog language is Swedish.
+     - Follow-up questions for the operator are appended to the Q&A file in `private/`: real pivot lengths, which head axis is outer, tool orientation at A0 B0, positive directions, the C table parameters, the machine make, and the dialog language.
    - Build it as a kinematics CONFIG in `window.TNC_MACHINES['430']`: an axis list, each linear/rotary and head/table, with pivot offsets. A 6th axis = one config line. Never fork the UI.
    - Interpreter additions: A/B/C words, cycle 19 WORKING PLANE, M128/M114, M126, rotary feed. All are in the same 280 476 manual.
    - Material model: the height field only handles a vertical tool, so tilted tools need a dexel/voxel model. This is the big piece.
