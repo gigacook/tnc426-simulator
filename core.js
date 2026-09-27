@@ -13,6 +13,7 @@ var TNC = (function () {
   var DEFAULT_FEED = 500;     // modal feed before the first F word
   var MAX_MOVES    = 400000;  // runaway guard (real CAM programs run to 10^5 moves)
   var MAX_DEPTH    = 30;      // subprogram nesting guard
+  var MAX_STEPS    = 2000000; // blocks executed, guards FN 9-12 loops
   var EPS          = 1e-9;
   var ARC_TOL      = 0.05;    // mm, radius mismatch tolerance for C / CR
 
@@ -33,7 +34,7 @@ var TNC = (function () {
 
   var IMPLEMENTED_CYCLES = { 4: 1, 200: 1, 201: 1, 203: 1 };
   // definition-only cycles with no tool motion in this simulator (9 dwell, 32 tolerance)
-  var NOMOTION_CYCLES = { 9: 1, 32: 1 };
+  var NOMOTION_CYCLES = { 7: 1, 8: 1, 9: 1, 10: 1, 11: 1, 32: 1, 247: 1 };
 
   /* ---------------------------------------------------------------- 2. helpers */
 
@@ -51,6 +52,8 @@ var TNC = (function () {
     return isNaN(v) ? null : v;
   }
 
+  function lblKey(s) { s = String(s).replace(/"/g, ''); return /^\d+$/.test(s) ? parseInt(s, 10) : s; }
+
   function resolve(v, Q) {
     if (v === null || v === undefined) return null;
     if (typeof v === 'number') return v;
@@ -59,14 +62,98 @@ var TNC = (function () {
     return v.neg ? -x : x;
   }
 
+  /* Q-parameter formulas (manual 10.9 "Entering formulas directly") and FN 0-8/13 right-hand
+     sides. Precedence: + -  <  * / DIV LEN ANG  <  ^  <  unary signs and functions.
+     Angles in degrees. Returns an AST, or null on a syntax error. */
+  var FUNCS = { SQ: 1, SQRT: 1, SIN: 1, COS: 1, TAN: 1, ASIN: 1, ACOS: 1, ATAN: 1, LN: 1, LOG: 1, EXP: 1, NEG: 1, INT: 1, ABS: 1, FRAC: 1, SGN: 1 };
+  function compileExpr(src) {
+    var toks = [], re = /\s*(\d+\.?\d*|\.\d+|Q[LR]?\d+|[A-Z]+|[-+*\/^()])/y, m, pos = 0;
+    src = String(src).toUpperCase().trim();
+    while (pos < src.length) {
+      re.lastIndex = pos; m = re.exec(src);
+      if (!m) { if (/^\s*$/.test(src.slice(pos))) break; return null; }
+      toks.push(m[1]); pos = re.lastIndex;
+    }
+    var i = 0;
+    function peek() { return toks[i]; }
+    function expr() {
+      var a = term(); if (!a) return null;
+      while (peek() === '+' || peek() === '-') { var op = toks[i++], b = term(); if (!b) return null; a = ['b', op, a, b]; }
+      return a;
+    }
+    function term() {
+      var a = pow(); if (!a) return null;
+      while (peek() === '*' || peek() === '/' || peek() === 'DIV' || peek() === 'LEN' || peek() === 'ANG') {
+        var op = toks[i++]; if (op === 'DIV') op = '/'; var b = pow(); if (!b) return null; a = ['b', op, a, b];
+      }
+      return a;
+    }
+    function pow() { var a = unary(); if (!a) return null; if (peek() === '^') { i++; var b = pow(); if (!b) return null; return ['b', '^', a, b]; } return a; }
+    function unary() {
+      var t = peek();
+      if (t === '+') { i++; return unary(); }
+      if (t === '-') { i++; var u = unary(); return u ? ['u', u] : null; }
+      if (FUNCS[t]) { i++; var x = unary(); return x ? ['f', t, x] : null; }
+      return prim();
+    }
+    function prim() {
+      var t = toks[i++];
+      if (t === undefined) return null;
+      if (t === '(') { var e = expr(); if (toks[i++] !== ')') return null; return e; }
+      if (t === 'PI') return ['n', Math.PI];
+      if (/^Q\d+$/.test(t)) return ['q', parseInt(t.slice(1), 10)];
+      if (/^(\d|\.)/.test(t)) return ['n', parseFloat(t)];
+      return null;
+    }
+    var ast = expr();
+    return (ast && i === toks.length) ? ast : null;
+  }
+  var D2R = Math.PI / 180;
+  function evalExpr(n, Q, err) {
+    switch (n[0]) {
+      case 'n': return n[1];
+      case 'q': { var v = Q[n[1]]; return (typeof v === 'number' && isFinite(v)) ? v : 0; }
+      case 'u': return -evalExpr(n[1], Q, err);
+      case 'f': {
+        var x = evalExpr(n[2], Q, err);
+        switch (n[1]) {
+          case 'SQ': return x * x;
+          case 'SQRT': if (x < 0) { err('SQUARE ROOT OF NEGATIVE NUMBER'); return 0; } return Math.sqrt(x);
+          case 'SIN': return Math.sin(x * D2R); case 'COS': return Math.cos(x * D2R); case 'TAN': return Math.tan(x * D2R);
+          case 'ASIN': if (Math.abs(x) > 1) { err('ARITHMETICAL ERROR'); return 0; } return Math.asin(x) / D2R;
+          case 'ACOS': if (Math.abs(x) > 1) { err('ARITHMETICAL ERROR'); return 0; } return Math.acos(x) / D2R;
+          case 'ATAN': return Math.atan(x) / D2R;
+          case 'LN': if (x <= 0) { err('ARITHMETICAL ERROR'); return 0; } return Math.log(x);
+          case 'LOG': if (x <= 0) { err('ARITHMETICAL ERROR'); return 0; } return Math.log(x) / Math.LN10;
+          case 'EXP': return Math.exp(x); case 'NEG': return -x; case 'ABS': return Math.abs(x);
+          case 'INT': return x < 0 ? Math.ceil(x) : Math.floor(x); case 'FRAC': return x - (x < 0 ? Math.ceil(x) : Math.floor(x));
+          case 'SGN': return x > 0 ? 1 : (x < 0 ? -1 : 0);
+        }
+        return 0;
+      }
+      case 'b': {
+        var a = evalExpr(n[2], Q, err), b = evalExpr(n[3], Q, err);
+        switch (n[1]) {
+          case '+': return a + b; case '-': return a - b; case '*': return a * b;
+          case '/': if (Math.abs(b) < EPS) { err('DIVISION BY ZERO'); return 0; } return a / b;
+          case '^': return Math.pow(a, b);
+          case 'LEN': return Math.sqrt(a * a + b * b);                              // FN 8
+          case 'ANG': { var g = Math.atan2(b, a) / D2R; return g < 0 ? g + 360 : g; }  // FN 13
+        }
+      }
+    }
+    return 0;
+  }
+
   function markParseError(block, msg) {
     block.error = msg;
     Object.defineProperty(block, '__perr',
       { value: msg, enumerable: false, writable: true, configurable: true });
   }
 
-  function toolByNumber(t) {
-    for (var i = 0; i < TOOLS.length; i++) if (TOOLS[i].t === t) return TOOLS[i];
+  function toolByNumber(t, table) {
+    table = table || TOOLS;
+    for (var i = 0; i < table.length; i++) if (table[i].t === t) return table[i];
     return null;
   }
 
@@ -81,6 +168,7 @@ var TNC = (function () {
       if (/^RL$/.test(t))            { args.rc = 'RL';  continue; }
       if (/^RR$/.test(t))            { args.rc = 'RR';  continue; }
       if (/^F\s*MAX$/.test(t))       { args.fmax = true; continue; }
+      if (/^F\s*AUTO$/.test(t))      { args.fauto = true; continue; }     // feed from the TOOL CALL block
       if ((m = /^DR([+-])$/.exec(t))) { args.dr = m[1]; continue; }
       if ((m = /^(I)?([XYZ])([+-]?\S+)$/.exec(t))) {
         var v = numOrQ(m[3]);
@@ -128,7 +216,7 @@ var TNC = (function () {
     var comment = null, ci = line.indexOf(';');
     if (ci >= 0) { comment = line.slice(ci + 1).trim(); line = line.slice(0, ci).trim(); }
 
-    var U = line.toUpperCase().replace(/\s+/g, ' ').trim();
+    var U = line.replace(/[\u2013\u2212]/g, '-').toUpperCase().replace(/\s+/g, ' ').trim();
     U = U.replace(/\s*~$/, '')                                   // iTNC-style line continuation mark
          .replace(/\bF (MAX|AUTO)\b/g, 'F$1')                    // "F MAX" as printed in the manual
          .replace(/\b(LEN|CCA|IPR|IPA|PR|PA) (?=[+-]?(\d|\.|Q))/g, '$1');   // "CCA 180", "LEN 15"
@@ -193,6 +281,7 @@ var TNC = (function () {
         var dm2;
         if (/^[XYZ]$/.test(toks[i]))      block.args.axis = toks[i];
         else if (/^S/.test(toks[i]))      block.args.s = numOrQ(toks[i].slice(1));
+        else if (/^F/.test(toks[i]))      block.args.f = numOrQ(toks[i].slice(1));
         else if ((dm2 = /^D([LR])([+-]?(?:\d+\.?\d*|\.\d+))$/.exec(toks[i]))) block.args['d' + dm2[1].toLowerCase()] = parseFloat(dm2[2]);
       }
       if (tn === null && !block.args.axis && block.args.s === null) markParseError(block, 'TOOL NUMBER MISSING');
@@ -206,7 +295,7 @@ var TNC = (function () {
         block.kind = 'CYCLDEF'; block.args.num = cnum; block.args.name = body.trim();
       } else {
         block.kind = 'CYCLPARM'; block.indent = true;
-        block.args.q = sub; block.args.dot = true;
+        block.args.q = sub; block.args.dot = true; block.args.body = body.trim();
         var nums = body.match(/[+-]?(?:\d+\.?\d*|\.\d+)/g) || [];
         block.args.values = nums.map(function (s) { return parseFloat(s); });
         block.args.value = block.args.values.length ? block.args.values[0] : null;
@@ -235,42 +324,46 @@ var TNC = (function () {
     if (/^M99$/.test(U)) { block.kind = 'CYCLCALL'; return block; }
 
     /* ---- labels ---- */
-    if ((m = /^CALL\s+LBL\s+(\d+)\s*(?:REP\s*(\d+)(?:\s*\/\s*(\d+))?)?$/.exec(U))) {
+    if ((m = /^CALL\s+LBL\s*("?[A-Z0-9_]+"?)\s*(?:REP\s*(Q\d+|\d+)(?:\s*\/\s*(\d+))?)?$/.exec(U))) {
       block.kind = 'CALLLBL';
-      block.args.lbl = parseInt(m[1], 10);
-      block.args.rep = m[2] ? parseInt(m[2], 10) : 1;
-      if (block.args.rep < 1) block.args.rep = 1;
+      block.args.lbl = lblKey(m[1]);
+      block.args.rep = m[2] ? numOrQ(m[2]) : 1;               // REP 3 or REP Q5
       block.args.repProg = !!m[2];   // REP word present => program section repeat
       return block;
     }
-    if ((m = /^LBL\s+(\d+)$/.exec(U))) {
-      var ln = parseInt(m[1], 10);
+    if ((m = /^LBL\s*("?[A-Z0-9_]+"?)$/.exec(U))) {
+      var ln = lblKey(m[1]);
       block.kind = (ln === 0) ? 'LBLEND' : 'LBL';
       block.args.lbl = ln;
       return block;
     }
 
-    /* ---- Q parameter arithmetic ---- */
-    if ((m = /^FN\s*(\d+)\s*:\s*Q(\d+)\s*=\s*(.*)$/.exec(U))) {
-      block.kind = 'FN';
-      block.args.fn = parseInt(m[1], 10);
-      block.args.target = parseInt(m[2], 10);
-      var expr = m[3].trim();
-      if (block.args.fn === 0) {
-        block.args.a = numOrQ(expr);
-        if (block.args.a === null) markParseError(block, 'ARITHMETICAL ERROR');
-      } else {
-        var em = /^([+-]?(?:Q\d+|\d+\.?\d*|\.\d+))\s*([-+*\/])\s*([+-]?(?:Q\d+|\d+\.?\d*|\.\d+))$/.exec(expr);
-        if (em) { block.args.a = numOrQ(em[1]); block.args.b = numOrQ(em[3]); block.args.op = em[2]; }
-        else {
-          var tk = words(expr);
-          if (tk.length >= 3) { block.args.a = numOrQ(tk[0]); block.args.op = tk[1]; block.args.b = numOrQ(tk[2]); }
-          else if (tk.length === 2) { block.args.a = numOrQ(tk[0]); block.args.b = numOrQ(tk[1]); }
-        }
-        if (block.args.a === null || block.args.a === undefined ||
-            block.args.b === null || block.args.b === undefined)
-          markParseError(block, 'ARITHMETICAL ERROR');
+    /* ---- Q parameter functions ---- */
+    if ((m = /^FN\s*(\d+)\s*:\s*(.*)$/.exec(U))) {
+      var fnum = parseInt(m[1], 10), rest2 = m[2].trim(), jm;
+      block.args.fn = fnum;
+      if (fnum >= 9 && fnum <= 12) {                           // FN 9-12: IF a EQU/NE/GT/LT b GOTO LBL n
+        block.kind = 'JUMP';
+        jm = /^IF\s*(.+?)\s*(EQU|NE|GT|LT)\s*(.+?)\s*GOTO\s*LBL\s*("?[A-Z0-9_]+"?)$/.exec(rest2);
+        if (!jm) { markParseError(block, 'BLOCK FORMAT INCORRECT'); return block; }
+        block.args.a = compileExpr(jm[1]); block.args.b = compileExpr(jm[3]);
+        block.args.op = jm[2]; block.args.lbl = lblKey(jm[4]);
+        if (!block.args.a || !block.args.b) markParseError(block, 'ARITHMETICAL ERROR');
+        return block;
       }
+      if (fnum === 14) {                                       // FN 14: ERROR = n
+        block.kind = 'FNERR'; jm = /ERROR\s*=?\s*(\d+)/.exec(rest2); block.args.code = jm ? parseInt(jm[1], 10) : 0; return block;
+      }
+      if ((jm = /^Q(\d+)\s*=\s*(.*)$/.exec(rest2)) && (fnum <= 8 || fnum === 13)) {
+        block.kind = 'FN';
+        block.args.target = parseInt(jm[1], 10);
+        block.args.expr = compileExpr(jm[2]);
+        if (!block.args.expr) markParseError(block, 'ARITHMETICAL ERROR');
+        return block;
+      }
+      /* FN 15/16 print, 17/18 system data, 19 PLC, 20 wait: accepted, no effect in the simulator */
+      if (fnum >= 15 && fnum <= 20) { block.kind = 'FNNOP'; return block; }
+      markParseError(block, 'BLOCK FORMAT INCORRECT');
       return block;
     }
 
@@ -362,14 +455,15 @@ var TNC = (function () {
       return block;
     }
 
-    /* ---- cycle parameter Qnnn=value ---- */
-    if ((m = /^Q(\d+)\s*=\s*(\S+)$/.exec(U))) {
-      block.kind = 'CYCLPARM'; block.indent = true;
+    /* ---- Qn = ... : a cycle parameter line or a formula; parse() decides from the context ---- */
+    if ((m = /^Q(\d+)\s*=\s*(.+)$/.exec(U))) {
+      block.kind = 'QASSIGN';
       block.args.q = parseInt(m[1], 10);
-      block.args.value = numOrQ(m[2]);
+      var single = m[2].replace(/\s+/g, '');
+      block.args.value = numOrQ(single);
       /* FMAX / MAX / FAUTO / AUTO: the cycle's own default (rapid for retraction feeds) */
-      if (block.args.value === null && /^F?(MAX|AUTO)$/.test(m[2])) block.args.value = NaN;
-      if (block.args.value === null) markParseError(block, 'ARITHMETICAL ERROR');
+      if (block.args.value === null && /^F?(MAX|AUTO)$/.test(single)) block.args.value = NaN;
+      block.args.expr = compileExpr(m[2]);
       return block;
     }
 
@@ -381,8 +475,16 @@ var TNC = (function () {
     var blocks = [], errors = [];
     var lines = String(text === undefined || text === null ? '' : text).split(/\r?\n/);
     var nc = 0, owner = 0;
+    var ctx = null;                                   // kind of the last NC block, for Qn = ... lines
     for (var i = 0; i < lines.length; i++) {
       var b = parseLine(lines[i], blocks.length);
+      if (b.kind === 'QASSIGN') {
+        /* Inside a CYCL DEF (Q-style), Q200+ lines are its parameters; anywhere else it is a formula. */
+        var inCycle = (ctx === 'CYCLDEF' || ctx === 'CYCLPARM') && b.args.q >= 200 && b.args.value !== null;
+        if (inCycle) { b.kind = 'CYCLPARM'; b.indent = true; delete b.args.expr; }
+        else { b.kind = 'FORMULA'; if (!b.args.expr) markParseError(b, 'ARITHMETICAL ERROR'); }
+      }
+      if (b.kind !== 'BLANK' && b.kind !== 'COMMENT') ctx = (b.kind === 'CYCLPARM' && b.args.dot) ? 'DOT' : b.kind;
       /* HEIDENHAIN numbering: a CYCL DEF and its Q-parameter lines are ONE NC
          block, so parameter lines carry their CYCL DEF's number and do not
          advance the count. Blank lines are not NC blocks and carry none. */
@@ -425,7 +527,10 @@ var TNC = (function () {
   function newState(blocks) {
     return {
       blocks: blocks,
-      pos: { x: 0, y: 0, z: 0 },
+      pos: { x: 0, y: 0, z: 0 },          // programmed coordinates (after cycles 7/8/10/11)
+      mpos: { x: 0, y: 0, z: 0 },         // machine coordinates: where the tool really is
+      xf: { on: false, dx: 0, dy: 0, dz: 0, mx: false, my: false, mz: false, rot: 0, s: 1, flip: false },
+      steps: 0,
       feed: DEFAULT_FEED,
       tool: { t: 0, name: '', r: 3, l: 0, dr: 0 },
       spindle: 0,          // effective: sRpm * spinDir
@@ -455,27 +560,73 @@ var TNC = (function () {
     if (st.blocks[bi] && !st.blocks[bi].error) st.blocks[bi].error = msg;
   }
 
+  /* ---- coordinate transformations: cycles 7 datum shift, 8 mirror, 10 rotation, 11 scaling.
+     machine = shift + rotate( scale( mirror(programmed) ) ), all about the active datum. ---- */
+  function toM(st, p) {
+    var f = st.xf; if (!f.on) return { x: p.x, y: p.y, z: p.z };
+    var x = f.mx ? -p.x : p.x, y = f.my ? -p.y : p.y, z = f.mz ? -p.z : p.z;
+    x *= f.s; y *= f.s; z *= f.s;
+    var c = Math.cos(f.rot * Math.PI / 180), sn = Math.sin(f.rot * Math.PI / 180);
+    return { x: x * c - y * sn + f.dx, y: x * sn + y * c + f.dy, z: z + f.dz };
+  }
+  function fromM(st, p) {
+    var f = st.xf; if (!f.on) return { x: p.x, y: p.y, z: p.z };
+    var x = p.x - f.dx, y = p.y - f.dy, z = p.z - f.dz;
+    var c = Math.cos(f.rot * Math.PI / 180), sn = Math.sin(f.rot * Math.PI / 180);
+    var xr = x * c + y * sn, yr = -x * sn + y * c;
+    xr /= f.s; yr /= f.s; z /= f.s;
+    return { x: f.mx ? -xr : xr, y: f.my ? -yr : yr, z: f.mz ? -z : z };
+  }
+  function flipRc(st, rc) { return (st.xf.flip && (rc === 'RL' || rc === 'RR')) ? (rc === 'RL' ? 'RR' : 'RL') : rc; }
+  function applyTransform(st, cy, bi) {
+    var f = st.xf, subs = cy.bodies || {}, k, v, m, toks, i;
+    var all = Object.keys(subs).sort().map(function (n) { return subs[n]; }).join(' ');
+    if (cy.num === 7) {
+      toks = words(all);
+      for (i = 0; i < toks.length; i++) if ((m = /^(I)?([XYZ])(\S+)$/.exec(toks[i]))) {
+        v = resolve(numOrQ(m[3]), st.Q); if (v === null) { fail(st, bi, 'CYCL DEF INCOMPLETE'); continue; }
+        k = 'd' + m[2].toLowerCase(); f[k] = m[1] ? f[k] + v : v;
+      }
+    } else if (cy.num === 8) {
+      if (/NO\s*ENT|^\s*$/.test(all)) { f.mx = f.my = f.mz = false; }
+      else { f.mx = /(^|\s)X\b/.test(all); f.my = /(^|\s)Y\b/.test(all); f.mz = /(^|\s)Z\b/.test(all); }
+    } else if (cy.num === 10) {
+      if ((m = /(I)?ROT\s*([+-]?(?:Q\d+|\d+\.?\d*|\.\d+))/.exec(all))) { v = resolve(numOrQ(m[2]), st.Q) || 0; f.rot = m[1] ? f.rot + v : v; }
+      else fail(st, bi, 'CYCL DEF INCOMPLETE');
+    } else if (cy.num === 11) {
+      if ((m = /SCL\s*([+-]?(?:Q\d+|\d+\.?\d*|\.\d+))/.exec(all))) { v = resolve(numOrQ(m[1]), st.Q); if (v > 0) f.s = v; else fail(st, bi, 'CYCL DEF INCOMPLETE'); }
+      else fail(st, bi, 'CYCL DEF INCOMPLETE');
+    }
+    f.flip = f.mx !== f.my;                                   // one plane axis mirrored: arcs and RL/RR swap
+    f.on = !!(f.dx || f.dy || f.dz || f.mx || f.my || f.mz || f.rot || f.s !== 1);
+    st.pos = fromM(st, st.mpos);                              // the tool does not move; its programmed position does
+    if (st.cc) st.cc = st.cc;                                 // CC stays in programmed coordinates
+  }
+
   function arcSweep(from, to, arc) {
     return (arc.sweep !== undefined && arc.sweep !== null) ? arc.sweep : sweepAngle(from, to, arc.cx, arc.cy, arc.ccw);
   }
 
   function emit(st, kind, to, feed, bi, cycleName, arc) {
     if (st.abort) return;
-    var from = { x: st.pos.x, y: st.pos.y, z: st.pos.z };
-    var sw = (kind === 'arc') ? arcSweep(from, to, arc) : 0, len;
+    var pfrom = { x: st.pos.x, y: st.pos.y, z: st.pos.z };      // programmed
+    var from = { x: st.mpos.x, y: st.mpos.y, z: st.mpos.z }, pto = to;
+    to = toM(st, pto);
+    var psw = (kind === 'arc') ? arcSweep(pfrom, pto, arc) : 0, sw = st.xf.flip ? -psw : psw, len, mc = null;
     if (kind === 'arc') {
-      var rr = Math.sqrt((from.x - arc.cx) * (from.x - arc.cx) + (from.y - arc.cy) * (from.y - arc.cy));
+      mc = toM(st, { x: arc.cx, y: arc.cy, z: 0 });
+      var rr = Math.sqrt((from.x - mc.x) * (from.x - mc.x) + (from.y - mc.y) * (from.y - mc.y));
       len = Math.sqrt(rr * sw * rr * sw + (to.z - from.z) * (to.z - from.z));
     } else len = dist3(from, to);
-    var tagRc = cycleName ? null : (st.rc === 'RL' || st.rc === 'RR' ? st.rc : null);
+    var tagRc = cycleName ? null : flipRc(st, st.rc === 'RL' || st.rc === 'RR' ? st.rc : null);
     // a zero-length activation block still has to mark where RL/RR starts
-    if (!(len > EPS) && !(tagRc && st.rcAct)) { st.pos = { x: to.x, y: to.y, z: to.z }; return; }
+    if (!(len > EPS) && !(tagRc && st.rcAct)) { st.pos = { x: pto.x, y: pto.y, z: pto.z }; st.mpos = to; return; }
     st.moves.push({
       kind: kind,
       from: from,
       to: { x: to.x, y: to.y, z: to.z },
-      cx: arc ? arc.cx : null,
-      cy: arc ? arc.cy : null,
+      cx: mc ? mc.x : null,
+      cy: mc ? mc.y : null,
       ccw: arc ? sw > 0 : false,
       sweep: arc ? sw : null,
       feed: (kind === 'rapid') ? RAPID_RATE : feed,
@@ -492,15 +643,15 @@ var TNC = (function () {
       len: len
     });
     if (tagRc) st.rcAct = false;
-    // tangent at the end of this element, for CT
+    // tangent at the end of this element (programmed coordinates), for CT
     if (kind === 'arc') {
-      var ea = Math.atan2(to.y - arc.cy, to.x - arc.cx), d = sw > 0 ? 1 : -1;
+      var ea = Math.atan2(pto.y - arc.cy, pto.x - arc.cx), d = psw > 0 ? 1 : -1;
       st.lastTan = { x: -Math.sin(ea) * d, y: Math.cos(ea) * d };
     } else {
-      var dx = to.x - from.x, dy = to.y - from.y, l = Math.sqrt(dx * dx + dy * dy);
+      var dx = pto.x - pfrom.x, dy = pto.y - pfrom.y, l = Math.sqrt(dx * dx + dy * dy);
       if (l > EPS) st.lastTan = { x: dx / l, y: dy / l };
     }
-    st.pos = { x: to.x, y: to.y, z: to.z };
+    st.pos = { x: pto.x, y: pto.y, z: pto.z }; st.mpos = to;
     if (st.moves.length >= MAX_MOVES) { st.abort = true; fail(st, bi, 'EXCESSIVE SUBPROGRAM NESTING'); }
   }
 
@@ -548,7 +699,7 @@ var TNC = (function () {
       if (p.kind === 'BLANK' || p.kind === 'COMMENT') continue;
       if (p.kind !== 'CYCLPARM') break;
       if (p.args.dot) {
-        cy.dot = true;
+        cy.dot = true; (cy.bodies = cy.bodies || {})[p.args.q] = p.args.body || '';
         cy.subs[p.args.q] = (p.args.values || []).slice();
         if (p.args.dr) cy.dr = p.args.dr;
         if (p.args.values && p.args.values.length) cy.order.push(p.args.values[0]);
@@ -758,6 +909,9 @@ var TNC = (function () {
   }
 
   function feedOf(st, a, bi) {
+    /* F AUTO: the control takes it from the cutting-data table. The simulator has none:
+       it uses the F of the TOOL CALL block, else keeps the current feed. */
+    if (a.fauto) { if (st.autoFeed > 0) st.feed = st.autoFeed; if (st.feed > 0) return true; fail(st, bi, 'FEED RATE MISSING'); return false; }
     if (a.f === undefined) return true;
     var fv = resolve(a.f, st.Q);
     if (fv === null || !(fv > 0)) { fail(st, bi, 'FEED RATE MISSING'); return false; }
@@ -768,11 +922,7 @@ var TNC = (function () {
     var a = b.args;
     if (!setRc(st, a, bi)) return;
     applyM(st, a.m, 'start');
-    if (a.f !== undefined) {
-      var fv = resolve(a.f, st.Q);
-      if (fv === null || fv <= 0) fail(st, bi, 'FEED RATE MISSING');
-      else st.feed = fv;
-    }
+    feedOf(st, a, bi);
     var moves = (a.x !== undefined || a.y !== undefined || a.z !== undefined ||
                  a.ix !== undefined || a.iy !== undefined || a.iz !== undefined);
     if (moves) {
@@ -1000,17 +1150,18 @@ var TNC = (function () {
     var to = a.polar ? polarTarget(st, a, bi) : targetOf(a, st);
     if (!to) return;
     var hasZ = a.z !== undefined || a.iz !== undefined;
-    mark(st, { mark: 'APPR', form: a.form, side: side, block: bi,
+    var mside = flipRc(st, side);
+    mark(st, { mark: 'APPR', form: a.form, side: mside, block: bi,
       len: a.len !== undefined ? Math.abs(resolve(a.len, st.Q)) : 0,
       r: a.r !== undefined ? resolve(a.r, st.Q) : 0,
       cca: a.cca !== undefined ? Math.abs(resolve(a.cca, st.Q)) : 0,
       feed: st.feed, entryFeed: entryFeed > 0 ? entryFeed : st.feed,
-      from: { x: st.pos.x, y: st.pos.y, z: st.pos.z }, to: to, hasZ: hasZ,
-      rc: (side === 'RL' || side === 'RR') ? side : null,
+      from: { x: st.mpos.x, y: st.mpos.y, z: st.mpos.z }, to: toM(st, to), hasZ: hasZ,
+      rc: (mside === 'RL' || mside === 'RR') ? mside : null,
       tool: st.tool.t, toolR: st.tool.r, toolDR: st.tool.dr || 0, toolName: st.tool.name,
       spindle: st.spindle, coolant: st.coolant });
     st.rc = side; st.rcAct = false;
-    st.pos = { x: to.x, y: to.y, z: to.z };
+    st.pos = { x: to.x, y: to.y, z: to.z }; st.mpos = toM(st, to);
     st.lastTan = null;
     applyM(st, a.m, 'end');
   }
@@ -1021,10 +1172,10 @@ var TNC = (function () {
     var pn = null;
     if (a.form === 'LCT') { pn = a.polar ? polarTarget(st, a, bi) : targetOf(a, st); if (!pn) return; }
     var t = st.lastTan || { x: 1, y: 0 }, s = side === 'RL' ? 1 : -1, len = a.len !== undefined ? Math.abs(resolve(a.len, st.Q)) : 0;
-    var m = { mark: 'DEP', form: a.form, side: side, block: bi, len: len,
+    var m = { mark: 'DEP', form: a.form, side: flipRc(st, side), block: bi, len: len,
       r: a.r !== undefined ? resolve(a.r, st.Q) : 0,
       cca: a.cca !== undefined ? Math.abs(resolve(a.cca, st.Q)) : 0,
-      feed: st.feed, to: pn, from: { x: st.pos.x, y: st.pos.y, z: st.pos.z },
+      feed: st.feed, to: pn ? toM(st, pn) : null, from: { x: st.mpos.x, y: st.mpos.y, z: st.mpos.z },
       tool: st.tool.t, toolR: st.tool.r, toolDR: st.tool.dr || 0, toolName: st.tool.name,
       spindle: st.spindle, coolant: st.coolant };
     mark(st, m);
@@ -1032,6 +1183,7 @@ var TNC = (function () {
     if (a.form === 'LT') st.pos = { x: st.pos.x + t.x * len, y: st.pos.y + t.y * len, z: st.pos.z };
     else if (a.form === 'LN') st.pos = { x: st.pos.x - t.y * s * len, y: st.pos.y + t.x * s * len, z: st.pos.z };
     else if (a.form === 'LCT') st.pos = { x: pn.x, y: pn.y, z: pn.z };
+    st.mpos = toM(st, st.pos);
     st.rc = 'R0'; st.rcAct = false; st.lastTan = null;
     applyM(st, a.m, 'end');
   }
@@ -1055,9 +1207,15 @@ var TNC = (function () {
       if (s !== null) st.sRpm = Math.abs(s);
     }
     st.spindle = st.sRpm * st.spinDir;
+    if (b.args.f !== undefined && b.args.f !== null) { var tf = resolve(b.args.f, st.Q); if (tf > 0) st.autoFeed = tf; }
     var dr = b.args.dr || 0;                       // DR in TOOL CALL: radius oversize for RL/RR
     if (t === 0) { st.tool = { t: 0, name: '', r: 0, l: 0, dr: dr }; return; }
-    var e = st.toolDefs[t] || toolByNumber(t);
+    var e = st.toolDefs[t] || toolByNumber(t, st.toolTable);
+    if (!e && st.autoTools) {                      // opts.autoTools: size the tool from a CAM comment, else R3; no error
+      var g2 = st.commentTools && st.commentTools[t];
+      e = { t: t, name: 'T' + t + (g2 ? ' (FROM COMMENT)' : ' (AUTO)'), r: g2 ? g2.r : 3, l: 0 };
+      st.toolDefs[t] = e;
+    }
     if (!e) {
       var guess = st.commentTools && st.commentTools[t];
       fail(st, bi, 'TOOL ' + t + ' NOT DEFINED');
@@ -1070,18 +1228,18 @@ var TNC = (function () {
     }
   }
 
-  function doFN(st, b, bi) {
-    var a = b.args, A = resolve(a.a, st.Q), B = resolve(a.b, st.Q), r;
-    if (a.fn === 0) { st.Q[a.target] = (A === null ? 0 : A); return; }
-    if (A === null || B === null) { fail(st, bi, 'ARITHMETICAL ERROR'); return; }
-    if (a.fn === 1) r = A + B;
-    else if (a.fn === 2) r = A - B;
-    else if (a.fn === 3) r = A * B;
-    else if (a.fn === 4) {
-      if (Math.abs(B) < EPS) { fail(st, bi, 'DIVISION BY ZERO'); return; }
-      r = A / B;
-    } else { fail(st, bi, 'ARITHMETICAL ERROR'); return; }
-    st.Q[a.target] = r;
+  function doFN(st, b, bi) {                        // FN 0-8, FN 13 and Qn = formula
+    var a = b.args, bad = null;
+    var v = evalExpr(a.expr, st.Q, function (msg) { bad = msg; });
+    if (bad) { fail(st, bi, bad); return; }
+    st.Q[b.kind === 'FORMULA' ? a.q : a.target] = v;
+  }
+  function jumpTaken(st, b, bi) {                   // FN 9 EQU, 10 NE, 11 GT, 12 LT
+    var bad = null, err = function (m) { bad = m; };
+    var A = evalExpr(b.args.a, st.Q, err), B = evalExpr(b.args.b, st.Q, err);
+    if (bad) { fail(st, bi, bad); return false; }
+    switch (b.args.op) { case 'EQU': return Math.abs(A - B) < 1e-9; case 'NE': return Math.abs(A - B) >= 1e-9; case 'GT': return A > B; case 'LT': return A < B; }
+    return false;
   }
 
   function execRange(st, from, to, depth) {
@@ -1089,6 +1247,7 @@ var TNC = (function () {
     for (var i = from; i <= to && !st.abort && !st.done; i++) {
       var b = st.blocks[i];
       if (!b) continue;
+      if (++st.steps > MAX_STEPS) { st.abort = true; fail(st, i, 'EXCESSIVE SUBPROGRAM NESTING'); return; }
       if (b.kind === 'BLANK' || b.kind === 'COMMENT') continue;
       if (b.error) continue;                        // bad block: report once, carry on
 
@@ -1130,6 +1289,9 @@ var TNC = (function () {
           st.cycle = gatherCycle(st, i);
           if (!IMPLEMENTED_CYCLES[st.cycle.num] && !NOMOTION_CYCLES[st.cycle.num])
             fail(st, i, 'CYCLE ' + st.cycle.num + ' NOT IMPLEMENTED IN SIMULATOR');
+          if (st.cycle.num === 7 || st.cycle.num === 8 || st.cycle.num === 10 || st.cycle.num === 11) {
+            applyTransform(st, st.cycle, i); st.cycle = null;   // takes effect here; not called
+          }
           break;
         case 'CYCLPARM': break;                    // consumed by the CYCL DEF above
         case 'CYCLCALL':
@@ -1142,7 +1304,9 @@ var TNC = (function () {
         case 'CALLLBL': {
           var target = st.labels[b.args.lbl];
           if (target === undefined) { fail(st, i, 'LABEL NUMBER NOT FOUND'); break; }
-          var rep = b.args.rep || 1;
+          var rep = Math.round(resolve(b.args.rep, st.Q) || 0);
+          if (b.args.repProg && rep < 0) { fail(st, i, 'ARITHMETICAL ERROR'); break; }
+          if (!b.args.repProg) rep = 1;
           if (b.args.repProg && target < i) {
             /* Program-section repeat: LBL n ... CALL LBL n REP r/r
                The section is bounded by the CALL block itself, not by LBL 0.
@@ -1155,13 +1319,23 @@ var TNC = (function () {
             var end = st.blocks.length - 1;
             for (var j = target + 1; j < st.blocks.length; j++)
               if (st.blocks[j].kind === 'LBLEND') { end = j; break; }
-            var n = b.args.rep || 1;
+            var n = Math.max(1, rep);
             for (var k2 = 0; k2 < n && !st.abort && !st.done; k2++)
               execRange(st, target + 1, end, depth + 1);
           }
           break;
         }
-        case 'FN': doFN(st, b, i); break;
+        case 'FN': case 'FORMULA': doFN(st, b, i); break;
+        case 'JUMP': {
+          if (!jumpTaken(st, b, i)) break;
+          var jt = st.labels[b.args.lbl];
+          if (jt === undefined) { fail(st, i, 'LABEL NUMBER NOT FOUND'); break; }
+          if (jt < from || jt > to) { fail(st, i, 'JUMP TO LABEL NOT PERMITTED'); st.abort = true; return; }
+          i = jt;                                       // continue after the label
+          break;
+        }
+        case 'FNERR': fail(st, i, 'FN 14: ERROR ' + b.args.code); st.done = true; return;
+        case 'FNNOP': break;
         case 'STOP':
           applyM(st, b.args.m, 'start');
           applyM(st, b.args.m, 'end');
@@ -1530,7 +1704,8 @@ var TNC = (function () {
 
   /* ---------------------------------------------------------------- 8. compile */
 
-  function compile(blocks) {
+  /* opts.tools: the machine's tool table (TOOL.T); defaults to the built-in one */
+  function compile(blocks, opts) {
     blocks = blocks || [];
     var i;
     // reset any state a previous compile() left on the blocks
@@ -1540,6 +1715,8 @@ var TNC = (function () {
     }
 
     var st = newState(blocks);
+    st.toolTable = (opts && opts.tools) || TOOLS;
+    st.autoTools = !!(opts && opts.autoTools);
 
     // label table
     st.labels = {};
@@ -1621,9 +1798,9 @@ var TNC = (function () {
     };
   }
 
-  function run(text) {
+  function run(text, opts) {
     var p = parse(text);
-    var c = compile(p.blocks);
+    var c = compile(p.blocks, opts);
     return {
       blocks: p.blocks,
       moves: c.moves,

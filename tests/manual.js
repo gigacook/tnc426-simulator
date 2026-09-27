@@ -237,5 +237,106 @@ END PGM D MM`);
   const up = r.moves.find(m => m.cycle && m.to.z > m.from.z && m.kind === 'feed');
   ok(up && up.feed === 150, 'retract feed = Q206 150, got ' + (up && up.feed));
 }
+
+const ELLIPSE = rot => `BEGIN PGM ELLIPSE MM
+FN 0: Q1 = +50
+FN 0: Q2 = +50
+FN 0: Q3 = +50
+FN 0: Q4 = +30
+FN 0: Q5 = +0
+FN 0: Q6 = +360
+FN 0: Q7 = +40
+FN 0: Q8 = ${rot}
+FN 0: Q9 = +5
+FN 0: Q10 = +100
+FN 0: Q11 = +350
+FN 0: Q12 = +2
+BLK FORM 0.1 Z X+0 Y+0 Z-20
+BLK FORM 0.2 X+100 Y+100 Z+0
+TOOL DEF 1 L+0 R+2.5
+TOOL CALL 1 Z S4000
+L Z+250 R0 F MAX
+CALL LBL 10
+L Z+100 R0 F MAX M2
+LBL 10
+CYCL DEF 7.0 DATUM SHIFT
+CYCL DEF 7.1 X+Q1
+CYCL DEF 7.2 Y+Q2
+CYCL DEF 10.0 DREHUNG
+CYCL DEF 10.1 ROT+Q8
+Q35 = (Q6 - Q5) / Q7
+Q36 = Q5
+Q37 = 0
+Q21 = Q3 * COS Q36
+Q22 = Q4 * SIN Q36
+L X+Q21 Y+Q22 R0 F MAX M3
+L Z+Q12 R0 F MAX
+L Z-Q9 R0 FQ10
+LBL 1
+Q36 = Q36 + Q35
+Q37 = Q37 + 1
+Q21 = Q3 * COS Q36
+Q22 = Q4 * SIN Q36
+L X+Q21 Y+Q22 R0 FQ11
+FN 12: IF +Q37 LT +Q7 GOTO LBL 1
+CYCL DEF 10.0 DREHUNG
+CYCL DEF 10.1 ROT+0
+CYCL DEF 7.0 DATUM SHIFT
+CYCL DEF 7.1 X+0
+CYCL DEF 7.2 Y+0
+L Z+Q12 R0 F MAX
+LBL 0
+END PGM ELLIPSE MM`;
+for (const rot of [0, 30]) {
+  console.log(`ELLIPSE (manual 10.11) — Q formulas, FN 12 loop, cycle 7 shift, cycle 10 ROT+${rot}`);
+  const r = TNC.run(ELLIPSE(rot));
+  ok(!r.errors.length, 'no errors ' + JSON.stringify(r.errors.slice(0, 3)));
+  const cut = r.moves.filter(m => m.feed === 350);
+  ok(cut.length === 40, '40 segments (Q7), got ' + cut.length);
+  const c = Math.cos(-rot * Math.PI / 180), s = Math.sin(-rot * Math.PI / 180);
+  const onE = p => { const x = p.x - 50, y = p.y - 50, u = x * c - y * s, v = x * s + y * c; return Math.abs((u / 50) ** 2 + (v / 30) ** 2 - 1) < 1e-6; };
+  ok(cut.every(m => onE(m.to) && near(m.to.z, -5)), 'every point on the ellipse a=50 b=30 about (50,50), rotated ' + rot + ' deg, at Z-5');
+  const last = r.moves[r.moves.length - 1];
+  ok(near(last.to.z, 100), 'ends at Z+100 after the datum reset');
+}
+console.log('FORMULAS — precedence, functions, FN 4 DIV, FN 8 LEN, FN 13 ANG, REP Q');
+{ const r = TNC.run(`BEGIN PGM F MM
+Q1 = 5 * 3 + 2 * 10
+Q2 = SQ 10 - 3^3
+Q3 = SQRT 25 + ABS -2
+FN 4: Q4 = +8 DIV +2
+FN 8: Q5 = +5 LEN +4
+FN 13: Q6 = +25 ANG +25
+Q7 = 2
+BLK FORM 0.1 Z X+0 Y+0 Z-20
+BLK FORM 0.2 X+100 Y+100 Z+0
+TOOL CALL 4 Z S3000
+L X+Q1 Y+Q2 Z+10 R0 FMAX
+LBL 1
+L IX+1 R0 F100
+CALL LBL 1 REP Q7
+END PGM F MM`);
+  ok(!r.errors.length, 'no errors ' + JSON.stringify(r.errors));
+  const p = r.moves[0].to; ok(near(p.x, 35) && near(p.y, 73), 'Q1 = 35 and Q2 = 73 (manual 10.9), got ' + p.x + ',' + p.y);
+  ok(near(r.moves[r.moves.length - 1].to.x, 38), 'REP Q7 (=2): section runs 3 times, X 35 -> 38');
+}
+console.log('MIRROR — cycle 8 X mirrors the part and swaps RL to RR, arcs change direction');
+{ const base = `TOOL DEF 1 L+0 R+5
+TOOL CALL 1 Z S3000
+L X+10 Y-10 Z-5 R0 FMAX M3
+L X+10 Y+10 RL F300
+L X+40
+CC X+40 Y+30
+C X+40 Y+50 DR+
+L X+10
+L X+10 Y+10
+L X+0 Y+0 R0`;
+  const a = TNC.run('BEGIN PGM A MM\n' + base + '\nEND PGM A MM'), b = TNC.run('BEGIN PGM B MM\nCYCL DEF 8.0 MIRROR IMAGE\nCYCL DEF 8.1 X\n' + base + '\nEND PGM B MM');
+  ok(!a.errors.length && !b.errors.length, 'no errors ' + JSON.stringify(b.errors));
+  const A = pts(a).filter(q => q.m.rc), B = pts(b).filter(q => q.m.rc);
+  const key = q => Math.round(q.x * 1000) / 1000 + ',' + Math.round(q.y * 1000) / 1000;
+  const setA = new Set(A.map(q => key({ x: -q.x, y: q.y })));
+  ok(B.length > 10 && B.every(q => setA.has(key(q)) || A.some(z => Math.hypot(-z.x - q.x, z.y - q.y) < 0.05)), 'mirrored tool path is the exact mirror of the original');
+}
 console.log(fails ? `\n${fails} FAILED` : '\nALL MANUAL EXAMPLES PASS');
 process.exit(fails ? 1 : 0);
