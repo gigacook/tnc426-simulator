@@ -58,12 +58,14 @@ function writePrefs(){
     const path=location.pathname.replace(/[^/]*$/,'')||'/';
     document.cookie=`${PREF}=${v}; Max-Age=31536000; Path=${path}; SameSite=Lax${location.protocol==='https:'?'; Secure':''}`;
   }catch(e){}
+  if(PROF) persist();
 }
+const prefsNow=()=>({speed:S.speed, ovr:S.ovr, view:S.view, mode:S.mode, fx:S.fx, cool:S.fxCool, fire:S.fxFire, labels:S.labels, sound:S.sound, machine:S.machine, flow:S.flowView});
 
 /* ================= machines ================= */
 const MACHINES={
   '426':{ id:'426', label:'TNC 426', axes:['X','Y','Z'], tools:TNC.TOOLS,
-    run:t=>TNC.run(t), expand:r=>TNC_SIM.expand(r),
+    run:t=>TNC.run(t,{tools:mtools('426')}), expand:r=>TNC_SIM.expand(r),
     analyse:(r,ex)=>TNC_SIM.analyse(r,ex,TNC_SIM.grid(r.stock,ex.segs)),
     programs:window.TNC_PROGRAMS||{}, lessons:window.TNC_LESSONS||null }
 };
@@ -74,7 +76,7 @@ const M=()=>MACHINES[S.machine];
 const P=readPrefs();
 const S={
   machine: MACHINES[P.machine]?P.machine:'426',
-  pgms:{}, orig:{}, cur:{}, projects:[], active:null, pgm:null, text:'',
+  pgms:{}, orig:{}, cur:{}, tools:{}, projects:[], active:null, pgm:null, text:'',
   res:null, ex:{segs:[],total:0}, segs:[], total:0, events:[], evIdx:0,
   t:0, stampT:0, running:false,
   speed:[1,4,16,64,0].includes(P.speed)?P.speed:4, ovr:clamp(+P.ovr||100,0,150),
@@ -88,30 +90,44 @@ const S={
 const TEMP='LESSON.H';
 const pg=()=>S.pgms[S.machine]||(S.pgms[S.machine]={});
 
+/* ---------- the operator profile (profile.js): IndexedDB, autosaved, exported by hand ---------- */
+const PSTORE=window.TNC_PROFILE||{ load:()=>Promise.resolve(null), save:()=>Promise.resolve(false), wipe:()=>Promise.resolve(),
+  blank:n=>({v:2,name:n||'',created:new Date().toISOString(),prefs:{},machines:{},projects:[],active:null}), legacy:()=>null };
+let PROF=null;
+/* the machine's tool table: built-ins, overridden / extended by the operator's own TOOL.T */
+function mtools(id){ id=id||S.machine; const base=(MACHINES[id]&&MACHINES[id].tools)||[], mine=S.tools[id]||[];
+  const by={}; base.forEach(t=>by[t.t]=Object.assign({},t)); mine.forEach(t=>by[t.t]=Object.assign({},t,{mine:true}));
+  return Object.values(by).sort((a,b)=>a.t-b.t); }
+
 function loadStore(){
-  let j=null; try{ j=JSON.parse(local.get(LS_KEY)||'null'); }catch(e){}
+  const j=PROF||PSTORE.blank('');
   for(const id in MACHINES){
+    const mm=(j.machines&&j.machines[id])||{};
     S.orig[id]=Object.assign({}, MACHINES[id].programs||{});
-    S.pgms[id]=Object.assign({}, S.orig[id], (j&&j.pgms&&j.pgms[id])||{});
+    S.pgms[id]=Object.assign({}, S.orig[id], mm.pgms||{});
+    S.tools[id]=Array.isArray(mm.tools)?mm.tools:[];
+    S.cur[id]=mm.cur||null;
   }
-  S.projects=(j&&Array.isArray(j.projects))?j.projects:[];
-  S.active=(j&&S.projects.some(p=>p.id===j.active))?j.active:((S.projects[0]||{}).id||null);
-  S.cur=(j&&j.cur)||{};
+  S.projects=Array.isArray(j.projects)?j.projects:[];
+  S.active=S.projects.some(p=>p.id===j.active)?j.active:((S.projects[0]||{}).id||null);
   const last=S.cur[S.machine];
   S.pgm=(last&&pg()[last]!=null)?last:(Object.keys(pg())[0]||null);
   if(!S.pgm){ S.pgm='NEW.H'; pg()[S.pgm]='BEGIN PGM NEW MM\nEND PGM NEW MM'; }
   S.text=pg()[S.pgm];
 }
+function profileNow(){
+  if(S.pgm!==TEMP) S.cur[S.machine]=S.pgm;
+  const machines={};
+  for(const id in S.pgms){ const pg_={};          // only what differs from the built-ins, so fixes to them still arrive
+    for(const n in S.pgms[id]) if(n!==TEMP && S.pgms[id][n]!==S.orig[id][n]) pg_[n]=S.pgms[id][n];
+    machines[id]={pgms:pg_, cur:S.cur[id]||null, tools:S.tools[id]||[]}; }
+  return Object.assign({}, PROF||PSTORE.blank(''), {v:2, machines, projects:S.projects, active:S.active, prefs:prefsNow()});
+}
 let persistT=0;
 function persist(){
+  if(!PROF) return;
   clearTimeout(persistT);
-  persistT=setTimeout(()=>{
-    if(S.pgm!==TEMP) S.cur[S.machine]=S.pgm;
-    const pgms={};                       // only what differs from the built-ins, so fixes to them still arrive
-    for(const id in S.pgms){ pgms[id]={};
-      for(const n in S.pgms[id]) if(n!==TEMP && S.pgms[id][n]!==S.orig[id][n]) pgms[id][n]=S.pgms[id][n]; }
-    local.set(LS_KEY, JSON.stringify({v:1, pgms, projects:S.projects, active:S.active, cur:S.cur}));
-  },300);
+  persistT=setTimeout(()=>{ PROF=profileNow(); PSTORE.save(PROF).then(r=>{ profChip(r); }); },300);
 }
 
 /* ================= undo / redo (per program) ================= */
@@ -234,7 +250,7 @@ function buildScene(){
   emit('scene',{partRoot,stock:ST,gStock,gSkirt,gFloor,rig});
 }
 function firstTool(){ const s=S.segs.find(s=>s.tool); return s?s.tool:0; }
-function toolEntry(t){ return (M().tools||[]).find(x=>x.t===t)||null; }
+function toolEntry(t){ return mtools().find(x=>x.t===t)||null; }
 
 /* ---------- tool: real geometry from tools3d.js when available ---------- */
 function setTool(t){
@@ -617,7 +633,7 @@ function act(a){
   }
 }
 function showTools(){
-  const rows=(M().tools||[]).map(t=>`T${String(t.t).padStart(2)}  ${t.name.padEnd(14)} L${t.l.toFixed(2).padStart(7)}  R${t.r.toFixed(3).padStart(6)}`);
+  const rows=mtools().map(t=>`T${String(t.t).padStart(2)}  ${String(t.name).padEnd(14)} L${(+t.l).toFixed(2).padStart(7)}  R${(+t.r).toFixed(3).padStart(6)}${t.mine?'  *':''}`);
   $('elist').innerHTML=rows.map(r=>`<div class="info">${esc(r)}</div>`).join(''); $('errc').textContent='TOOL TABLE'; say('TOOL TABLE IN THE CHECKS PANEL');
 }
 
@@ -698,16 +714,34 @@ function saveH(){
 }
 let fileIn=null;
 function loadFromDisk(){
-  if(!fileIn){ fileIn=document.createElement('input'); fileIn.type='file'; fileIn.multiple=true; fileIn.accept='.h,.H,.txt,.nc,.i,.I';
+  if(!fileIn){ fileIn=document.createElement('input'); fileIn.type='file'; fileIn.multiple=true; fileIn.accept='.h,.H,.i,.I,.txt,.nc,.zip,.t,.T,.json';
     fileIn.hidden=true; document.body.appendChild(fileIn); fileIn.onchange=()=>{ importFiles([...fileIn.files]); fileIn.value=''; }; }
   fileIn.click();
 }
-function importFiles(files){
-  if(!files.length) return; let last=null, left=files.length;
-  files.forEach(f=>{ const rd=new FileReader(); rd.onload=()=>{
-    const txt=String(rd.result).replace(/\r/g,'').split('\n').map(l=>l.replace(/\s*~\s*$/,'')).join('\n').trim();
-    last=addPgm(f.name.replace(/\.[^.]+$/,''),txt,{open:false});
-    if(--left===0){ openPgm(last); say(files.length+' PROGRAM(S) LOADED'); } }; rd.readAsText(f); });
+const cleanPgm=t=>String(t).replace(/\r/g,'').split('\n').map(l=>l.replace(/\s*~\s*$/,'')).join('\n').trim();
+/* .H / .I programs, a project or profile .zip, a TOOL.T or a profile .json — all land here */
+async function importFiles(files){
+  if(!files.length) return;
+  let last=null, n=0, renamed=0; const texts=[];
+  for(const f of files){
+    let res;
+    try{ res=window.TNC_PROFILE?await TNC_PROFILE.readFile(f):{kind:'programs',files:[{name:f.name,text:await f.text(),machine:null}]}; }
+    catch(e){ say('CANNOT READ '+f.name+': '+(e.message||e)); continue; }
+    if(res.kind==='profile'){ openProfile(); profImportAsk(res.profile,f.name); return; }
+    if(res.kind==='tools'){ mergeTools(res.tools); say('TOOL TABLE '+f.name+' — '+res.tools.length+' TOOLS LOADED'); continue; }
+    if(res.kind!=='programs'){ say('UNKNOWN FILE '+f.name); continue; }
+    for(const pf of res.files){
+      const keep=S.machine; if(pf.machine&&MACHINES[pf.machine]) S.machine=pf.machine;
+      const want=uniqueName(pf.name.replace(/\.[^.]+$/,'')), exact=pf.name.toUpperCase().replace(/\.[^.]+$/,'').replace(/[^A-Z0-9_]/g,'_').slice(0,16)+'.H';
+      if(want!==exact) renamed++;
+      const nm=addPgm(pf.name.replace(/\.[^.]+$/,''),cleanPgm(pf.text),{open:false}); texts.push(pf.text);
+      if(S.machine===keep) last=nm; S.machine=keep; n++;
+    }
+  }
+  const added=toolsFor(texts);                     // a program from another control brings its tools along
+  if(last) openPgm(last);
+  if(n) say(n+' PROGRAM(S) LOADED'+(renamed?' · '+renamed+' RENAMED (NAME TAKEN)':'')+(added?' · '+added+' TOOL(S) ADDED TO YOUR TABLE — CHECK RADII':''));
+  if(S.mgt) renderMgt();
 }
 const colPgm=document.querySelector('.col-pgm');
 colPgm.addEventListener('dragover',e=>{ e.preventDefault(); });
@@ -882,15 +916,15 @@ $('b-help').onclick=()=>openHelp();
 
 /* ---------- AI setup + generation (ai.js) ---------- */
 const AI=window.TNC_AI||null;
-function getKey(){ return sess.get(KEY_LS)||local.get(KEY_LS)||''; }
+function getKey(){ return sess.get(KEY_LS)||local.get(KEY_LS)||window.TNC_AI_LOCAL_KEY||''; }   // last: .env, local build only
 function getModel(){ return local.get(MODEL_LS)||(AI?AI.DEFAULT_MODEL:'deepseek/deepseek-v4.1-flash'); }
-function keyPill(){ const p=$('ai-keypill'), k=getKey(); p.textContent=k?'key set':'no key'; p.className='pill '+(k?'ok':'no'); }
+function keyPill(){ const p=$('ai-keypill'), k=getKey(); p.textContent=k?(k===window.TNC_AI_LOCAL_KEY&&!sess.get(KEY_LS)&&!local.get(KEY_LS)?'key from .env':'key set'):'no key'; p.className='pill '+(k?'ok':'no'); }
 function aiSetupHTML(){
   const k=getKey(), rem=!!local.get(KEY_LS);
   return `<div class="prose">
 <h4>The third way to make a program: let an AI write it</h4>
 <p>This uses <strong>OpenRouter</strong>, one account that reaches many AI models. You pay OpenRouter directly — this page has no server, never sees your money, and never sees your key except to send it straight to OpenRouter.</p>
-<p>Default model: <code>deepseek/deepseek-v4.1-flash</code> (DeepSeek V4.1 Flash). At about US$0.15 per million tokens in and $0.60 out, one program costs roughly a tenth of a US cent.</p>
+<p>Default model: <code>deepseek/deepseek-v4.1-flash</code> (DeepSeek V4.1 Flash). At about US$0.035 per million tokens in and $0.29 out (OpenRouter, September 2026), one program costs a small fraction of a US cent.</p>${window.TNC_AI_LOCAL_KEY?'<p><span class="pill ok">local build</span> A key from <code>.env</code> is built into this copy. It is never in the public page.</p>':''}
 <h4>Set it up — five minutes</h4>
 <ol>
 <li>Create an account at <code>openrouter.ai</code>.</li>
@@ -911,7 +945,7 @@ function aiSetupHTML(){
 <div class="fgrid" style="max-width:760px">
 <label class="fld wide"><span>OPENROUTER API KEY</span><input id="ai-key" type="password" autocomplete="off" spellcheck="false" placeholder="sk-or-v1-…" value="${esc(k)}"></label>
 <label class="fld wide"><span>MODEL</span><input id="ai-model" list="ai-models" spellcheck="false" value="${esc(getModel())}">
-<datalist id="ai-models"><option value="deepseek/deepseek-v4.1-flash"><option value="deepseek/deepseek-v4-flash"><option value="deepseek/deepseek-v4-pro"><option value="deepseek/deepseek-v3.2"></datalist></label>
+<datalist id="ai-models">${(AI?AI.MODELS:[]).map(m=>`<option value="${esc(m)}">`).join('')}</datalist></label>
 <label class="fld chk wide"><input type="checkbox" id="ai-remember"${rem?' checked':''}> Remember the key in this browser</label>
 </div>
 <div class="actrow"><button class="cbtn pri" id="ai-test">Test key</button><button class="cbtn" id="ai-savekey">Save</button><button class="cbtn" id="ai-forget">Forget key</button></div>
@@ -960,7 +994,7 @@ async function aiGenerate(){
   if(!AI){ log('<span class="bad">The AI module is not in this build.</span>'); return; }
   if(!key){ log('<span class="bad">No key yet.</span> Open <b>AI setup</b> first — it takes five minutes.'); return; }
   if(prompt.length<8){ log('<span class="bad">Describe the part in a sentence or two.</span>'); return; }
-  const Ls=lessonsOf(), sys=(Ls&&Ls.aiSystemPrompt)||AI.FALLBACK_SYSTEM;
+  const sys=AI.system?AI.system(mtools()):AI.FALLBACK_SYSTEM;   // ai.js owns the prompt; it lists this operator's tool table
   const btn=$('ai-go'); btn.disabled=true; btn.textContent='Working…'; aiAbort=new AbortController();
   log(`<span class="dim">Model ${esc(getModel())} · machine ${esc(M().label)}</span>`);
   try{
@@ -979,7 +1013,7 @@ async function aiGenerate(){
 /* ---------- NEW PROGRAM ---------- */
 function openNew(which){
   openModal('m-new'); $('new-opts').hidden=false; $('new-scratch').hidden=true; $('new-ai').hidden=true;
-  $('ns-tool').innerHTML=(M().tools||[]).map(t=>`<option value="${t.t}"${t.t===4?' selected':''}>T${t.t} ${esc(t.name)} (R${t.r})</option>`).join('');
+  $('ns-tool').innerHTML=mtools().map(t=>`<option value="${t.t}"${t.t===4?' selected':''}>T${t.t} ${esc(t.name)} (R${t.r})</option>`).join('');
   keyPill(); if(which) newGo(which);
 }
 function newGo(w){
@@ -1011,6 +1045,105 @@ function renderDev(){ [...$('dev-tabs').children].forEach(b=>b.setAttribute('ari
   $('dev-pre').textContent=(DEVTXT[devTab]&&DEVTXT[devTab]())||'Not written yet — in progress.'; }
 $('dev-tabs').addEventListener('click',e=>{ const b=e.target.closest('[data-tab]'); if(b){ devTab=b.dataset.tab; renderDev(); } });
 $('b-dev').onclick=()=>{ openModal('m-dev'); renderDev(); };
+
+/* ================= PROFILE: name, autosave, export / import, tool table ================= */
+function profChip(saved){
+  const b=$('b-prof'); if(!b) return;
+  b.textContent=(PROF&&PROF.name)?PROF.name:'Who are you?';
+  const t=PSTORE.lastSaved; b.title=(PROF&&PROF.name?PROF.name+' · ':'')+(t?'autosaved '+t.toLocaleTimeString():'not saved yet')+(saved===false?' · STORAGE BLOCKED — EXPORT TO KEEP YOUR WORK':'');
+  b.classList.toggle('warn',saved===false);
+  if(openModalEl===$('m-prof')) { const st=$('prof-saved'); if(st) st.textContent=t?'Autosaved '+t.toLocaleTimeString()+' — in this browser':'Not saved yet'; }
+}
+function openProfile(){ openModal('m-prof'); renderProfile(); }
+function profCounts(){ let pg_=0; for(const id in S.pgms) for(const n in S.pgms[id]) if(n!==TEMP&&S.pgms[id][n]!==S.orig[id][n]) pg_++;
+  return {programs:pg_, projects:S.projects.length, tools:Object.values(S.tools).reduce((a,t)=>a+(t||[]).length,0)}; }
+function renderProfile(){
+  const c=profCounts(), t=PSTORE.lastSaved, tools=mtools();
+  $('prof-body').innerHTML=`<div class="prose">${PROF&&PROF.name?'':'<h4>Welcome. What\'s your name?</h4><p>Everything you make — programs, projects, tools, settings — is kept under your name in this browser and saved automatically. Export it to move it to another computer.</p>'}</div>
+<div class="fgrid" style="max-width:760px">
+ <label class="fld wide"><span>YOUR NAME</span><input id="prof-name" maxlength="40" autocomplete="name" spellcheck="false" value="${esc(PROF&&PROF.name||'')}" placeholder="e.g. Nebojsa"></label>
+</div>
+<p class="note" id="prof-saved" style="margin:8px 0 0">${t?'Autosaved '+t.toLocaleTimeString()+' — in this browser':'Not saved yet'}</p>
+<p class="note" style="margin:4px 0 0">${c.programs} program(s) of yours · ${c.projects} project(s) · ${c.tools} tool(s) of yours · machines: ${Object.values(MACHINES).map(m=>esc(m.label)).join(', ')}</p>
+<div class="actrow"><button class="cbtn pri" id="prof-export">Export profile (.zip)</button><button class="cbtn" id="prof-import">Import…</button>
+ <button class="cbtn" id="prof-new">Start a new profile…</button></div>
+<div id="prof-ask"></div>
+<h4 class="sech">TOOL TABLE — ${esc(M().label)} <small>(TOOL.T · * = yours)</small></h4>
+<div class="tblw"><table class="ttab"><thead><tr><th>T</th><th>NAME</th><th>L</th><th>R</th><th></th></tr></thead><tbody>${
+  tools.map(x=>`<tr data-t="${x.t}"${x.mine?' class="mine"':''}><td>${x.t}${x.mine?' *':''}</td><td><input data-k="name" value="${esc(x.name)}" maxlength="16" aria-label="T${x.t} name"></td>
+   <td><input data-k="l" inputmode="decimal" value="${(+x.l).toFixed(3)}" aria-label="T${x.t} length"></td><td><input data-k="r" inputmode="decimal" value="${(+x.r).toFixed(3)}" aria-label="T${x.t} radius"></td>
+   <td>${x.mine?`<button data-del="${x.t}" title="Remove your entry" aria-label="Remove T${x.t}">×</button>`:''}</td></tr>`).join('')}</tbody></table></div>
+<div class="actrow"><label class="fld" style="flex-direction:row;align-items:center;gap:6px"><span>T</span><input id="tt-new" inputmode="numeric" style="width:70px" aria-label="New tool number"></label>
+ <button class="cbtn" id="tt-add">Add tool</button><button class="cbtn" id="tt-missing">Add tools this program calls</button><button class="cbtn" id="tt-export">Export TOOL.T</button></div>`;
+  const nm=$('prof-name');
+  nm.addEventListener('input',()=>{ PROF.name=nm.value.trim().slice(0,40); profChip(); persist(); });
+  nm.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); nm.blur(); } });
+  $('prof-export').onclick=exportProfile;
+  $('prof-import').onclick=loadFromDisk;
+  $('prof-new').onclick=newProfile;
+  $('tt-add').onclick=()=>{ const t=parseInt($('tt-new').value,10); if(!(t>=0&&t<=32767)){ say('TOOL NUMBER 0–32767'); return; }
+    mergeTools([{t,name:'T'+t,l:50,r:3}],true); };
+  $('tt-missing').onclick=addMissingTools;
+  $('tt-export').onclick=()=>{ if(!window.TNC_PROFILE) return; download('TOOL_TNC'+S.machine+'.T',new Blob([TNC_PROFILE.toolT(mtools())],{type:'text/plain'})); };
+  const tb=$('prof-body').querySelector('.ttab');
+  tb.addEventListener('change',e=>{ const inp=e.target.closest('input'); if(!inp) return; const tr=inp.closest('tr'), t=+tr.dataset.t;
+    const cur=mtools().find(x=>x.t===t); if(!cur) return; const v=inp.dataset.k==='name'?inp.value.trim().toUpperCase().slice(0,16)||('T'+t):parseFloat(String(inp.value).replace(',','.'));
+    if(inp.dataset.k!=='name'&&!isFinite(v)){ say('NOT A NUMBER'); renderProfile(); return; }
+    if(inp.dataset.k==='r'&&v<0){ say('RADIUS MUST BE ≥ 0'); renderProfile(); return; }
+    const e2={t,name:cur.name,l:+cur.l,r:+cur.r}; e2[inp.dataset.k]=v; mergeTools([e2],true); });
+  tb.addEventListener('click',e=>{ const d=e.target.closest('[data-del]'); if(!d) return; const t=+d.dataset.del;
+    S.tools[S.machine]=(S.tools[S.machine]||[]).filter(x=>x.t!==t); persist(); curToolT=null; compile(); renderProfile(); say('T'+t+' REMOVED FROM YOUR TABLE'); });
+  if(!(PROF&&PROF.name)) setTimeout(()=>nm.focus(),30);
+}
+function mergeTools(list,quiet){
+  const mine=(S.tools[S.machine]=S.tools[S.machine]||[]);
+  list.forEach(n=>{ const i=mine.findIndex(x=>x.t===n.t); const e={t:n.t,name:String(n.name||'T'+n.t).toUpperCase().slice(0,16),l:+n.l||0,r:+n.r||0}; if(i>=0) mine[i]=e; else mine.push(e); });
+  persist(); curToolT=null; compile(); if(openModalEl===$('m-prof')) renderProfile(); if(!quiet) say(list.length+' TOOL(S) IN YOUR TABLE');
+}
+/* uploaded programs: every TOOL CALL number missing from the table gets an entry (radius from ";T5 D=+8" or TOOL DEF, else R3) */
+function toolsFor(texts){
+  const have=new Set(mtools().map(t=>t.t)), add={};
+  texts.forEach(t=>{ const hint={}, def=new Set();
+    t.split(/\r?\n/).forEach(l=>{ let m; if((m=/;\s*T(\d+)\s+D=\s*([+-]?\d+\.?\d*)/i.exec(l))) hint[+m[1]]=Math.abs(parseFloat(m[2]))/2;
+      if((m=/TOOL\s+DEF\s+(\d+)\s+L/i.exec(l))) def.add(+m[1]); });
+    t.split(/\r?\n/).forEach(l=>{ const m=/TOOL\s+CALL\s+(\d+)/i.exec(l); if(!m) return; const n=+m[1];
+      if(n&&!have.has(n)&&!def.has(n)&&!add[n]) add[n]={t:n,name:'T'+n+(hint[n]!=null?'_D'+(hint[n]*2):''),l:50,r:hint[n]!=null?hint[n]:3}; }); });
+  const list=Object.values(add); if(list.length) mergeTools(list,true); return list.length;
+}
+/* tools called by the program but missing from the table: radius from a CAM comment (";T5 D=+8") when there is one */
+function addMissingTools(){
+  const miss=[...new Set((S.res.errors||[]).map(e=>(/^TOOL (\d+) NOT DEFINED/.exec(e.msg)||[])[1]).filter(Boolean).map(Number))];
+  if(!miss.length){ say('EVERY TOOL THIS PROGRAM CALLS IS IN THE TABLE'); return; }
+  const hint={}; S.text.split('\n').forEach(l=>{ const m=/;\s*T(\d+)\s+D=\s*([+-]?\d+\.?\d*)/i.exec(l); if(m) hint[+m[1]]=Math.abs(parseFloat(m[2]))/2; });
+  mergeTools(miss.map(t=>({t,name:'T'+t+(hint[t]!=null?'_D'+(hint[t]*2):''),l:50,r:hint[t]!=null?hint[t]:3})),true);
+  say(miss.length+' TOOL(S) ADDED'+(miss.some(t=>hint[t]==null)?' — CHECK THE RADII, SOME ARE GUESSES (R3)':' — RADII FROM THE PROGRAM COMMENTS'));
+}
+function exportProfile(){
+  if(!window.TNC_PROFILE){ say('PROFILE MODULE MISSING FROM THIS BUILD'); return; }
+  PROF=profileNow();
+  const lst=(m,t)=>{ const keep=S.machine; S.machine=MACHINES[m]?m:keep; const r=listing(t); S.machine=keep; return r; };
+  TNC_PROFILE.exportZip(PROF,lst).then(r=>{ download(r.name,r.blob); say('PROFILE EXPORTED — '+r.count+' PROGRAM(S)'); }).catch(e=>say(String(e.message||e)));
+}
+function profImportAsk(inc,fname){
+  const box=$('prof-ask'); if(!box) return;
+  const n=Object.values(inc.machines||{}).reduce((a,m)=>a+Object.keys(m.pgms||{}).length,0);
+  box.innerHTML=`<div class="warnbox" style="margin-top:12px"><b>${esc(fname)}</b> — profile “${esc(inc.name||'unnamed')}”, ${n} program(s), ${(inc.projects||[]).length} project(s).<br>
+   <b>Merge</b> adds its programs, projects and tools to yours (name clashes get _IMP). <b>Replace</b> throws yours away — export first if unsure.
+   <div class="actrow"><button class="cbtn pri" id="imp-merge">Merge into mine</button><button class="cbtn" id="imp-replace">Replace mine</button><button class="cbtn" id="imp-cancel">Cancel</button></div></div>`;
+  $('imp-cancel').onclick=()=>{ box.innerHTML=''; };
+  $('imp-merge').onclick=async()=>{ const m=TNC_PROFILE.merge(profileNow(),inc); m.profile.name=(PROF&&PROF.name)||inc.name||''; await finishImport(m.profile,'MERGED'+(m.renamed?' · '+m.renamed+' RENAMED':'')); };
+  $('imp-replace').onclick=async()=>{ if(!confirm('Replace your whole profile with '+(inc.name||'this one')+'? Your current programs will be gone.')) return; await finishImport(inc,'REPLACED'); };
+}
+async function finishImport(prof,msg){
+  clearTimeout(persistT); PROF=prof; await PSTORE.save(PROF); sess.set('tnc.flash','PROFILE '+msg);
+  location.reload();                                  // a clean start on the imported state
+}
+async function newProfile(){
+  if(!confirm('Start a new, empty profile? Your programs, projects and tools in this browser will be deleted.\n\nPress Cancel and use “Export profile” first if you want to keep them.')) return;
+  clearTimeout(persistT); await PSTORE.wipe(); try{ localStorage.removeItem(LS_KEY); }catch(e){}
+  PROF=PSTORE.blank(''); await PSTORE.save(PROF); location.reload();
+}
+if($('b-prof')) $('b-prof').onclick=openProfile;
 
 /* ================= machine selector ================= */
 function setMachine(id){
@@ -1104,7 +1237,7 @@ function showPane(p){ if(!matchMedia('(max-width:900px)').matches) return; mainE
 $('mtabs').addEventListener('click',e=>{ const b=e.target.closest('button'); if(b) showPane(b.dataset.pane); });
 
 /* ================= boot screen ================= */
-function dismissBoot(){ $('boot').hidden=true; sess.set(BOOT_SS,'1'); }
+function dismissBoot(){ $('boot').hidden=true; sess.set(BOOT_SS,'1'); if(PROF&&!PROF.name) openProfile(); }
 $('boot').addEventListener('click',dismissBoot);
 
 /* ================= render loop ================= */
@@ -1150,14 +1283,23 @@ function tick(now){
 
 /* ================= boot ================= */
 (window.TNC_UI_PLUGINS||[]).forEach(fn=>{ try{ fn(UIAPI); }catch(e){ console.warn('plugin failed',e); } });
+(async function boot(){
+let fresh=false;
+try{ PROF=await PSTORE.load(); }catch(e){ PROF=null; }
+if(!PROF){ PROF=PSTORE.legacy()||PSTORE.blank(''); fresh=true; }
 loadStore();
+if(fresh) persist();
 raw.value=S.text;
 document.querySelector('.ttl').textContent=M().label;
 if($('mach-sel')) $('mach-sel').value=S.machine;
 [...$('spd').children].forEach(b=>b.dataset.on=(+b.dataset.s===S.speed)?'1':'0');
 [...document.querySelectorAll('.mode')].forEach(b=>b.setAttribute('aria-pressed',b.dataset.m===S.mode));
-compile(); renderSK(); renderProjects(); syncToggles(); keyPill(); resize();
+compile(); renderSK(); renderProjects(); syncToggles(); keyPill(); resize(); profChip();
 if(S.flowView&&window.TNC_FLOW){ S.flowView=false; toggleFlow(); }
+const flash=sess.get('tnc.flash'); if(flash){ sess.del('tnc.flash'); setTimeout(()=>say(flash),400); }
 if(!sess.get(BOOT_SS)) $('boot').hidden=false;
+else if(!PROF.name) openProfile();
 requestAnimationFrame(tick);
 })();
+})();
+

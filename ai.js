@@ -1,0 +1,186 @@
+/* ============================================================
+   TNC_AI — the third way to make a program: describe it, an AI writes it.
+   OpenRouter only (BYOK). Plain fetch, no SDK, no server.
+   The key lives in this browser (sessionStorage, or localStorage if the
+   operator ticks Remember), or comes from .env in the gitignored local build.
+
+   TNC_AI.DEFAULT_MODEL
+   TNC_AI.generate({key, model, prompt, system, tools, verify, onStep, signal, maxRepairs}) -> {src, report, cost}
+   TNC_AI.testKey(key) -> {label, usage, limit, ...}
+   TNC_AI.extract(text) -> program text or null
+   TNC_AI.system(tools) -> the system prompt for a tool table
+   ============================================================ */
+var TNC_AI = (function () {
+  'use strict';
+  var API = 'https://openrouter.ai/api/v1';
+  // checked against https://openrouter.ai/api/v1/models on 2026-09-27: $0.035 / M in, $0.29 / M out
+  var DEFAULT_MODEL = 'deepseek/deepseek-v4.1-flash';
+  var MODELS = ['deepseek/deepseek-v4.1-flash', 'deepseek/deepseek-v4-pro-0813', 'google/gemini-3.8-flash', 'openai/gpt-5.6-luna'];
+
+  function headers(key) {
+    var h = { 'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json', 'X-Title': 'TNC 426 Simulator' };
+    try { if (typeof location !== 'undefined' && /^https?:/.test(location.origin)) h['HTTP-Referer'] = location.origin + location.pathname; } catch (e) {}
+    return h;
+  }
+  function httpError(res, body) {
+    var msg = (body && body.error && (body.error.message || body.error)) || res.statusText || 'request failed';
+    var e = new Error(typeof msg === 'string' ? msg : JSON.stringify(msg)); e.status = res.status; return e;
+  }
+  function readJson(res) { return res.text().then(function (t) { try { return JSON.parse(t); } catch (e) { return { raw: t }; } }); }
+
+  function testKey(key) {
+    return fetch(API + '/key', { headers: headers(key) }).then(function (res) {
+      return readJson(res).then(function (b) { if (!res.ok) throw httpError(res, b); return b.data || b; });
+    });
+  }
+
+  function chat(o) {
+    return fetch(API + '/chat/completions', {
+      method: 'POST', headers: headers(o.key), signal: o.signal,
+      body: JSON.stringify({ model: o.model, messages: o.messages, temperature: 0.2, usage: { include: true } })
+    }).then(function (res) {
+      return readJson(res).then(function (b) {
+        if (!res.ok || b.error) throw httpError(res, b);
+        var c = b.choices && b.choices[0], text = c && c.message && c.message.content;
+        if (!text) { var e = new Error('EMPTY ANSWER FROM THE MODEL'); e.status = 502; throw e; }
+        return { text: text, cost: (b.usage && +b.usage.cost) || 0 };
+      });
+    });
+  }
+
+  /* the program: the fenced block that contains BEGIN PGM, else BEGIN PGM .. END PGM in the raw text */
+  function extract(text) {
+    text = String(text || '');
+    var fences = text.match(/```[a-z]*\s*\n([\s\S]*?)```/gi) || [];
+    for (var i = 0; i < fences.length; i++) {
+      var body = fences[i].replace(/^```[a-z]*\s*\n/i, '').replace(/```$/, '');
+      if (/BEGIN\s+PGM/i.test(body)) return clean(body);
+    }
+    var m = /BEGIN\s+PGM[\s\S]*?END\s+PGM[^\n]*/i.exec(text);
+    return m ? clean(m[0]) : null;
+  }
+  function clean(s) { return s.replace(/\r/g, '').split('\n').map(function (l) { return l.replace(/^\s*\d+\s+(?=[A-Z;*])/i, '').replace(/\s+$/, ''); }).join('\n').trim(); }
+
+  function toolLine(tools) {
+    return (tools || []).map(function (t) { return 'T' + t.t + ' ' + t.name + ' R' + (+t.r); }).join(' | ');
+  }
+
+  function system(tools) {
+    return [
+'You write HEIDENHAIN TNC 426 / TNC 430 conversational (Klartext) programs, NC software 280 476, for a browser simulator.',
+'Its interpreter accepts the syntax below; anything else is rejected with an error. Units are mm.',
+'',
+'OUTPUT FORMAT',
+'- Reply with ONLY the program inside a single ```klartext fenced block. Nothing before or after the fence.',
+'- No block numbers. One block per line.',
+'- Line 1: BEGIN PGM <NAME> MM. Last line: END PGM <NAME> MM (same name). NAME: A-Z, 0-9, _ only, max 16 characters.',
+'- Lines 2-3: the BLK FORM. Then ; comment lines describing the part: blank size, features, tools with S and F.',
+'',
+'BLANK',
+'BLK FORM 0.1 Z X+0 Y+0 Z-20   (MIN corner; Z after 0.1 = tool axis)',
+'BLK FORM 0.2 X+100 Y+80 Z+0   (MAX corner)',
+'Datum at front-left corner, top face Z+0, blank bottom negative. The tool starts at X0 Y0 Z0.',
+'',
+'PATH BLOCKS',
+'TOOL CALL 5 Z S3000            tool, axis Z, speed. Does NOT start the spindle.',
+'L X+10 Y+20 Z-3 R0 F500 M3     line. X Y Z absolute, IX IY IZ incremental. F modal mm/min. FMAX = rapid, this block only.',
+'CC X+50 Y+40                   circle centre / pole (modal). C X+30 Y+40 DR+  arc about CC to X Y (end = start: full circle).',
+'CR X+80 Y+40 R+20 DR-          arc by radius (+R <= 180 deg, -R > 180 deg). DR+ counter-clockwise, DR- clockwise, seen from +Z.',
+'CT X+40 Y+5                    arc tangent to the previous element.',
+'RND R5                         rounding arc between the element before and after it (between two path blocks).',
+'CHF 5                          chamfer of side length 5 between two straight lines.',
+'LP PR+30 PA+45                 polar line about CC (PR radius, PA angle deg; IPR IPA incremental).',
+'CP IPA+360 IZ-2 DR+            polar arc about CC by an angle; with IZ it is a helix. CTP PR.. PA.. tangent polar arc.',
+'',
+'RADIUS COMPENSATION (use it for contours; the simulator offsets exactly like the TNC)',
+'RL = tool left of the contour, RR = right, seen in the direction of travel. R0 = tool centre on the path. Modal.',
+'Climb milling an outside contour: RL going clockwise around the part. Inside a pocket: RL going counter-clockwise.',
+'Outside corners get an arc automatically; inside corners must be larger than the tool radius or TOOL RADIUS TOO LARGE.',
+'Never switch RL straight to RR: an R0 block must come between. Cancel with an R0 line or a DEP block.',
+'Approach and depart tangentially (preferred):',
+'  L X-20 Y-20 R0 FMAX / L Z-5 R0 F200    start point PS outside the contour, at depth',
+'  APPR LCT X+0 Y+0 R5 RL F500             first contour point, arc radius 5, compensation',
+'  L ... contour ...',
+'  DEP LCT X-20 Y-20 R5 F1000               depart to PN with an arc, compensation cancelled',
+'  Also: APPR LT X Y LEN10 RL, APPR LN X Y LEN10 RL, APPR CT X Y CCA90 R5 RL, DEP LT LEN10, DEP LN LEN10, DEP CT CCA90 R5.',
+'',
+'PROGRAM FLOW',
+'LBL 1 / LBL 0 / CALL LBL 1 / CALL LBL 1 REP 3/3 (section repeat: REP r runs it r+1 times in total).',
+'Subprogram: CALL LBL n (no REP) runs LBL n ... LBL 0; place subprograms after M30.',
+'FN 0: Q1 = -2      FN 1: Q2 = +Q2 + +Q1      (FN 2 minus, FN 3 times, FN 4 divide). Q in coordinates/feeds: L Z+Q2 FQ3.',
+'Depth passes: FN 0: Q1 = -2, FN 0: Q2 = +0, loop: FN 1: Q2 = +Q2 + +Q1 then L Z+Q2 (absolute).',
+'M30 alone on a line ends the program. ; starts a comment.',
+'Never use: FK, CYCL DEF 7/8/10/11 or cycles other than those below, FN 5+, IF/jumps, INCH, block numbers.',
+'',
+'M-FUNCTIONS',
+'M3/M4 spindle on, M8 coolant, M13/M14 spindle+coolant: at block START. M5, M9, M2/M30: at block END.',
+'Every TOOL CALL stops the spindle: the next block must carry M3, e.g. L Z+50 R0 FMAX M3. M5 only on a retract block.',
+'',
+'CYCLES (only 200, 201, 203, 4). A CYCL DEF plus its indented Q lines is ONE block; call it with M99 on a positioning block or CYCL CALL.',
+'CYCL DEF 200 DRILLING',
+'  Q200=+2    ;SET-UP CLEARANCE',
+'  Q201=-15   ;DEPTH',
+'  Q206=+150  ;FEED RATE FOR PLNGNG',
+'  Q202=+5    ;PLUNGING DEPTH',
+'  Q210=+0    ;DWELL TIME AT TOP',
+'  Q203=+0    ;SURFACE COORDINATE',
+'  Q204=+50   ;2ND SET-UP CLEARANCE',
+'L X+20 Y+20 R0 FMAX M99',
+'CYCL DEF 201 REAMING: Q200 Q201 Q206 Q211 Q208 (retract feed, 0 = ream feed) Q203 Q204.',
+'CYCL DEF 203 UNIVERSAL DRILLING: as 200 plus Q212 Q213 Q205 Q211 Q208 (0 = plunging feed) Q256.',
+'Pocket, dotted form, called at the pocket centre at Z = surface + set-up:',
+'CYCL DEF 4.0 POCKET MILLING / 4.1 SET UP 2 / 4.2 DEPTH -10 / 4.3 PECKG 3 F100 / 4.4 X60 / 4.5 Y40 / 4.6 F600 DR+ RADIUS 0',
+'',
+'TOOL TABLE (T name radius) — nothing else exists:',
+toolLine(tools),
+'Cones (spot, chamfer) cut a 45 degree flank. Probes never cut.',
+'',
+'SAFETY RULES THE SIMULATOR ENFORCES (a violation is reported as a crash)',
+'1. No FMAX into uncut stock: FMAX over the part only at Z+2 or higher; feed into the cut; FMAX back to Z+2 before any XY rapid.',
+'2. No cutting move without M3/M4 since the last TOOL CALL.',
+'3. Never feed more than 3 mm below the blank bottom; through-cuts at most 1 mm below.',
+'4. Chip load for end mills (3 flutes) and face mills (5): F / (S x flutes) <= 0.012 x D + 0.005.',
+'   Safe: T9 S8000 F900 | T4 S3000 F500 | T5 S3000 F1000 | T6 S1200 F2000. Drills: T1 S2000 Q206=+100, T2 S1800 Q206=+150.',
+'Plunge at F100-F200. Keep every cut within the blank.',
+'',
+'ERRORS',
+'If you get an error report from the simulator (each with a block number; BEGIN PGM is block 0; a CYCL DEF with its Q lines is one block),',
+'find the cause and return the COMPLETE corrected program, same format, nothing outside the fence.'
+    ].join('\n');
+  }
+  var FALLBACK_SYSTEM = system([]);
+
+  function generate(o) {
+    var model = o.model || DEFAULT_MODEL, onStep = o.onStep || function () {}, repairs = o.maxRepairs == null ? 1 : o.maxRepairs;
+    var messages = [{ role: 'system', content: o.system || system(o.tools) },
+                    { role: 'user', content: 'Write the program for this part:\n\n' + o.prompt }];
+    var cost = 0, attempt = 0, last = null;
+    function step() {
+      onStep({ phase: 'request', attempt: attempt });
+      return chat({ key: o.key, model: model, messages: messages, signal: o.signal }).then(function (r) {
+        cost += r.cost;
+        var src = extract(r.text);
+        if (!src) {
+          var rep0 = { ok: false, errs: ['NO PROGRAM IN THE ANSWER'], crashes: [], warns: [], text: 'NO PROGRAM IN THE ANSWER' };
+          onStep({ phase: 'checked', attempt: attempt, report: rep0 });
+          if (attempt >= repairs) { var e = new Error('THE MODEL DID NOT RETURN A PROGRAM'); e.status = 0; throw e; }
+          messages.push({ role: 'assistant', content: r.text });
+          messages.push({ role: 'user', content: 'Your answer contained no program. Reply with the complete program in one ```klartext fence only.' });
+          attempt++; return step();
+        }
+        var report = o.verify ? o.verify(src) : { ok: true, errs: [], crashes: [], warns: [], text: '' };
+        last = { src: src, report: report };
+        onStep({ phase: 'checked', attempt: attempt, report: report, src: src });
+        if (report.ok || attempt >= repairs) return { src: src, report: report, cost: cost, attempts: attempt + 1 };
+        messages.push({ role: 'assistant', content: '```klartext\n' + src + '\n```' });
+        messages.push({ role: 'user', content: 'The simulator reported:\n' + report.text + '\n\nReturn the complete corrected program.' });
+        attempt++; return step();
+      });
+    }
+    return step();
+  }
+
+  return { DEFAULT_MODEL: DEFAULT_MODEL, MODELS: MODELS, FALLBACK_SYSTEM: FALLBACK_SYSTEM,
+    generate: generate, testKey: testKey, extract: extract, system: system };
+})();
+if (typeof module !== 'undefined') module.exports = TNC_AI;

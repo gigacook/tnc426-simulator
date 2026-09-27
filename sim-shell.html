@@ -33,6 +33,17 @@ button{cursor:pointer}
   background:var(--panel-2);color:var(--ink-dim);border:1px solid var(--line);padding:6px 11px 5px;border-radius:2px}
 .hbtn:hover{border-color:var(--cyan);color:var(--cyan)}
 .hbtn.new{background:var(--mint);border-color:var(--mint);color:#04210f}
+.hbtn.prof{max-width:18ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:.08em;border-color:var(--cyan);color:var(--cyan)}
+.hbtn.prof.warn{border-color:var(--amber);color:var(--amber)}
+.sech{font-family:var(--disp);font-weight:700;letter-spacing:.14em;font-size:13px;margin:22px 0 8px;color:var(--ink)}
+.sech small{color:var(--ink-faint);font-weight:400;letter-spacing:.04em}
+.ttab{border-collapse:collapse;font-family:var(--mono);font-size:12.5px}
+.ttab th{text-align:left;color:var(--ink-faint);font-weight:400;padding:4px 8px;border-bottom:1px solid var(--line)}
+.ttab td{padding:2px 6px;border-bottom:1px solid var(--line)}
+.ttab tr.mine td:first-child{color:var(--cyan)}
+.ttab input{background:var(--void);border:1px solid var(--line);color:var(--ink);font:inherit;padding:3px 6px;width:11ch;border-radius:2px}
+.ttab td:nth-child(2) input{width:18ch}
+.ttab button{background:none;border:1px solid var(--line);color:var(--ink-dim);cursor:pointer;border-radius:2px;padding:1px 7px}
 .hbtn.new:hover{background:#7ff0c2;color:#04210f}
 .devbtn{background:var(--orange);border-color:#ffb066;color:#1f0f00;
   box-shadow:0 0 14px rgba(255,138,31,.55);animation:devglow 1.8s ease-in-out infinite}
@@ -340,6 +351,7 @@ textarea#raw:focus{outline:none}
    <button class="hbtn devbtn" id="b-dev" title="Feature log, version history, release plan">DEV</button>
    <button class="hbtn new" id="b-new" title="Make a new program">+ New</button>
    <button class="hbtn" id="b-help" title="Lessons, pitfalls, manual, AI setup (H)">Help</button>
+   <button class="hbtn prof" id="b-prof" title="Your profile: name, programs, tool table, export / import">Profile</button>
    <div class="modes" id="modes">
      <button class="mode" data-m="edit"   aria-pressed="false"><b>F1</b><span class="lg">PROGRAMMING AND EDITING</span><span class="sm">EDIT</span></button>
      <button class="mode" data-m="test"   aria-pressed="true"><b>F2</b><span class="lg">TEST RUN</span><span class="sm">TEST</span></button>
@@ -524,6 +536,14 @@ textarea#raw:focus{outline:none}
 </div>
 
 <!-- ================= DEV ================= -->
+<div class="modal" id="m-prof" hidden>
+ <div class="mcard" role="dialog" aria-modal="true" aria-labelledby="m-prof-t">
+  <div class="mhead"><span class="mt" id="m-prof-t">Profile</span>
+    <button class="x" data-close>Close <small>ESC</small></button></div>
+  <div class="mbody" id="prof-body"></div>
+ </div>
+</div>
+
 <div class="modal" id="m-dev" hidden>
  <div class="mcard dev" role="dialog" aria-modal="true" aria-labelledby="m-dev-t">
   <div class="mhead"><span class="mt" id="m-dev-t">DEV</span>

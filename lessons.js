@@ -178,6 +178,84 @@ var TNC_LESSONS = (function () {
     'LBL 0'                                     // 18
   ]);                                           // 19 END PGM
 
+  var L9 = prog('BOSS', [
+    'TOOL CALL 4 Z S3000',                      // 3
+    'L Z+50 R0 FMAX M3',                        // 4
+    'L X+50 Y+40 R0 FMAX',                      // 5
+    'L Z+2 R0 FMAX',                            // 6
+    'L Z-3 R0 F150',                            // 7
+    'L X+20 Y+20 RL F500',                      // 8  activation
+    'L X+20 Y+60',                              // 9
+    'L X+80 Y+60',                               // 10
+    'L X+80 Y+20',                               // 11
+    'L X+20 Y+20',                               // 12
+    'L Z+2 R0 FMAX',                             // 13  R0 cancels
+    'L Z+50 R0 FMAX M30'                         // 14
+  ]);                                            // 15 END PGM
+
+  // The next three are the HEIDENHAIN TNC 426/430 manual's own worked examples
+  // (chapter 6, "Programming contours"; see tests/manual.js), kept verbatim so
+  // the geometry is exactly what the manual documents. Their blank is 100x100,
+  // not the usual 100x80, so they are not built with prog()/BLK.
+  var L10 = P([
+    'BEGIN PGM LINEAR MM',                       // 0
+    'BLK FORM 0.1 Z X+0 Y+0 Z-20',                // 1
+    'BLK FORM 0.2 X+100 Y+100 Z+0',               // 2
+    'TOOL DEF 1 L+0 R+10',                        // 3
+    'TOOL CALL 1 Z S4000',                        // 4
+    'L Z+250 R0 FMAX',                            // 5
+    'L X-10 Y-10 R0 FMAX',                        // 6
+    'L Z-5 R0 F1000 M3',                          // 7
+    'APPR LT X+5 Y+5 LEN10 RL F300',              // 8
+    'L Y+95',                                     // 9
+    'L X+95',                                     // 10
+    'CHF 10',                                     // 11
+    'L Y+5',                                      // 12
+    'CHF 20',                                     // 13
+    'L X+5',                                      // 14
+    'DEP LT LEN10 F1000',                         // 15
+    'L Z+250 R0 FMAX M2',                         // 16
+    'END PGM LINEAR MM'                           // 17
+  ]);
+  var L11 = P([
+    'BEGIN PGM CIRCULAR MM',                      // 0
+    'BLK FORM 0.1 Z X+0 Y+0 Z-20',                // 1
+    'BLK FORM 0.2 X+100 Y+100 Z+0',               // 2
+    'TOOL DEF 1 L+0 R+10',                        // 3
+    'TOOL CALL 1 Z S4000',                        // 4
+    'L Z+250 R0 FMAX',                            // 5
+    'L X-10 Y-10 R0 FMAX',                        // 6
+    'L Z-5 R0 F1000 M3',                          // 7
+    'APPR LCT X+5 Y+5 R5 RL F300',                // 8
+    'L X+5 Y+85',                                 // 9
+    'RND R10 F150',                               // 10
+    'L X+30 Y+85',                                // 11
+    'CR X+70 Y+95 R+30 DR-',                      // 12
+    'L X+95',                                     // 13
+    'L X+95 Y+40',                                // 14
+    'CT X+40 Y+5',                                // 15
+    'L X+5',                                      // 16
+    'DEP LCT X-20 Y-20 R5 F1000',                 // 17
+    'L Z+250 R0 FMAX M2',                         // 18
+    'END PGM CIRCULAR MM'                         // 19
+  ]);
+  var L12 = P([
+    'BEGIN PGM HELIX MM',                         // 0
+    'BLK FORM 0.1 Z X+0 Y+0 Z-20',                // 1
+    'BLK FORM 0.2 X+100 Y+100 Z+0',               // 2
+    'TOOL DEF 1 L+0 R+5',                         // 3
+    'TOOL CALL 1 Z S1400',                        // 4
+    'L Z+250 R0 FMAX',                            // 5
+    'L X+50 Y+50 R0 FMAX',                        // 6
+    'CC',                                         // 7
+    'L Z-12.75 R0 F1000 M3',                      // 8
+    'APPR PCT PR+32 PA-180 CCA180 R+2 RL F100',   // 9
+    'CP IPA+3240 IZ+13.5 DR+ F200',                // 10
+    'DEP CT CCA180 R+2',                          // 11
+    'L Z+250 R0 FMAX M2',                          // 12
+    'END PGM HELIX MM'                             // 13
+  ]);
+
   var learn = [
     {
       id: 'hello',
@@ -317,6 +395,70 @@ var TNC_LESSONS = (function () {
           program: null, focus: [5, 6, 7, 8], run: false },
         { say: "Run it and watch both squares appear from the one block of code between `LBL 5` and `LBL 0`.",
           program: null, focus: null, run: true }
+      ]
+    },
+    {
+      id: 'radius-comp',
+      title: 'Contour with radius compensation',
+      blurb: 'RL keeps the whole cutter outside the line you drew, with the corners filled in automatically.',
+      steps: [
+        { say: "Every move so far has cut on the tool's **centreline**: draw the path the middle of the cutter should follow. `RL`/`RR` change that. Add `RL` to a move and the control keeps the *edge* of the tool that distance to the **left** of the direction of travel — you keep drawing the finished part, and the control works out the offset.",
+          program: L9, focus: [8], run: false },
+        { say: "`RL` (or `RR`) goes on the block that **activates** it — here, the move onto the first corner of the boss at X20 Y20. From that block on, every move is offset by the tool's radius (3 mm for the Ø6 end mill) until something cancels it.",
+          program: null, focus: [8], run: false },
+        { say: "Run it and look at the corners on the SIM. The programmed path is a sharp 60 × 40 rectangle, but the tool's actual path shows a small arc at each corner — radius 3, one tool radius. The control inserts that automatically so the outside edge of the boss comes out sharp instead of dragging the cutter through the corner along a straight line.",
+          program: null, focus: [8, 9, 10, 11, 12], run: true },
+        { say: "`R0` cancels it. `L Z+2 R0 FMAX` after the last corner returns to the centreline before the retract — leave `RL` active into a rapid move and the control refuses it, because it has no finished edge left to measure from.",
+          program: null, focus: [13], run: false }
+      ]
+    },
+    {
+      id: 'appr-dep',
+      title: 'Approach and depart',
+      blurb: 'APPR / DEP: arrive on the finished contour already at full feed, moving tangent to it — never a straight plunge onto the edge.',
+      steps: [
+        { say: "This is the manual's own LINEAR example. `L X-10 Y-10 R0 FMAX` parks the tool off to the side, clear of the part, at the same Z the cut will run at. Everything from here on is on the finished contour, not the centreline.",
+          program: L10, focus: [6, 7], run: false },
+        { say: "`APPR LT X+5 Y+5 LEN10 RL F300` is two moves in one block: a straight line of length `LEN10`, ending at the contour's start point (X5 Y5), with `RL` switched on for that final approach. Compare that with just writing `L X+5 Y+5 RL F300` — that would work too, but it engages the material on a line aimed **straight at** the first corner instead of running up to it, so any hesitation at start leaves a mark exactly on a corner.",
+          program: null, focus: [8], run: false },
+        { say: "From here it reads like any other contour — `L Y+95`, `L X+95` — with `RL` already active and doing its job on every move.",
+          program: null, focus: [9, 10], run: false },
+        { say: "`DEP LT LEN10 F1000` is the mirror image: a straight line of 10 mm that leaves the finished edge and cancels the compensation in the same block, instead of a separate `R0` move that would drag the edge of the tool across the just-finished surface on its way off centreline.",
+          program: null, focus: [15], run: false },
+        { say: "Run it. `APPR`/`DEP` also come in `LCT` (tangential arc) and `CT`/`LN`/`LCT`/`PLCT`/`PCT` (polar) forms — same idea, different shape of approach.",
+          program: null, focus: null, run: true }
+      ]
+    },
+    {
+      id: 'chf-rnd',
+      title: 'Chamfers and roundings',
+      blurb: 'CHF and RND: break a corner without working out the extra geometry yourself.',
+      steps: [
+        { say: "This is the manual's CIRCULAR example. `RND R10 F150` sits between two contour moves with **no coordinates of its own** — it rounds the corner they would otherwise make, to radius 10, at its own feed rate.",
+          program: L11, focus: [10], run: false },
+        { say: "The block before it, `L X+5 Y+85`, and the block after, `L X+30 Y+85`, are both still programmed as if the corner were sharp. `RND` reads both neighbours after the fact and inserts the fillet between them — you never compute the trim points.",
+          program: null, focus: [9, 10, 11], run: false },
+        { say: "`CHF` is the same idea in a straight line: `CHF 10` (in the LINEAR lesson) cuts a 10 mm chamfer across a corner the same way, again with the neighbouring moves left as sharp corners in the program.",
+          program: null, focus: null, run: false },
+        { say: "Both need real geometry on both sides — a `RND` or `CHF` right after `APPR`, or with no element on one side, is refused (`ROUNDING-OFF NOT PERMITTED` / `CHAMFER NOT PERMITTED`). And the radius or chamfer has to actually fit the corner, or it is `ROUNDING-OFF RADIUS TOO LARGE`.",
+          program: null, focus: null, run: false },
+        { say: "Run it: a rounded corner, a large climb arc (`CR`), and a tangent arc (`CT`) that blends smoothly into the line after it, all on one 100 × 100 contour.",
+          program: null, focus: null, run: true }
+      ]
+    },
+    {
+      id: 'polar-helix',
+      title: 'Polar and helix',
+      blurb: 'CC as a pole instead of a centre, LP/CP in angle and radius, and a helix from one extra word.',
+      steps: [
+        { say: "`CC` with no coordinates re-uses the last position as the **pole** — here, wherever `L X+50 Y+50` just put the tool. Polar moves measure from the pole: `PR` is a radius from it, `PA` an angle in degrees (0° along +X, counter-clockwise).",
+          program: L12, focus: [6, 7], run: false },
+        { say: "`APPR PCT PR+32 PA-180 CCA180 R+2 RL F100` approaches on a circular arc (`CT` = tangential) of a full 180° (`CCA180`), landing on a circle of radius 32 around the pole. It is the polar twin of `APPR LCT`.",
+          program: null, focus: [9], run: false },
+        { say: "`CP IPA+3240 IZ+13.5 DR+ F200` is the whole helix in one block: `CP` sweeps an arc about the pole, `IPA` is the angle to sweep **incrementally** (3240° = 9 full turns), `DR+` is the direction, and `IZ+13.5` is the Z it climbs **while** sweeping — spread evenly over the 9 turns. No loop, no Q parameters, one block.",
+          program: null, focus: [10], run: false },
+        { say: "Run it and orbit the 3D view: nine turns spiralling up and out to Z+0.75, at a constant 27 mm from the pole (32 mm minus the Ø10 cutter's 5 mm radius, since `RL` is active). `DEP CT CCA180 R+2` leaves the same way it arrived.",
+          program: null, focus: [10, 11], run: true }
       ]
     }
   ];
@@ -713,6 +855,103 @@ var TNC_LESSONS = (function () {
         'L Z+50 R0 FMAX M30'
       ]),
       rule: "Every program needs an M3 or M4 before its first cut, no matter how small the job looks."
+    },
+    {
+      id: 'wrong-side',
+      title: 'RR instead of RL',
+      blurb: 'Radius compensation on the wrong side: the program runs clean and the part comes out undersized.',
+      broken: prog('WRONGSIDE', [
+        'TOOL CALL 4 Z S3000',
+        'L Z+50 R0 FMAX M3',
+        'L X+50 Y+40 R0 FMAX',
+        'L Z+2 R0 FMAX',
+        'L Z-3 R0 F150',
+        'L X+20 Y+20 RR F500',
+        'L X+20 Y+60',
+        'L X+80 Y+60',
+        'L X+80 Y+20',
+        'L X+20 Y+20',
+        'L Z+2 R0 FMAX',
+        'L Z+50 R0 FMAX M30'
+      ]),
+      expect: 'SILENT:size',
+      story: "No crash, no alarm, no burned tool. The program is typed clean, so nobody so much as glances at the SIM before it runs. Ten minutes later the part comes off the machine, and the inspector's calipers say 54 × 34 where the print says 60 × 40. Six millimetres short on both sides — exactly two tool radii — and now it is scrap.",
+      why: "`RL` and `RR` are not \"inside\" and \"outside\"; they mean the tool stays to the **left** or **right** of the direction you are travelling. Going up the left edge, across the top, down the right edge and along the bottom, `RL` rides outside the line — that is the boss's finished edge. `RR` rides the same distance to the *other* side, 3 mm inside the line on every edge, so the cutter eats into the boss instead of trimming up to it. Even the corners give it away: with the tool riding outside, they get the little radius-3 fillet from the last lesson. With `RR` here, they come out as sharp intersections, because the tool never left enough room to need one.",
+      fix: prog('WRONGSIDE', [
+        'TOOL CALL 4 Z S3000',
+        'L Z+50 R0 FMAX M3',
+        'L X+50 Y+40 R0 FMAX',
+        'L Z+2 R0 FMAX',
+        'L Z-3 R0 F150',
+        'L X+20 Y+20 RL F500',
+        'L X+20 Y+60',
+        'L X+80 Y+60',
+        'L X+80 Y+20',
+        'L X+20 Y+20',
+        'L Z+2 R0 FMAX',
+        'L Z+50 R0 FMAX M30'
+      ]),
+      rule: "Work out which side is L and which is R from the direction of travel, not from \"inside\" or \"outside\" — then check it against the SIM before you cut real material."
+    },
+    {
+      id: 'radius-too-large',
+      title: 'A tool too big for the arc',
+      blurb: 'An Ø16 cutter asked to turn inside a Ø10 hole.',
+      broken: prog('BIGTOOL', [
+        'TOOL DEF 1 L+0 R+8',
+        'TOOL CALL 1 Z S3000',
+        'L X+50 Y+45 R0 FMAX',
+        'L Z-5 R0 F500 M3',
+        'CC X+50 Y+50',
+        'L X+50 Y+45 RL F300',
+        'C X+50 Y+45 DR+',
+        'L X+50 Y+50 R0',
+        'L Z+50 R0 FMAX M30'
+      ]),
+      expect: 'ERROR:TOOL RADIUS TOO LARGE',
+      story: "The finish pass on a Ø10 bore gets the wrong line in the tool list — an Ø16 roughing cutter instead of the Ø6 boring bar three rows down. On a real machine this one is cheap: the control checks the geometry before it moves and refuses the block outright. Nothing turns, nothing breaks. On a machine without that check, the shank rubs the wall before the flutes ever reach centre and something has to give.",
+      why: "`CC X+50 Y+50` then `C X+50 Y+45 DR+` is a full circle of radius 5 around that centre — a Ø10 bore. With `RL` and an R8 tool, the tool's own edge would have to reach 3 mm past the centre of the circle to stay on the offset path, which is impossible. The control catches it before generating a single move: `TOOL RADIUS TOO LARGE`.",
+      fix: prog('BIGTOOL', [
+        'TOOL DEF 1 L+0 R+3',
+        'TOOL CALL 1 Z S3000',
+        'L X+50 Y+45 R0 FMAX',
+        'L Z-5 R0 F500 M3',
+        'CC X+50 Y+50',
+        'L X+50 Y+45 RL F300',
+        'C X+50 Y+45 DR+',
+        'L X+50 Y+50 R0',
+        'L Z+50 R0 FMAX M30'
+      ]),
+      rule: "For an inside arc, the tool radius has to leave room at the middle: radius of the arc must be greater than the tool's radius, with clearance to spare."
+    },
+    {
+      id: 'rl-to-rr',
+      title: 'RL straight to RR, no R0 between',
+      blurb: 'Switching sides without cancelling first.',
+      broken: prog('SWITCH', [
+        'TOOL CALL 4 Z S3000',
+        'L Z+50 R0 FMAX M3',
+        'L X+0 Y+0 R0 FMAX',
+        'L Z-2 R0 F150',
+        'L X+30 RL F400',
+        'L X+60 RR',
+        'L X+90',
+        'L Z+50 R0 FMAX M30'
+      ]),
+      expect: 'ERROR:RADIUS COMP. UNDEFINED',
+      story: "The first half of the slot needs the cutter on the left of the line, the second half on the right — a common enough shape — so `RR` gets added straight onto the block where the direction changes. The control stops right there. It will not reason out a compensation change on its own; from its point of view the side just became ambiguous.",
+      why: "The control will not go directly from one side of the cutter compensation to the other. `RL` has to be cancelled with an `R0` block first, and only then can `RR` (or `RL` again) be switched on. Jumping straight from `RL` to `RR`, as block 6 does here, is refused with `RADIUS COMP. UNDEFINED`.",
+      fix: prog('SWITCH', [
+        'TOOL CALL 4 Z S3000',
+        'L Z+50 R0 FMAX M3',
+        'L X+0 Y+0 R0 FMAX',
+        'L Z-2 R0 F150',
+        'L X+30 RL F400',
+        'L X+60 R0',
+        'L X+90 RR',
+        'L Z+50 R0 FMAX M30'
+      ]),
+      rule: "Cancel with R0 before you change sides — never RL straight to RR or back."
     }
   ];
 
@@ -727,7 +966,7 @@ var TNC_LESSONS = (function () {
     },
     {
       title: 'Straight lines: L',
-      body: "`L X+10 Y-5 Z+2 R0 F500 M3`. Only the axes you write move. The others stay where they are.\n\n- `X Y Z`: absolute, from the datum. `IX IY IZ`: incremental, from the current position. You can mix them in one block.\n- `F`: feed in mm/min. It is **modal**, so it stays until you program a new one.\n- `FMAX`: rapid traverse (18 000 mm/min in the simulator), for this block only. It does not change the modal F.\n- `R0`, `RL`, `RR`: accepted, but the simulator always follows the tool centreline.\n- Any coordinate or F can be a Q parameter: `Z+Q2`, `Z-Q2` (negated), `FQ3`.\n- A block with only M words, such as `M30`, is allowed."
+      body: "`L X+10 Y-5 Z+2 R0 F500 M3`. Only the axes you write move. The others stay where they are.\n\n- `X Y Z`: absolute, from the datum. `IX IY IZ`: incremental, from the current position. You can mix them in one block.\n- `F`: feed in mm/min. It is **modal**, so it stays until you program a new one.\n- `FMAX`: rapid traverse (18 000 mm/min in the simulator), for this block only. It does not change the modal F.\n- `R0`: the tool centreline. `RL`/`RR`: offset by the tool's radius, left/right of the direction of travel — see Contour functions below.\n- Any coordinate or F can be a Q parameter: `Z+Q2`, `Z-Q2` (negated), `FQ3`.\n- A block with only M words, such as `M30`, is allowed."
     },
     {
       title: 'Arcs: CC, C, CR',
@@ -738,6 +977,23 @@ var TNC_LESSONS = (function () {
         ['C X Y DR±', 'arc around CC to X Y'],
         ['CR X Y R±r DR±', 'arc of radius r; +R ≤ 180°, −R > 180°'],
         ['DR+ / DR−', 'counter-clockwise / clockwise, seen from +Z']
+      ]
+    },
+    {
+      title: 'Contour functions',
+      body: "`RL`/`RR` shift the whole path that follows by one tool radius, left or right of the direction of travel — program the finished edge, not the cutter's centre. Outside corners get an automatic transitional arc of one tool radius; inside corners just intersect. Switching side (`RL` to `RR` or back) needs an `R0` block in between, and an arc or radius smaller than the tool gives `TOOL RADIUS TOO LARGE`.\n\n`APPR`/`DEP` bring the tool onto and off the compensated contour in the same block that switches `RL`/`RR` on or off, instead of a plain move that engages the material head-on. `CHF`/`RND` break a corner between two existing elements, with no coordinates of their own — the control works out the trim points from both neighbours.\n\n`CC` with no coordinates re-uses the current position as a pole for polar moves (`LP`, `CP`), and `CP IPA..` with an `IZ` word turns an arc into a helix in one block.",
+      rows: [
+        ['Function', 'Example', 'What it does'],
+        ['L / RL / RR', 'L X+40 Y+10 RL F300', 'straight line, offset by the tool radius'],
+        ['C / CC', 'CC X+50 Y+50 · C X+30 Y+50 DR+', 'arc around a stored centre'],
+        ['CR', 'CR X+70 Y+95 R+30 DR-', 'arc from its radius, no centre needed'],
+        ['CT', 'CT X+40 Y+5', 'arc tangent to the element before it'],
+        ['LP', 'LP PR+60 PA+180 F300', 'straight line to a polar point (CC = pole)'],
+        ['CP', 'CP IPA+3240 IZ+13.5 DR+ F200', 'arc (or helix, with IZ) about the pole'],
+        ['RND', 'RND R10 F150', 'round the corner between two elements'],
+        ['CHF', 'CHF 10', 'chamfer the corner between two elements'],
+        ['APPR', 'APPR LCT X+5 Y+5 R5 RL F300', 'arrive on the contour, RL/RR on in the same block'],
+        ['DEP', 'DEP LCT X-20 Y-20 R5 F1000', 'leave the contour, cancelling RL/RR in the same block']
       ]
     },
     {
