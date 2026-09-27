@@ -11,7 +11,7 @@ var TNC = (function () {
 
   var RAPID_RATE   = 18000;   // mm/min used for FMAX / cycle positioning moves
   var DEFAULT_FEED = 500;     // modal feed before the first F word
-  var MAX_MOVES    = 10000;   // runaway guard
+  var MAX_MOVES    = 400000;  // runaway guard (real CAM programs run to 10^5 moves)
   var MAX_DEPTH    = 30;      // subprogram nesting guard
   var EPS          = 1e-9;
   var ARC_TOL      = 0.05;    // mm, radius mismatch tolerance for C / CR
@@ -32,6 +32,8 @@ var TNC = (function () {
   ];
 
   var IMPLEMENTED_CYCLES = { 4: 1, 200: 1, 201: 1, 203: 1 };
+  // definition-only cycles with no tool motion in this simulator (9 dwell, 32 tolerance)
+  var NOMOTION_CYCLES = { 9: 1, 32: 1 };
 
   /* ---------------------------------------------------------------- 2. helpers */
 
@@ -96,6 +98,16 @@ var TNC = (function () {
         if (rv !== null) { args.r = rv; continue; }
         unknown.push(t); continue;
       }
+      if ((m = /^(I)?P([RA])(\S+)$/.exec(t))) {             // polar: PR PA IPR IPA
+        var pv = numOrQ(m[3]);
+        if (pv !== null) { args[(m[1] ? 'ip' : 'p') + m[2].toLowerCase()] = pv; continue; }
+        unknown.push(t); continue;
+      }
+      if ((m = /^(LEN|CCA)(\S+)$/.exec(t))) {
+        var lv = numOrQ(m[2]);
+        if (lv !== null) { args[m[1].toLowerCase()] = lv; continue; }
+        unknown.push(t); continue;
+      }
       unknown.push(t);
     }
     return unknown;
@@ -117,9 +129,21 @@ var TNC = (function () {
     if (ci >= 0) { comment = line.slice(ci + 1).trim(); line = line.slice(0, ci).trim(); }
 
     var U = line.toUpperCase().replace(/\s+/g, ' ').trim();
+    U = U.replace(/\s*~$/, '')                                   // iTNC-style line continuation mark
+         .replace(/\bF (MAX|AUTO)\b/g, 'F$1')                    // "F MAX" as printed in the manual
+         .replace(/\b(LEN|CCA|IPR|IPA|PR|PA) (?=[+-]?(\d|\.|Q))/g, '$1');   // "CCA 180", "LEN 15"
     if (comment !== null) block.args.comment = comment;
 
     if (U === '') { block.kind = (comment !== null) ? 'COMMENT' : 'BLANK'; return block; }
+
+    /* ---- structure block:  * - text ---- */
+    if (/^\*/.test(U)) { block.kind = 'COMMENT'; block.args.comment = line.replace(/^\*\s*/, ''); block.args.structure = true; return block; }
+
+    /* ---- M140 MB MAX / MB+50: retract in the tool axis ---- */
+    if ((m = /\bM140\s+MB\s*(MAX|[+-]?(?:\d+\.?\d*|\.\d+))/.exec(U))) {
+      block.args.mb = m[1] === 'MAX' ? 'MAX' : parseFloat(m[1]);
+      U = U.replace(/\s*\bMB\s*(MAX|[+-]?(?:\d+\.?\d*|\.\d+))/, '');
+    }
 
     var m, toks, bad;
 
@@ -146,20 +170,32 @@ var TNC = (function () {
       return block;
     }
 
+    /* ---- tool definition in the program:  TOOL DEF 5 L+0 R+4 ---- */
+    if ((m = /^TOOL\s+DEF\s+(\S+)\s*(.*)$/.exec(U))) {
+      block.kind = 'TOOLDEF';
+      block.args.t = numOrQ(m[1]);
+      var lm = /(?:^|\s)L\s*([+-]?(?:\d+\.?\d*|\.\d+))/.exec(m[2]), rm = /(?:^|\s)R\s*([+-]?(?:\d+\.?\d*|\.\d+))/.exec(m[2]);
+      block.args.l = lm ? parseFloat(lm[1]) : null;
+      block.args.r = rm ? parseFloat(rm[1]) : null;
+      if (block.args.t === null) markParseError(block, 'TOOL NUMBER MISSING');
+      return block;
+    }
+
     /* ---- tool call ---- */
-    if ((m = /^TOOL\s+CALL\s+(.*)$/.exec(U))) {
+    if ((m = /^TOOL\s+CALL\s*(.*)$/.exec(U))) {
       block.kind = 'TOOLCALL';
       toks = words(m[1]);
-      if (!toks.length) { markParseError(block, 'TOOL NUMBER MISSING'); return block; }
-      var tn = numOrQ(toks[0]);
-      if (tn === null) { markParseError(block, 'TOOL NUMBER MISSING'); return block; }
+      /* No number: axis / speed / oversize change only, the tool stays (TOOL CALL Z S2000). */
+      var tn = toks.length ? numOrQ(toks[0]) : null;
       block.args.t = tn;
-      block.args.axis = null; block.args.s = null;
-      for (var i = 1; i < toks.length; i++) {
+      block.args.axis = null; block.args.s = null; block.args.dl = 0; block.args.dr = 0;
+      for (var i = (tn === null ? 0 : 1); i < toks.length; i++) {
+        var dm2;
         if (/^[XYZ]$/.test(toks[i]))      block.args.axis = toks[i];
         else if (/^S/.test(toks[i]))      block.args.s = numOrQ(toks[i].slice(1));
-        else if (/^D[LR]/.test(toks[i]))  { /* oversize, ignored by this simulator */ }
+        else if ((dm2 = /^D([LR])([+-]?(?:\d+\.?\d*|\.\d+))$/.exec(toks[i]))) block.args['d' + dm2[1].toLowerCase()] = parseFloat(dm2[2]);
       }
+      if (tn === null && !block.args.axis && block.args.s === null) markParseError(block, 'TOOL NUMBER MISSING');
       return block;
     }
 
@@ -249,8 +285,51 @@ var TNC = (function () {
       return block;
     }
 
+    /* ---- contour approach / departure ---- */
+    if ((m = /^APPR\s+(P?)(LT|LN|CT|LCT)\b\s*(.*)$/.exec(U))) {
+      block.kind = 'APPR'; block.args.form = m[2]; block.args.polar = !!m[1];
+      bad = scanWords(words(m[3]), block.args);
+      if (bad.length) markParseError(block, 'BLOCK FORMAT INCORRECT');
+      else if ((m[2] === 'LT' || m[2] === 'LN') && block.args.len === undefined) markParseError(block, 'ENTRY INCOMPLETE');
+      else if ((m[2] === 'CT' || m[2] === 'LCT') && block.args.r === undefined) markParseError(block, 'ENTRY INCOMPLETE');
+      else if (m[2] === 'CT' && block.args.cca === undefined) markParseError(block, 'ENTRY INCOMPLETE');
+      return block;
+    }
+    if ((m = /^DEP\s+(P?)(LT|LN|CT|LCT)\b\s*(.*)$/.exec(U))) {
+      block.kind = 'DEP'; block.args.form = m[2]; block.args.polar = !!m[1];
+      bad = scanWords(words(m[3]), block.args);
+      if (bad.length) markParseError(block, 'BLOCK FORMAT INCORRECT');
+      else if ((m[2] === 'LT' || m[2] === 'LN') && block.args.len === undefined) markParseError(block, 'ENTRY INCOMPLETE');
+      else if ((m[2] === 'CT' || m[2] === 'LCT') && block.args.r === undefined) markParseError(block, 'ENTRY INCOMPLETE');
+      else if (m[2] === 'CT' && block.args.cca === undefined) markParseError(block, 'ENTRY INCOMPLETE');
+      return block;
+    }
+
+    /* ---- corner functions ---- */
+    if ((m = /^RND\s*(.*)$/.exec(U))) {
+      block.kind = 'RND';
+      bad = scanWords(words(m[1]), block.args);
+      if (block.args.r === undefined || typeof block.args.r === 'string') markParseError(block, 'ENTRY INCOMPLETE');
+      else if (bad.length) markParseError(block, 'BLOCK FORMAT INCORRECT');
+      return block;
+    }
+    if ((m = /^CHF\s*([+-]?(?:Q\d+|\d+\.?\d*|\.\d+))\s*(.*)$/.exec(U))) {
+      block.kind = 'CHF'; block.args.len = numOrQ(m[1]);
+      bad = scanWords(words(m[2]), block.args);
+      if (bad.length) markParseError(block, 'BLOCK FORMAT INCORRECT');
+      return block;
+    }
+
+    /* ---- polar and tangential paths ---- */
+    if ((m = /^(LP|CP|CTP|CT)\s+(.*)$/.exec(U))) {
+      block.kind = m[1];
+      bad = scanWords(words(m[2]), block.args);
+      if (bad.length) markParseError(block, 'BLOCK FORMAT INCORRECT');
+      return block;
+    }
+
     /* ---- circle centre / arcs / lines ---- */
-    if ((m = /^CC\s+(.*)$/.exec(U))) {
+    if ((m = /^CC\s*(.*)$/.exec(U))) {
       block.kind = 'CC';
       bad = scanWords(words(m[1]), block.args);
       if (bad.length) markParseError(block, 'CIRCLE CENTER UNDEFINED');
@@ -288,6 +367,8 @@ var TNC = (function () {
       block.kind = 'CYCLPARM'; block.indent = true;
       block.args.q = parseInt(m[1], 10);
       block.args.value = numOrQ(m[2]);
+      /* FMAX / MAX / FAUTO / AUTO: the cycle's own default (rapid for retraction feeds) */
+      if (block.args.value === null && /^F?(MAX|AUTO)$/.test(m[2])) block.args.value = NaN;
       if (block.args.value === null) markParseError(block, 'ARITHMETICAL ERROR');
       return block;
     }
@@ -346,11 +427,15 @@ var TNC = (function () {
       blocks: blocks,
       pos: { x: 0, y: 0, z: 0 },
       feed: DEFAULT_FEED,
-      tool: { t: 0, name: '', r: 3, l: 0 },
+      tool: { t: 0, name: '', r: 3, l: 0, dr: 0 },
       spindle: 0,          // effective: sRpm * spinDir
       sRpm: 0, spinDir: 0,
       coolant: false,
       cc: null,
+      rc: 'R0',            // modal radius compensation
+      rcAct: false,        // this block switches RL/RR on
+      lastTan: null,       // XY unit tangent at the end of the last path element (for CT)
+      toolDefs: {},        // TOOL DEF inside the program
       Q: {},
       cycle: null,
       moves: [],
@@ -370,31 +455,56 @@ var TNC = (function () {
     if (st.blocks[bi] && !st.blocks[bi].error) st.blocks[bi].error = msg;
   }
 
+  function arcSweep(from, to, arc) {
+    return (arc.sweep !== undefined && arc.sweep !== null) ? arc.sweep : sweepAngle(from, to, arc.cx, arc.cy, arc.ccw);
+  }
+
   function emit(st, kind, to, feed, bi, cycleName, arc) {
     if (st.abort) return;
     var from = { x: st.pos.x, y: st.pos.y, z: st.pos.z };
-    var len = (kind === 'arc') ? arcLength(from, to, arc.cx, arc.cy, arc.ccw) : dist3(from, to);
-    if (!(len > EPS)) { st.pos = { x: to.x, y: to.y, z: to.z }; return; }
+    var sw = (kind === 'arc') ? arcSweep(from, to, arc) : 0, len;
+    if (kind === 'arc') {
+      var rr = Math.sqrt((from.x - arc.cx) * (from.x - arc.cx) + (from.y - arc.cy) * (from.y - arc.cy));
+      len = Math.sqrt(rr * sw * rr * sw + (to.z - from.z) * (to.z - from.z));
+    } else len = dist3(from, to);
+    var tagRc = cycleName ? null : (st.rc === 'RL' || st.rc === 'RR' ? st.rc : null);
+    // a zero-length activation block still has to mark where RL/RR starts
+    if (!(len > EPS) && !(tagRc && st.rcAct)) { st.pos = { x: to.x, y: to.y, z: to.z }; return; }
     st.moves.push({
       kind: kind,
       from: from,
       to: { x: to.x, y: to.y, z: to.z },
       cx: arc ? arc.cx : null,
       cy: arc ? arc.cy : null,
-      ccw: arc ? !!arc.ccw : false,
+      ccw: arc ? sw > 0 : false,
+      sweep: arc ? sw : null,
       feed: (kind === 'rapid') ? RAPID_RATE : feed,
       tool: st.tool.t,
       toolR: st.tool.r,
+      toolDR: st.tool.dr || 0,
       toolName: st.tool.name,
       spindle: st.spindle,
       coolant: st.coolant,
       block: bi,
       cycle: cycleName || null,
+      rc: tagRc,
+      rcAct: !!(tagRc && st.rcAct),
       len: len
     });
+    if (tagRc) st.rcAct = false;
+    // tangent at the end of this element, for CT
+    if (kind === 'arc') {
+      var ea = Math.atan2(to.y - arc.cy, to.x - arc.cx), d = sw > 0 ? 1 : -1;
+      st.lastTan = { x: -Math.sin(ea) * d, y: Math.cos(ea) * d };
+    } else {
+      var dx = to.x - from.x, dy = to.y - from.y, l = Math.sqrt(dx * dx + dy * dy);
+      if (l > EPS) st.lastTan = { x: dx / l, y: dy / l };
+    }
     st.pos = { x: to.x, y: to.y, z: to.z };
     if (st.moves.length >= MAX_MOVES) { st.abort = true; fail(st, bi, 'EXCESSIVE SUBPROGRAM NESTING'); }
   }
+
+  function mark(st, m) { m.kind = 'mark'; st.moves.push(m); }   // m.len is the APPR/DEP LEN, not a path length
 
   /* M-functions take effect either at block start (M3 M4 M8 M13 M14) or at
      block end (M5 M9 M2 M30), as on the TNC. `phase` is 'start' or 'end'. */
@@ -474,7 +584,8 @@ var TNC = (function () {
     var decr  = universal ? Math.abs(qp(cy, 212, 0)) : 0;
     var brks  = universal ? Math.max(0, Math.round(qp(cy, 213, 0))) : 0;
     var minp  = universal ? Math.abs(qp(cy, 205, 0)) : 0;
-    var fret  = universal ? (qp(cy, 208, RAPID_RATE) || RAPID_RATE) : RAPID_RATE;
+    // Q208 = 0: retract at the plunging feed Q206 (manual, cycle 203)
+    var fret  = universal ? (qp(cy, 208, RAPID_RATE) === 0 ? fpl : qp(cy, 208, RAPID_RATE)) : RAPID_RATE;
     var chipD = universal ? Math.abs(qp(cy, 256, 0.2)) : 0.2;
 
     var total = Math.abs(dep);
@@ -520,7 +631,7 @@ var TNC = (function () {
     var clr  = qp(cy, 200, 2);
     var dep  = -Math.abs(qp(cy, 201, 0));
     var fpl  = qp(cy, 206, st.feed) || st.feed;
-    var fret = qp(cy, 208, RAPID_RATE) || RAPID_RATE;
+    var fret = qp(cy, 208, RAPID_RATE) === 0 ? fpl : qp(cy, 208, RAPID_RATE);   // Q208 = 0: at the reaming feed
     var surf = qp(cy, 203, 0);
     var clr2 = qp(cy, 204, clr);
     var x = st.pos.x, y = st.pos.y, lab = cy.label;
@@ -613,7 +724,7 @@ var TNC = (function () {
   function runCycle(st, bi) {
     var cy = st.cycle;
     if (!cy) { fail(st, bi, 'CYCL DEF INCOMPLETE'); return; }
-    if (!IMPLEMENTED_CYCLES[cy.num]) return;     // error already reported at CYCL DEF
+    if (!IMPLEMENTED_CYCLES[cy.num]) return;     // error already reported at CYCL DEF (or no motion)
     if (cy.num === 200) cycleDrill(st, cy, bi, false);
     else if (cy.num === 203) cycleDrill(st, cy, bi, true);
     else if (cy.num === 201) cycleReam(st, cy, bi);
@@ -633,8 +744,29 @@ var TNC = (function () {
     return p;
   }
 
+  /* RL / RR / R0 are modal. Switching straight between RL and RR is refused. */
+  function setRc(st, a, bi) {
+    st.rcAct = false;
+    if (!a.rc) return true;
+    var prev = st.rc;
+    if ((prev === 'RL' && a.rc === 'RR') || (prev === 'RR' && a.rc === 'RL')) {
+      fail(st, bi, 'RADIUS COMP. UNDEFINED'); return false;           // needs an R0 block in between
+    }
+    st.rc = a.rc;
+    st.rcAct = (prev === 'R0' && a.rc !== 'R0');
+    return true;
+  }
+
+  function feedOf(st, a, bi) {
+    if (a.f === undefined) return true;
+    var fv = resolve(a.f, st.Q);
+    if (fv === null || !(fv > 0)) { fail(st, bi, 'FEED RATE MISSING'); return false; }
+    st.feed = fv; return true;
+  }
+
   function doLine(st, b, bi) {
     var a = b.args;
+    if (!setRc(st, a, bi)) return;
     applyM(st, a.m, 'start');
     if (a.f !== undefined) {
       var fv = resolve(a.f, st.Q);
@@ -652,24 +784,57 @@ var TNC = (function () {
       }
     }
     applyM(st, a.m, 'end');
+    if (a.mb !== undefined) {                     // M140 MB: retract in the tool axis
+      var zr = (a.mb === 'MAX') ? Math.max(st.pos.z, Math.max(st.stock.z1, st.stock.z0) + 100) : st.pos.z + a.mb;
+      emit(st, 'rapid', { x: st.pos.x, y: st.pos.y, z: zr }, RAPID_RATE, bi, null);
+    }
   }
 
+  /* CC sets the circle centre / pole. The two axes programmed pick the plane of the
+     following C / CP blocks: X Y (default), Z X or Y Z ("CC Z+0 X+0: pole in the Z/X plane"). */
   function doCC(st, b) {
-    var a = b.args, cx = st.cc ? st.cc.x : st.pos.x, cy = st.cc ? st.cc.y : st.pos.y, v;
-    cx = st.pos.x; cy = st.pos.y;
-    if (a.x !== undefined)  { v = resolve(a.x, st.Q);  if (v !== null) cx = v; }
-    if (a.y !== undefined)  { v = resolve(a.y, st.Q);  if (v !== null) cy = v; }
-    if (a.ix !== undefined) { v = resolve(a.ix, st.Q); if (v !== null) cx = st.pos.x + v; }
-    if (a.iy !== undefined) { v = resolve(a.iy, st.Q); if (v !== null) cy = st.pos.y + v; }
-    st.cc = { x: cx, y: cy };
+    var a = b.args, v, c = { x: st.pos.x, y: st.pos.y, z: st.pos.z };
+    ['x', 'y', 'z'].forEach(function (k) {
+      if (a[k] !== undefined)       { v = resolve(a[k], st.Q);       if (v !== null) c[k] = v; }
+      if (a['i' + k] !== undefined) { v = resolve(a['i' + k], st.Q); if (v !== null) c[k] = st.pos[k] + v; }
+    });
+    var hx = a.x !== undefined || a.ix !== undefined, hy = a.y !== undefined || a.iy !== undefined, hz = a.z !== undefined || a.iz !== undefined;
+    c.plane = (hz && hx && !hy) ? 'ZX' : (hz && hy && !hx) ? 'YZ' : 'XY';
+    st.cc = c;
+  }
+
+  /* arcs outside the XY plane: tessellated here (no radius compensation there) */
+  var PLANES = { XY: ['x', 'y', 'z'], ZX: ['z', 'x', 'y'], YZ: ['y', 'z', 'x'] };
+  function planeArc(st, bi, sweep, endUV, wEnd) {
+    var ax = PLANES[st.cc.plane], u = ax[0], v = ax[1], w = ax[2], from = st.pos;
+    var cu = st.cc[u], cv = st.cc[v], r = Math.sqrt((from[u] - cu) * (from[u] - cu) + (from[v] - cv) * (from[v] - cv));
+    if (r < EPS) { fail(st, bi, 'ARC END POS. INCORRECT'); return; }
+    var a0 = Math.atan2(from[v] - cv, from[u] - cu), w0 = from[w];
+    if (sweep === null) {                                   // C: from the end point and direction
+      var a1 = Math.atan2(endUV[1] - cv, endUV[0] - cu), r2 = Math.sqrt((endUV[0] - cu) * (endUV[0] - cu) + (endUV[1] - cv) * (endUV[1] - cv));
+      if (Math.abs(r2 - r) > ARC_TOL) { fail(st, bi, 'ARC END POS. INCORRECT'); return; }
+      sweep = endUV[2] ? dirAngle(a0, a1, 1) || 2 * Math.PI : (dirAngle(a0, a1, -1) || -2 * Math.PI);
+    }
+    var n = Math.max(4, Math.ceil(Math.abs(sweep) / (Math.PI / 36)));
+    for (var i = 1; i <= n; i++) {
+      var an = a0 + sweep * i / n, p = {};
+      p[u] = cu + r * Math.cos(an); p[v] = cv + r * Math.sin(an); p[w] = w0 + (wEnd - w0) * i / n;
+      emit(st, 'feed', p, st.feed, bi, null);
+    }
   }
 
   function doArcC(st, b, bi) {
     var a = b.args;
+    if (!setRc(st, a, bi)) return;
     applyM(st, a.m, 'start');
     if (a.f !== undefined) { var fv = resolve(a.f, st.Q); if (fv > 0) st.feed = fv; }
     if (!st.cc) { fail(st, bi, 'CIRCLE CENTER UNDEFINED'); return; }
     var to = targetOf(a, st);
+    if (st.cc.plane && st.cc.plane !== 'XY') {
+      if (!(st.feed > 0)) { fail(st, bi, 'FEED RATE MISSING'); return; }
+      var ax = PLANES[st.cc.plane];
+      planeArc(st, bi, null, [to[ax[0]], to[ax[1]], a.dr !== '-'], to[ax[2]]); applyM(st, a.m, 'end'); return;
+    }
     var from = st.pos;
     var r1 = Math.sqrt(Math.pow(from.x - st.cc.x, 2) + Math.pow(from.y - st.cc.y, 2));
     var r2 = Math.sqrt(Math.pow(to.x - st.cc.x, 2) + Math.pow(to.y - st.cc.y, 2));
@@ -681,6 +846,7 @@ var TNC = (function () {
 
   function doArcCR(st, b, bi) {
     var a = b.args;
+    if (!setRc(st, a, bi)) return;
     applyM(st, a.m, 'start');
     if (a.f !== undefined) { var fv = resolve(a.f, st.Q); if (fv > 0) st.feed = fv; }
     var R = resolve(a.r, st.Q);
@@ -708,8 +874,177 @@ var TNC = (function () {
     applyM(st, a.m, 'end');
   }
 
+
+  /* --- CT: arc tangent to the previous contour element --- */
+  function ctTo(st, to, bi) {
+    if (!st.lastTan) { fail(st, bi, 'TANGENTIAL CONNECTION NOT POSSIBLE'); return false; }
+    var from = st.pos, t = st.lastTan;
+    var dx = to.x - from.x, dy = to.y - from.y, d2 = dx * dx + dy * dy;
+    if (d2 < EPS) { fail(st, bi, 'ARC END POS. INCORRECT'); return false; }
+    var dn = -t.y * dx + t.x * dy;                         // chord projected on the left normal
+    if (!(st.feed > 0)) { fail(st, bi, 'FEED RATE MISSING'); return false; }
+    if (Math.abs(dn) < 1e-9 * Math.sqrt(d2)) {             // end point straight ahead: the "arc" is a line
+      if (dx * t.x + dy * t.y < 0) { fail(st, bi, 'TANGENTIAL CONNECTION NOT POSSIBLE'); return false; }
+      emit(st, 'feed', to, st.feed, bi, null); return true;
+    }
+    var rho = d2 / (2 * dn);
+    var cx = from.x - t.y * rho, cy = from.y + t.x * rho;
+    st.cc = { x: cx, y: cy };
+    emit(st, 'arc', to, st.feed, bi, null, { cx: cx, cy: cy, ccw: rho > 0 });
+    return true;
+  }
+  function doCT(st, b, bi) {
+    var a = b.args;
+    if (!setRc(st, a, bi)) return;
+    applyM(st, a.m, 'start'); feedOf(st, a, bi);
+    ctTo(st, targetOf(a, st), bi);
+    applyM(st, a.m, 'end');
+  }
+
+  /* --- polar coordinates about the pole CC --- */
+  function polarTarget(st, a, bi) {
+    if (!st.cc) { fail(st, bi, 'CIRCLE CENTER UNDEFINED'); return null; }
+    var px = st.pos.x - st.cc.x, py = st.pos.y - st.cc.y;
+    var pr = Math.sqrt(px * px + py * py), pa = Math.atan2(py, px) * 180 / Math.PI, v;
+    if (a.pr !== undefined)  { v = resolve(a.pr, st.Q);  if (v !== null) pr = v; }
+    if (a.ipr !== undefined) { v = resolve(a.ipr, st.Q); if (v !== null) pr += v; }
+    if (a.pa !== undefined)  { v = resolve(a.pa, st.Q);  if (v !== null) pa = v; }
+    if (a.ipa !== undefined) { v = resolve(a.ipa, st.Q); if (v !== null) pa += v; }
+    var p = { x: st.cc.x + pr * Math.cos(pa * Math.PI / 180), y: st.cc.y + pr * Math.sin(pa * Math.PI / 180), z: st.pos.z };
+    if (a.z !== undefined)  { v = resolve(a.z, st.Q);  if (v !== null) p.z = v; }
+    if (a.iz !== undefined) { v = resolve(a.iz, st.Q); if (v !== null) p.z += v; }
+    return p;
+  }
+  function doLP(st, b, bi) {
+    var a = b.args;
+    if (!setRc(st, a, bi)) return;
+    applyM(st, a.m, 'start'); feedOf(st, a, bi);
+    var to = polarTarget(st, a, bi);
+    if (to) {
+      if (a.fmax) emit(st, 'rapid', to, RAPID_RATE, bi, null);
+      else if (!(st.feed > 0)) fail(st, bi, 'FEED RATE MISSING');
+      else emit(st, 'feed', to, st.feed, bi, null);
+    }
+    applyM(st, a.m, 'end');
+  }
+  function doCTP(st, b, bi) {
+    var a = b.args;
+    if (!setRc(st, a, bi)) return;
+    applyM(st, a.m, 'start'); feedOf(st, a, bi);
+    var to = polarTarget(st, a, bi);
+    if (to) ctTo(st, to, bi);
+    applyM(st, a.m, 'end');
+  }
+  /* CP: arc about the pole. PA = end angle, IPA = swept angle (may exceed 360 deg: helix). */
+  function doCP(st, b, bi) {
+    var a = b.args;
+    if (!setRc(st, a, bi)) return;
+    applyM(st, a.m, 'start'); feedOf(st, a, bi);
+    if (!st.cc) { fail(st, bi, 'CIRCLE CENTER UNDEFINED'); return; }
+    if (st.cc.plane && st.cc.plane !== 'XY') {
+      var pax = PLANES[st.cc.plane], pu = pax[0], pv = pax[1], pw = pax[2], pf = st.pos, psw, pv2;
+      var pa0 = Math.atan2(pf[pv] - st.cc[pv], pf[pu] - st.cc[pu]), pccw = a.dr !== '-';
+      if (a.ipa !== undefined) psw = Math.abs(resolve(a.ipa, st.Q)) * Math.PI / 180 * (pccw ? 1 : -1);
+      else if (a.pa !== undefined) { psw = dirAngle(pa0, resolve(a.pa, st.Q) * Math.PI / 180, pccw ? 1 : -1); if (Math.abs(psw) < EPS) psw = pccw ? 2 * Math.PI : -2 * Math.PI; }
+      else { fail(st, bi, 'ARC END POS. INCORRECT'); return; }
+      var wz = pf[pw], wkey = pw;                          // helix along the third axis of the plane
+      if (a[wkey] !== undefined) { pv2 = resolve(a[wkey], st.Q); if (pv2 !== null) wz = pv2; }
+      if (a['i' + wkey] !== undefined) { pv2 = resolve(a['i' + wkey], st.Q); if (pv2 !== null) wz += pv2; }
+      if (!(st.feed > 0)) { fail(st, bi, 'FEED RATE MISSING'); return; }
+      planeArc(st, bi, psw, null, wz); applyM(st, a.m, 'end'); return;
+    }
+    var cx = st.cc.x, cy = st.cc.y, from = st.pos;
+    var r = Math.sqrt((from.x - cx) * (from.x - cx) + (from.y - cy) * (from.y - cy));
+    if (r < EPS) { fail(st, bi, 'ARC END POS. INCORRECT'); return; }
+    var a0 = Math.atan2(from.y - cy, from.x - cx), ccw = a.dr !== '-', sw, v;
+    if (a.ipa !== undefined) {
+      v = resolve(a.ipa, st.Q); if (v === null) { fail(st, bi, 'ARC END POS. INCORRECT'); return; }
+      sw = Math.abs(v) * Math.PI / 180 * (ccw ? 1 : -1);
+    } else if (a.pa !== undefined) {
+      v = resolve(a.pa, st.Q) * Math.PI / 180;
+      sw = v - a0;
+      if (ccw) { while (sw <= EPS) sw += 2 * Math.PI; while (sw > 2 * Math.PI + EPS) sw -= 2 * Math.PI; }
+      else     { while (sw >= -EPS) sw -= 2 * Math.PI; while (sw < -2 * Math.PI - EPS) sw += 2 * Math.PI; }
+    } else { fail(st, bi, 'ARC END POS. INCORRECT'); return; }
+    if (Math.abs(sw) < EPS) return;
+    var to = { x: cx + r * Math.cos(a0 + sw), y: cy + r * Math.sin(a0 + sw), z: from.z };
+    if (a.z !== undefined)  { v = resolve(a.z, st.Q);  if (v !== null) to.z = v; }
+    if (a.iz !== undefined) { v = resolve(a.iz, st.Q); if (v !== null) to.z += v; }
+    if (!(st.feed > 0)) { fail(st, bi, 'FEED RATE MISSING'); return; }
+    emit(st, 'arc', to, st.feed, bi, null, { cx: cx, cy: cy, ccw: ccw, sweep: sw });
+    applyM(st, a.m, 'end');
+  }
+
+  /* --- RND / CHF: resolved against both neighbours after the run (resolveCorners) --- */
+  function doCorner(st, b, bi) {
+    var a = b.args, f = null, v;
+    if (a.f !== undefined) { f = resolve(a.f, st.Q); if (!(f > 0)) f = null; }   // effective in this block only
+    if (b.kind === 'RND') {
+      v = resolve(a.r, st.Q);
+      if (!(v > 0)) { fail(st, bi, 'ENTRY INCOMPLETE'); return; }
+      mark(st, { mark: 'RND', r: v, feed: f, block: bi });
+    } else {
+      v = resolve(a.len, st.Q);
+      if (!(v > 0)) { fail(st, bi, 'ENTRY INCOMPLETE'); return; }
+      mark(st, { mark: 'CHF', len: v, feed: f, block: bi });
+    }
+  }
+
+  /* --- APPR / DEP: geometry is built on the tool-centre path in the contour pass --- */
+  function doAppr(st, b, bi) {
+    var a = b.args, side = a.rc || 'R0';
+    if (st.rc === 'RL' || st.rc === 'RR') { fail(st, bi, 'RADIUS COMP. UNDEFINED'); return; }
+    var entryFeed = st.feed;                          // PS -> PH runs at the last programmed feed
+    applyM(st, a.m, 'start');
+    if (!feedOf(st, a, bi)) return;
+    var to = a.polar ? polarTarget(st, a, bi) : targetOf(a, st);
+    if (!to) return;
+    var hasZ = a.z !== undefined || a.iz !== undefined;
+    mark(st, { mark: 'APPR', form: a.form, side: side, block: bi,
+      len: a.len !== undefined ? Math.abs(resolve(a.len, st.Q)) : 0,
+      r: a.r !== undefined ? resolve(a.r, st.Q) : 0,
+      cca: a.cca !== undefined ? Math.abs(resolve(a.cca, st.Q)) : 0,
+      feed: st.feed, entryFeed: entryFeed > 0 ? entryFeed : st.feed,
+      from: { x: st.pos.x, y: st.pos.y, z: st.pos.z }, to: to, hasZ: hasZ,
+      rc: (side === 'RL' || side === 'RR') ? side : null,
+      tool: st.tool.t, toolR: st.tool.r, toolDR: st.tool.dr || 0, toolName: st.tool.name,
+      spindle: st.spindle, coolant: st.coolant });
+    st.rc = side; st.rcAct = false;
+    st.pos = { x: to.x, y: to.y, z: to.z };
+    st.lastTan = null;
+    applyM(st, a.m, 'end');
+  }
+  function doDep(st, b, bi) {
+    var a = b.args, side = st.rc;
+    applyM(st, a.m, 'start');
+    if (!feedOf(st, a, bi)) return;
+    var pn = null;
+    if (a.form === 'LCT') { pn = a.polar ? polarTarget(st, a, bi) : targetOf(a, st); if (!pn) return; }
+    var t = st.lastTan || { x: 1, y: 0 }, s = side === 'RL' ? 1 : -1, len = a.len !== undefined ? Math.abs(resolve(a.len, st.Q)) : 0;
+    var m = { mark: 'DEP', form: a.form, side: side, block: bi, len: len,
+      r: a.r !== undefined ? resolve(a.r, st.Q) : 0,
+      cca: a.cca !== undefined ? Math.abs(resolve(a.cca, st.Q)) : 0,
+      feed: st.feed, to: pn, from: { x: st.pos.x, y: st.pos.y, z: st.pos.z },
+      tool: st.tool.t, toolR: st.tool.r, toolDR: st.tool.dr || 0, toolName: st.tool.name,
+      spindle: st.spindle, coolant: st.coolant };
+    mark(st, m);
+    // nominal end point, so incremental blocks after DEP have a reference; the pass fixes the real one
+    if (a.form === 'LT') st.pos = { x: st.pos.x + t.x * len, y: st.pos.y + t.y * len, z: st.pos.z };
+    else if (a.form === 'LN') st.pos = { x: st.pos.x - t.y * s * len, y: st.pos.y + t.x * s * len, z: st.pos.z };
+    else if (a.form === 'LCT') st.pos = { x: pn.x, y: pn.y, z: pn.z };
+    st.rc = 'R0'; st.rcAct = false; st.lastTan = null;
+    applyM(st, a.m, 'end');
+  }
+
+  function doToolDef(st, b) {
+    var t = resolve(b.args.t, st.Q); if (t === null) return;
+    t = Math.round(t);
+    if (b.args.r !== null || b.args.l !== null)
+      st.toolDefs[t] = { t: t, name: 'TOOL DEF ' + t, l: b.args.l || 0, r: b.args.r || 0 };
+  }
+
   function doToolCall(st, b, bi) {
-    var t = resolve(b.args.t, st.Q);
+    var t = (b.args.t === null || b.args.t === undefined) ? st.tool.t : resolve(b.args.t, st.Q);
     t = (t === null) ? 0 : Math.round(t);
     if (!b.args.axis) fail(st, bi, 'TOOL AXIS MISSING');
     /* The tool change stops the spindle (as on practically every machine);
@@ -720,10 +1055,15 @@ var TNC = (function () {
       if (s !== null) st.sRpm = Math.abs(s);
     }
     st.spindle = st.sRpm * st.spinDir;
-    if (t === 0) { st.tool = { t: 0, name: '', r: 3, l: 0 }; return; }
-    var e = toolByNumber(t);
-    if (!e) { fail(st, bi, 'TOOL ' + t + ' NOT DEFINED'); st.tool = { t: t, name: 'UNDEFINED', r: 3, l: 0 }; }
-    else st.tool = { t: e.t, name: e.name, r: e.r, l: e.l };
+    var dr = b.args.dr || 0;                       // DR in TOOL CALL: radius oversize for RL/RR
+    if (t === 0) { st.tool = { t: 0, name: '', r: 0, l: 0, dr: dr }; return; }
+    var e = st.toolDefs[t] || toolByNumber(t);
+    if (!e) {
+      var guess = st.commentTools && st.commentTools[t];
+      fail(st, bi, 'TOOL ' + t + ' NOT DEFINED');
+      st.tool = { t: t, name: guess ? 'T' + t + ' (FROM COMMENT)' : 'UNDEFINED', r: guess ? guess.r : 3, l: 0, dr: dr };
+    }
+    else st.tool = { t: e.t, name: e.name, r: e.r, l: e.l, dr: dr };
     if (!st.toolStat[st.tool.t]) {
       st.toolStat[st.tool.t] = { t: st.tool.t, name: st.tool.name, r: st.tool.r, l: st.tool.l, moves: 0, time: 0 };
       st.toolOrder.push(st.tool.t);
@@ -772,6 +1112,14 @@ var TNC = (function () {
           if (hasEndM(b.args.m)) { st.done = true; return; }
           break;
         case 'CC': doCC(st, b); break;
+        case 'CT':  doCT(st, b, i);  if (hasM99(b.args.m)) runCycle(st, i); if (hasEndM(b.args.m)) { st.done = true; return; } break;
+        case 'CP':  doCP(st, b, i);  if (hasM99(b.args.m)) runCycle(st, i); if (hasEndM(b.args.m)) { st.done = true; return; } break;
+        case 'LP':  doLP(st, b, i);  if (hasM99(b.args.m)) runCycle(st, i); if (hasEndM(b.args.m)) { st.done = true; return; } break;
+        case 'CTP': doCTP(st, b, i); if (hasM99(b.args.m)) runCycle(st, i); if (hasEndM(b.args.m)) { st.done = true; return; } break;
+        case 'RND': case 'CHF': doCorner(st, b, i); break;
+        case 'APPR': doAppr(st, b, i); break;
+        case 'DEP':  doDep(st, b, i); if (hasEndM(b.args.m)) { st.done = true; return; } break;
+        case 'TOOLDEF': doToolDef(st, b); break;
         case 'C':  doArcC(st, b, i);
           if (hasM99(b.args.m)) runCycle(st, i);
           if (hasEndM(b.args.m)) { st.done = true; return; } break;
@@ -780,7 +1128,7 @@ var TNC = (function () {
           if (hasEndM(b.args.m)) { st.done = true; return; } break;
         case 'CYCLDEF':
           st.cycle = gatherCycle(st, i);
-          if (!IMPLEMENTED_CYCLES[st.cycle.num])
+          if (!IMPLEMENTED_CYCLES[st.cycle.num] && !NOMOTION_CYCLES[st.cycle.num])
             fail(st, i, 'CYCLE ' + st.cycle.num + ' NOT IMPLEMENTED IN SIMULATOR');
           break;
         case 'CYCLPARM': break;                    // consumed by the CYCL DEF above
@@ -824,6 +1172,362 @@ var TNC = (function () {
     }
   }
 
+  /* ---------------------------------------------------------------- 7b. contour pass
+     The executor emits the programmed (nominal) contour, tagged RL / RR, plus
+     markers for RND, CHF, APPR and DEP. This pass then, in order:
+       1. resolves RND / CHF against both neighbouring elements (nominal geometry);
+       2. offsets every RL / RR run by the tool radius (R + DR):
+          outside corners -> transitional arc about the corner point,
+          inside corners  -> intersection of the offset paths,
+          activation      -> straight to the offset start of the first element
+                             ("perpendicular to the programmed starting position"),
+          deactivation    -> from the offset end point to the next R0 target;
+       3. builds APPR / DEP on the tool-centre path (TNC 426/430 manual 6.3);
+          APPR/DEP with R0 run with tool radius 0 and direction RR, as the manual says.
+     Primitives: {type:'line', s, e} or {type:'arc', cx, cy, r, a0, sw, z0, z1}. */
+
+  function P3(p) { return { x: p.x, y: p.y, z: p.z }; }
+  function pStart(p) { return p.type === 'line' ? P3(p.s) : { x: p.cx + p.r * Math.cos(p.a0), y: p.cy + p.r * Math.sin(p.a0), z: p.z0 }; }
+  function pEnd(p) { if (p.type === 'line') return P3(p.e); var a = p.a0 + p.sw; return { x: p.cx + p.r * Math.cos(a), y: p.cy + p.r * Math.sin(a), z: p.z1 }; }
+  function pTan(p, atEnd) {
+    if (p.type === 'line') { var dx = p.e.x - p.s.x, dy = p.e.y - p.s.y, l = Math.sqrt(dx * dx + dy * dy); return l > 1e-12 ? { x: dx / l, y: dy / l } : null; }
+    var a = p.a0 + (atEnd ? p.sw : 0), d = p.sw >= 0 ? 1 : -1;
+    return { x: -Math.sin(a) * d, y: Math.cos(a) * d };
+  }
+  function planar(p) { return p.type === 'arc' || Math.abs(p.e.x - p.s.x) + Math.abs(p.e.y - p.s.y) > 1e-9; }
+  function dirAngle(a0, a1, dir) {
+    var d = a1 - a0;
+    if (dir > 0) { while (d < 0) d += 2 * Math.PI; while (d >= 2 * Math.PI) d -= 2 * Math.PI; }
+    else { while (d > 0) d -= 2 * Math.PI; while (d <= -2 * Math.PI) d += 2 * Math.PI; }
+    return d;
+  }
+  function primOf(mv) {
+    if (mv.kind === 'arc' && mv.cx !== null && mv.cx !== undefined) {
+      var r = Math.sqrt((mv.from.x - mv.cx) * (mv.from.x - mv.cx) + (mv.from.y - mv.cy) * (mv.from.y - mv.cy));
+      var sw = (mv.sweep !== null && mv.sweep !== undefined) ? mv.sweep : sweepAngle(mv.from, mv.to, mv.cx, mv.cy, mv.ccw);
+      return { type: 'arc', cx: mv.cx, cy: mv.cy, r: r, a0: Math.atan2(mv.from.y - mv.cy, mv.from.x - mv.cx), sw: sw, z0: mv.from.z, z1: mv.to.z };
+    }
+    return { type: 'line', s: P3(mv.from), e: P3(mv.to) };
+  }
+  function setEndP(p, pt) {
+    if (p.type === 'line') { p.e = P3(pt); return; }
+    var d = p.sw >= 0 ? 1 : -1, old = p.sw, rem = dirAngle(p.a0, Math.atan2(pt.y - p.cy, pt.x - p.cx), d);
+    var turns = Math.max(0, Math.round((old - rem) / (d * 2 * Math.PI)));
+    p.sw = rem + d * 2 * Math.PI * turns; p.z1 = pt.z;
+  }
+  function setStartP(p, pt) {
+    if (p.type === 'line') { p.s = P3(pt); return; }
+    var endA = p.a0 + p.sw, d = p.sw >= 0 ? 1 : -1, old = p.sw;
+    p.a0 = Math.atan2(pt.y - p.cy, pt.x - p.cx);
+    var rem = dirAngle(p.a0, endA, d), turns = Math.max(0, Math.round((old - rem) / (d * 2 * Math.PI)));
+    p.sw = rem + d * 2 * Math.PI * turns; p.z0 = pt.z;
+  }
+  /* offset to the left (s=+1) or right (s=-1) of the direction of travel */
+  function offsetP(p, s, R) {
+    if (p.type === 'line') {
+      var t = pTan(p, false); if (!t) return null;
+      var nx = -t.y * s * R, ny = t.x * s * R;
+      return { type: 'line', s: { x: p.s.x + nx, y: p.s.y + ny, z: p.s.z }, e: { x: p.e.x + nx, y: p.e.y + ny, z: p.e.z } };
+    }
+    var d = p.sw >= 0 ? 1 : -1, r = p.r - s * d * R;
+    if (r < -1e-9) return { type: 'invalid' };
+    return { type: 'arc', cx: p.cx, cy: p.cy, r: Math.max(r, 0), a0: p.a0, sw: p.sw, z0: p.z0, z1: p.z1 };
+  }
+  function onP(pt, p, tol) {
+    tol = tol || 1e-6;
+    if (p.type === 'line') {
+      var dx = p.e.x - p.s.x, dy = p.e.y - p.s.y, l2 = dx * dx + dy * dy;
+      if (l2 < 1e-18) return Math.hypot(pt.x - p.s.x, pt.y - p.s.y) <= tol;
+      var u = ((pt.x - p.s.x) * dx + (pt.y - p.s.y) * dy) / l2;
+      return u >= -tol / Math.sqrt(l2) && u <= 1 + tol / Math.sqrt(l2) && Math.hypot(p.s.x + dx * u - pt.x, p.s.y + dy * u - pt.y) <= tol;
+    }
+    if (Math.abs(Math.hypot(pt.x - p.cx, pt.y - p.cy) - p.r) > tol) return false;
+    if (Math.abs(p.sw) >= 2 * Math.PI - 1e-9) return true;
+    var d = p.sw >= 0 ? 1 : -1, rel = dirAngle(p.a0, Math.atan2(pt.y - p.cy, pt.x - p.cx), d);
+    return Math.abs(rel) <= Math.abs(p.sw) + tol / Math.max(p.r, 1e-9);
+  }
+  /* intersections of the supporting line / circle of two primitives */
+  function isect(a, b) {
+    var out = [];
+    if (a.type === 'arc' && b.type === 'line') return isect(b, a);
+    if (a.type === 'line' && b.type === 'line') {
+      var rx = a.e.x - a.s.x, ry = a.e.y - a.s.y, sx = b.e.x - b.s.x, sy = b.e.y - b.s.y, den = rx * sy - ry * sx;
+      if (Math.abs(den) < 1e-12) return out;
+      var t = ((b.s.x - a.s.x) * sy - (b.s.y - a.s.y) * sx) / den;
+      out.push({ x: a.s.x + rx * t, y: a.s.y + ry * t, z: a.e.z }); return out;
+    }
+    if (a.type === 'line') {
+      var dx = a.e.x - a.s.x, dy = a.e.y - a.s.y, fx = a.s.x - b.cx, fy = a.s.y - b.cy;
+      var qa = dx * dx + dy * dy, qb = 2 * (fx * dx + fy * dy), qc = fx * fx + fy * fy - b.r * b.r, disc = qb * qb - 4 * qa * qc;
+      if (qa < 1e-18 || disc < -1e-9) return out;
+      disc = Math.sqrt(Math.max(0, disc));
+      [(-qb - disc) / (2 * qa), (-qb + disc) / (2 * qa)].forEach(function (u) { out.push({ x: a.s.x + dx * u, y: a.s.y + dy * u, z: a.e.z }); });
+      return out;
+    }
+    var ddx = b.cx - a.cx, ddy = b.cy - a.cy, D = Math.hypot(ddx, ddy);
+    if (D < 1e-12 || D > a.r + b.r + 1e-9 || D < Math.abs(a.r - b.r) - 1e-9) return out;
+    var x = (a.r * a.r - b.r * b.r + D * D) / (2 * D), h = Math.sqrt(Math.max(0, a.r * a.r - x * x));
+    var ux = ddx / D, uy = ddy / D, px = a.cx + ux * x, py = a.cy + uy * x;
+    out.push({ x: px - uy * h, y: py + ux * h, z: a.z1 }); out.push({ x: px + uy * h, y: py - ux * h, z: a.z1 });
+    return out;
+  }
+  function nearest(cands, ref, p, q) {
+    var best = null, bd = Infinity;
+    for (var i = 0; i < cands.length; i++) {
+      if (p && !onP(cands[i], p, 1e-5)) continue;
+      if (q && !onP(cands[i], q, 1e-5)) continue;
+      var d = Math.hypot(cands[i].x - ref.x, cands[i].y - ref.y);
+      if (d < bd) { bd = d; best = cands[i]; }
+    }
+    return best;
+  }
+  /* primitive -> move, copying tool / spindle / block data from a template move */
+  function moveFrom(p, tpl, extra) {
+    var mv = { kind: tpl.kind === 'arc' ? 'feed' : tpl.kind, from: pStart(p), to: pEnd(p), cx: null, cy: null, ccw: false, sweep: null,
+      feed: tpl.feed, tool: tpl.tool, toolR: tpl.toolR, toolDR: tpl.toolDR || 0, toolName: tpl.toolName, spindle: tpl.spindle,
+      coolant: tpl.coolant, block: tpl.block, cycle: tpl.cycle || null, rc: null, rcAct: false, len: 0 };
+    if (p.type === 'arc') {
+      mv.kind = 'arc'; mv.cx = p.cx; mv.cy = p.cy; mv.ccw = p.sw > 0; mv.sweep = p.sw;
+      if (tpl.kind === 'rapid') mv.feed = RAPID_RATE;
+      mv.len = Math.sqrt(p.r * p.sw * p.r * p.sw + (p.z1 - p.z0) * (p.z1 - p.z0));
+    } else mv.len = dist3(mv.from, mv.to);
+    if (extra) for (var k in extra) mv[k] = extra[k];
+    if (p.type === 'arc') mv.kind = 'arc';
+    return mv;
+  }
+  function lineP(a, b) { return { type: 'line', s: P3(a), e: P3(b) }; }
+  function arcP(cx, cy, r, a0, sw, z0, z1) { return { type: 'arc', cx: cx, cy: cy, r: r, a0: a0, sw: sw, z0: z0, z1: z1 }; }
+
+  /* ---- 1. RND / CHF ---- */
+  function resolveCorners(st, mv) {
+    for (var k = 0; k < mv.length; k++) {
+      var m = mv[k];
+      if (m.kind !== 'mark' || (m.mark !== 'RND' && m.mark !== 'CHF')) continue;
+      var A = mv[k - 1], B = mv[k + 1];
+      var ok = A && B && A.kind !== 'mark' && B.kind !== 'mark';
+      if (!ok) { fail(st, m.block, m.mark === 'CHF' ? 'CHAMFER NOT PERMITTED' : 'ROUNDING-OFF NOT PERMITTED'); mv.splice(k, 1); k--; continue; }
+      var p = primOf(A), q = primOf(B);
+      if (!planar(p) || !planar(q)) { fail(st, m.block, m.mark === 'CHF' ? 'CHAMFER NOT PERMITTED' : 'ROUNDING-OFF NOT PERMITTED'); mv.splice(k, 1); k--; continue; }
+      var t1 = pTan(p, true), t2 = pTan(q, false), cross = t1.x * t2.y - t1.y * t2.x, P = pEnd(p);
+      var feed = m.feed || A.feed, ins;
+      if (m.mark === 'CHF') {
+        if (p.type !== 'line' || q.type !== 'line') { fail(st, m.block, 'CHAMFER NOT PERMITTED'); mv.splice(k, 1); k--; continue; }
+        var L1 = Math.hypot(p.e.x - p.s.x, p.e.y - p.s.y), L2 = Math.hypot(q.e.x - q.s.x, q.e.y - q.s.y);
+        if (m.len > L1 + 1e-9 || m.len > L2 + 1e-9) { fail(st, m.block, 'CHAMFER NOT PERMITTED'); mv.splice(k, 1); k--; continue; }
+        var T1 = { x: P.x - t1.x * m.len, y: P.y - t1.y * m.len, z: p.s.z + (p.e.z - p.s.z) * (1 - m.len / L1) };
+        var T2 = { x: P.x + t2.x * m.len, y: P.y + t2.y * m.len, z: P.z };
+        setEndP(p, T1); setStartP(q, T2);
+        ins = lineP(T1, T2);
+      } else {
+        if (Math.abs(cross) < 1e-9) { mv.splice(k, 1); k--; continue; }        // tangential already: nothing to round
+        var s = cross > 0 ? 1 : -1, op = offsetP(p, s, m.r), oq = offsetP(q, s, m.r);
+        var C = (op && oq && op.type !== 'invalid' && oq.type !== 'invalid') ? nearest(isect(op, oq), P) : null;
+        var F1 = C && foot(C, p), F2 = C && foot(C, q);
+        if (!C || !F1 || !F2 || !onP(F1, p, 1e-5) || !onP(F2, q, 1e-5)) { fail(st, m.block, 'ROUNDING-OFF RADIUS TOO LARGE'); mv.splice(k, 1); k--; continue; }
+        F1.z = P.z; F2.z = P.z;
+        setEndP(p, F1); setStartP(q, F2);
+        var a0 = Math.atan2(F1.y - C.y, F1.x - C.x), a1 = Math.atan2(F2.y - C.y, F2.x - C.x);
+        ins = arcP(C.x, C.y, m.r, a0, dirAngle(a0, a1, s), P.z, P.z);
+      }
+      var nA = moveFrom(p, A, { rc: A.rc, rcAct: A.rcAct }), nB = moveFrom(q, B, { rc: B.rc, rcAct: B.rcAct });
+      var nI = moveFrom(ins, { kind: (A.kind === 'rapid' && B.kind === 'rapid') ? 'rapid' : 'feed', feed: feed, tool: A.tool, toolR: A.toolR, toolDR: A.toolDR,
+        toolName: A.toolName, spindle: A.spindle, coolant: A.coolant, block: m.block }, { rc: B.rc });
+      mv.splice(k - 1, 3, nA, nI, nB);
+    }
+  }
+  /* foot of the perpendicular from a fillet centre onto a primitive's support */
+  function foot(C, p) {
+    if (p.type === 'line') {
+      var dx = p.e.x - p.s.x, dy = p.e.y - p.s.y, l2 = dx * dx + dy * dy; if (l2 < 1e-18) return null;
+      var u = ((C.x - p.s.x) * dx + (C.y - p.s.y) * dy) / l2;
+      return { x: p.s.x + dx * u, y: p.s.y + dy * u, z: p.s.z };
+    }
+    var vx = C.x - p.cx, vy = C.y - p.cy, l = Math.hypot(vx, vy); if (l < 1e-12) return null;
+    return { x: p.cx + vx / l * p.r, y: p.cy + vy / l * p.r, z: p.z0 };
+  }
+
+  /* ---- 3. APPR / DEP plans, on the tool-centre path ---- */
+  function lctArc(ext, cp, t, R, cs, approach) {
+    // arc of radius R tangent to the contour at cp (centre on side cs), and a line from/to ext tangent to it
+    var cx = cp.x - t.y * cs * R, cy = cp.y + t.x * cs * R;
+    var vx = ext.x - cx, vy = ext.y - cy, d2 = vx * vx + vy * vy;
+    if (d2 < R * R - 1e-9) return null;
+    var base = R * R / d2, sc = R * Math.sqrt(Math.max(0, d2 - R * R)) / d2;
+    var cands = [{ x: cx + base * vx - sc * vy, y: cy + base * vy + sc * vx }, { x: cx + base * vx + sc * vy, y: cy + base * vy - sc * vx }];
+    for (var i = 0; i < 2; i++) {
+      var h = cands[i], lx = approach ? h.x - ext.x : ext.x - h.x, ly = approach ? h.y - ext.y : ext.y - h.y, ll = Math.hypot(lx, ly);
+      var rx = (h.x - cx) / R, ry = (h.y - cy) / R, tx = -ry * cs, ty = rx * cs;       // arc travel direction at h
+      if (ll < 1e-9 || (lx * tx + ly * ty) / ll > 1 - 1e-6) {
+        var ha = Math.atan2(h.y - cy, h.x - cx), ca = Math.atan2(cp.y - cy, cp.x - cx);
+        var sw = approach ? dirAngle(ha, ca, cs) : dirAngle(ca, ha, cs);
+        return { h: { x: h.x, y: h.y, z: cp.z }, arc: arcP(cx, cy, R, approach ? ha : ca, sw, cp.z, cp.z) };
+      }
+    }
+    return null;
+  }
+  function apprPlan(m, PA, t, side) {
+    var s = side === 'RL' ? 1 : -1, PS = m.from, prims = [], H;
+    if (m.form === 'LT') { H = { x: PA.x - t.x * m.len, y: PA.y - t.y * m.len, z: PA.z }; prims.push(['entry', H]); prims.push(['el', lineP(H, PA)]); }
+    else if (m.form === 'LN') { H = { x: PA.x - t.y * s * m.len, y: PA.y + t.x * s * m.len, z: PA.z }; prims.push(['entry', H]); prims.push(['el', lineP(H, PA)]); }
+    else if (m.form === 'CT') {
+      var R = Math.abs(m.r), d = s * (m.r < 0 ? -1 : 1);          // R>0: approach from the compensation side
+      var cx = PA.x - t.y * d * R, cy = PA.y + t.x * d * R, ea = Math.atan2(PA.y - cy, PA.x - cx);
+      var sw = d * m.cca * Math.PI / 180, sa = ea - sw;           // arc ends at PA, turning in direction d
+      H = { x: cx + R * Math.cos(sa), y: cy + R * Math.sin(sa), z: PA.z };
+      prims.push(['entry', H]); prims.push(['el', arcP(cx, cy, R, sa, sw, PA.z, PA.z)]);
+    } else if (m.form === 'LCT') {
+      var L = lctArc({ x: PS.x, y: PS.y, z: PA.z }, PA, t, Math.abs(m.r), s, true);
+      if (!L) return null;
+      prims.push(['lct', L.h]); prims.push(['el', L.arc]);
+    } else return null;
+    return prims;
+  }
+  function emitAppr(out, m, plan, tpl) {
+    var PS = m.from, H = plan[0][1], el = plan[1][1];
+    var entryFeed = plan[0][0] === 'lct' ? m.feed : m.entryFeed;
+    out.push(moveFrom(lineP(PS, { x: H.x, y: H.y, z: PS.z }), tpl, { kind: 'feed', feed: entryFeed, block: m.block }));
+    if (Math.abs(PS.z - H.z) > 1e-9)          // APPR with Z: in the plane to PH first, then to depth
+      out.push(moveFrom(lineP({ x: H.x, y: H.y, z: PS.z }, H), tpl, { kind: 'feed', feed: m.feed, block: m.block }));
+    out.push(moveFrom(el, tpl, { kind: 'feed', feed: m.feed, block: m.block }));
+  }
+  function depPlan(m, PE, t, side) {
+    var s = side === 'RL' ? 1 : -1, prims = [];
+    if (m.form === 'LT') prims.push(lineP(PE, { x: PE.x + t.x * m.len, y: PE.y + t.y * m.len, z: PE.z }));
+    else if (m.form === 'LN') prims.push(lineP(PE, { x: PE.x - t.y * s * m.len, y: PE.y + t.x * s * m.len, z: PE.z }));
+    else if (m.form === 'CT') {
+      var R = Math.abs(m.r), d = s * (m.r < 0 ? -1 : 1);
+      var cx = PE.x - t.y * d * R, cy = PE.y + t.x * d * R, a0 = Math.atan2(PE.y - cy, PE.x - cx);
+      prims.push(arcP(cx, cy, R, a0, d * m.cca * Math.PI / 180, PE.z, PE.z));
+    } else if (m.form === 'LCT') {
+      var L = lctArc({ x: m.to.x, y: m.to.y, z: PE.z }, PE, t, Math.abs(m.r), s, false);
+      if (!L) return null;
+      prims.push(L.arc); prims.push(lineP(L.h, { x: m.to.x, y: m.to.y, z: PE.z }));
+      if (Math.abs(m.to.z - PE.z) > 1e-9) prims.push(lineP({ x: m.to.x, y: m.to.y, z: PE.z }, m.to));
+    } else return null;
+    return prims;
+  }
+  /* after a run or a DEP: the next move starts where the tool really is; pure Z moves keep that XY */
+  function carryXY(mv, j, end) {
+    var nx = mv[j]; if (!nx || nx.kind === 'mark') return;
+    var pureZ = Math.abs(nx.to.x - nx.from.x) < 1e-9 && Math.abs(nx.to.y - nx.from.y) < 1e-9 && nx.kind !== 'arc';
+    var ox = nx.from.x, oy = nx.from.y;
+    nx.from = P3(end);
+    if (pureZ) {
+      nx.to.x = end.x; nx.to.y = end.y;
+      for (var k = j + 1; k < mv.length; k++) {           // following moves that still sit on the old nominal XY
+        var f = mv[k]; if (f.kind === 'mark' || f.kind === 'arc') break;
+        if (Math.abs(f.from.x - ox) > 1e-9 || Math.abs(f.from.y - oy) > 1e-9) break;
+        f.from.x = end.x; f.from.y = end.y;
+        if (Math.abs(f.to.x - ox) < 1e-9 && Math.abs(f.to.y - oy) < 1e-9) { f.to.x = end.x; f.to.y = end.y; f.len = dist3(f.from, f.to); } else { f.len = dist3(f.from, f.to); break; }
+      }
+    }
+    if (nx.kind === 'arc') { var p = primOf(nx); setStartP(p, end); mv[j] = moveFrom(p, nx, { rc: nx.rc }); }
+    else nx.len = dist3(nx.from, nx.to);
+  }
+
+  /* ---- 2. radius compensation runs ---- */
+  function compRun(st, mv, a, b) {
+    var head = mv[a], side = head.rc, s = side === 'RL' ? 1 : -1;
+    var appr = head.kind === 'mark' ? head : null;
+    var R = (head.toolR || 0) + (head.toolDR || 0);
+    var body = mv.slice(appr ? a + 1 : a + 1, b + 1);       // elements after the activation block / APPR
+    if (!(R >= 0)) { fail(st, head.block, 'TOOL RADIUS TOO LARGE'); return null; }
+    var items = body.map(function (m) { var p = primOf(m); return { m: m, nom: p, off: planar(p) ? offsetP(p, s, R) : null }; });
+    var xy = items.filter(function (it) { return it.off; });
+    for (var i = 0; i < xy.length; i++)
+      if (xy[i].off.type === 'invalid') { fail(st, xy[i].m.block, 'TOOL RADIUS TOO LARGE'); return null; }
+    if (!xy.length) {
+      if (appr) fail(st, head.block, 'TANGENTIAL CONNECTION NOT POSSIBLE');
+      return null;                                           // RL/RR with no contour after it: leave nominal
+    }
+    var trans = {};
+    for (i = 0; i < xy.length - 1; i++) {
+      var L = xy[i], Rt = xy[i + 1], p = L.off, q = Rt.off;
+      var corner = pEnd(L.nom);
+      var t1 = pTan(L.nom, true), t2 = pTan(Rt.nom, false), cross = t1.x * t2.y - t1.y * t2.x, dot = t1.x * t2.x + t1.y * t2.y;
+      if (Math.abs(cross) < 1e-9 && dot > 0) { var sn = pEnd(p); setEndP(p, sn); setStartP(q, sn); continue; }   // tangential
+      if (s * cross < 0 || (Math.abs(cross) < 1e-9 && dot < 0)) {                                                  // outside corner
+        var f = pEnd(p), g = pStart(q), aa0 = Math.atan2(f.y - corner.y, f.x - corner.x), aa1 = Math.atan2(g.y - corner.y, g.x - corner.x);
+        var dir = Math.abs(cross) < 1e-9 ? -s : (cross > 0 ? 1 : -1);
+        if (R > 1e-9) trans[i] = arcP(corner.x, corner.y, R, aa0, dirAngle(aa0, aa1, dir), f.z, g.z);
+      } else {                                                                                                    // inside corner
+        var X = nearest(isect(p, q), pEnd(p), p, q);
+        if (!X) { fail(st, Rt.m.block, 'TOOL RADIUS TOO LARGE'); return null; }
+        X.z = corner.z; setEndP(p, X); setStartP(q, X);
+      }
+    }
+    var out = [], first = pStart(xy[0].off), cur;
+    if (appr) {
+      var plan = apprPlan(appr, first, pTan(xy[0].off, false), side);
+      if (!plan) { fail(st, appr.block, 'TANGENTIAL CONNECTION NOT POSSIBLE'); return null; }
+      emitAppr(out, appr, plan, appr);
+      cur = first;
+    } else {
+      var act = { x: first.x, y: first.y, z: head.to.z };   // activation: perpendicular to the first element
+      out.push(moveFrom(lineP(head.from, act), head, { rc: side }));
+      cur = act;
+    }
+    var xi = 0;
+    for (i = 0; i < items.length; i++) {
+      var it = items[i];
+      if (!it.off) {                                         // tool-axis move inside the run: keep the offset XY
+        var vz = { x: cur.x, y: cur.y, z: it.nom.e.z };
+        if (Math.abs(vz.z - cur.z) > 1e-9) out.push(moveFrom(lineP(cur, vz), it.m, { rc: side }));
+        cur = vz; continue;
+      }
+      var op = it.off; if (Math.abs(pStart(op).z - cur.z) > 1e-9 && op.type === 'line') op.s.z = cur.z;
+      out.push(moveFrom(op, it.m, { rc: side })); cur = pEnd(op);
+      if (trans[xi]) { out.push(moveFrom(trans[xi], it.m, { rc: side })); cur = pEnd(trans[xi]); }
+      xi++;
+    }
+    return { out: out, end: cur, tan: pTan(xy[xy.length - 1].off, true) };
+  }
+
+  function contourPass(st) {
+    var mv = st.moves;
+    if (!mv.some(function (m) { return m.kind === 'mark' || m.rc; })) return;
+    resolveCorners(st, mv);
+    for (var i = 0; i < mv.length; i++) {
+      var m = mv[i];
+      var runHead = (m.rc === 'RL' || m.rc === 'RR') && (m.rcAct || (m.kind === 'mark' && m.mark === 'APPR'));
+      var r0appr = m.kind === 'mark' && m.mark === 'APPR' && !m.rc;
+      if (runHead) {
+        var j = i + 1;
+        while (j < mv.length && mv[j].kind !== 'mark' && mv[j].rc === m.rc && !mv[j].rcAct) j++;
+        var res = compRun(st, mv, i, j - 1);
+        if (!res) { if (m.kind === 'mark') { mv.splice(i, 1); i--; } continue; }
+        var dep = mv[j] && mv[j].kind === 'mark' && mv[j].mark === 'DEP' ? mv[j] : null, depOut = [], end = res.end;
+        if (dep) {
+          var dp = depPlan(dep, res.end, res.tan, m.rc);
+          if (!dp) fail(st, dep.block, 'TANGENTIAL CONNECTION NOT POSSIBLE');
+          else { dp.forEach(function (p) { depOut.push(moveFrom(p, dep, { kind: 'feed', feed: dep.feed })); }); end = pEnd(dp[dp.length - 1]); }
+        }
+        var repl = res.out.concat(depOut);
+        mv.splice.apply(mv, [i, j - i + (dep ? 1 : 0)].concat(repl));
+        carryXY(mv, i + repl.length, end);
+        i += repl.length - 1;
+      } else if (r0appr) {                                   // APPR with R0: radius 0, direction RR
+        var nx = mv[i + 1] && mv[i + 1].kind !== 'mark' ? mv[i + 1] : null;
+        var t = nx && pTan(primOf(nx), false);
+        var plan = t && apprPlan(m, m.to, t, 'RR');
+        if (!plan) { fail(st, m.block, 'TANGENTIAL CONNECTION NOT POSSIBLE'); mv.splice(i, 1); i--; continue; }
+        var o = []; emitAppr(o, m, plan, m);
+        mv.splice.apply(mv, [i, 1].concat(o)); i += o.length - 1;
+      } else if (m.kind === 'mark' && m.mark === 'DEP') {   // DEP without compensation: radius 0, direction RR
+        var pv = i > 0 && mv[i - 1].kind !== 'mark' ? mv[i - 1] : null;
+        var tt = pv && pTan(primOf(pv), true);
+        var dq = tt && depPlan(m, pv.to, tt, m.side === 'RL' ? 'RL' : 'RR');
+        if (!dq) { fail(st, m.block, 'TANGENTIAL CONNECTION NOT POSSIBLE'); mv.splice(i, 1); i--; continue; }
+        var o2 = dq.map(function (p) { return moveFrom(p, m, { kind: 'feed', feed: m.feed }); });
+        mv.splice.apply(mv, [i, 1].concat(o2));
+        carryXY(mv, i + o2.length, pEnd(dq[dq.length - 1]));
+        i += o2.length - 1;
+      }
+    }
+    for (i = mv.length - 1; i >= 0; i--) if (mv[i].kind === 'mark' || (!(mv[i].len > EPS) && !mv[i].rcAct)) mv.splice(i, 1);
+    for (i = mv.length - 1; i >= 0; i--) if (!(mv[i].len > EPS)) mv.splice(i, 1);
+  }
+
   /* ---------------------------------------------------------------- 8. compile */
 
   function compile(blocks) {
@@ -843,7 +1547,15 @@ var TNC = (function () {
       if (blocks[i] && blocks[i].kind === 'LBL' && st.labels[blocks[i].args.lbl] === undefined)
         st.labels[blocks[i].args.lbl] = i;
 
+    // tool radii from CAM comments (";T5 D=+8 ..."), used only to draw tools missing from the table
+    st.commentTools = {};
+    for (i = 0; i < blocks.length; i++) {
+      var cm = blocks[i] && blocks[i].args && blocks[i].args.comment, tm;
+      if (cm && (tm = /^T(\d+)\s+D=\s*([+-]?\d+\.?\d*)/i.exec(cm))) st.commentTools[+tm[1]] = { r: Math.abs(parseFloat(tm[2])) / 2 };
+    }
+
     execRange(st, 0, blocks.length - 1, 0);
+    contourPass(st);
 
     // Program head check. Done after the run so that flagging the offending
     // block does not stop that block from being executed.

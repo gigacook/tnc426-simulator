@@ -224,6 +224,17 @@ var TNC_FX = (function () {
     root.name = 'TNC_FX';
     scene.add(root);
 
+    // material tint: multiplies chip / spark base colours so a preset from
+    // materials.js (aluminium, steel, titanium, ...) reads correctly here
+    // too, without this module knowing anything about the preset list.
+    var chipTint = { r: 1, g: 1, b: 1 }, sparkTint = { r: 1, g: 1, b: 1 };
+    function hexOf(v, d) {
+      if (typeof v === 'number') return v;
+      if (typeof v === 'string') { var n = parseInt(v.replace('#', ''), 16); return isNaN(n) ? d : n; }
+      return d;
+    }
+    function setTint(out, hex) { out.r = ((hex >> 16) & 255) / 255; out.g = ((hex >> 8) & 255) / 255; out.b = (hex & 255) / 255; }
+
     var scaleU = { value: 800 / (2 * Math.tan(22.5 * Math.PI / 180)) };
     //                         n                   mode add   stretch minPx maxPx order
     var chips  = new Pool(THREE, root, scaleU, opts.maxChips || 1800, 1, false, 0,     1.6, 48,  1);
@@ -308,7 +319,7 @@ var TNC_FX = (function () {
       var gr = rnd(0.58, 0.86);
       var size = clamp(0.7 + R * 0.07, 0.8, 2.0) * rnd(0.75, 1.25);
       var i = chips.add(o.x, o.y, z, tx * spd + o.ox * rad, ty * spd + o.oy * rad, up,
-        rnd(3.5, 6.5), size, gr * 0.97, gr * 0.99, gr * 1.03, 1, 0);
+        rnd(3.5, 6.5), size, gr * 0.97 * chipTint.r, gr * 0.99 * chipTint.g, gr * 1.03 * chipTint.b, 1, 0);
       var i3 = i * 3, i4 = i * 4;
       chips.g[i3] = Math.random() * TAU; chips.g[i3 + 1] = Math.random() * TAU; chips.g[i3 + 2] = 0;
       chips.e[i4] = rnd(-30, 30); chips.e[i4 + 1] = rnd(-40, 40);
@@ -493,6 +504,7 @@ var TNC_FX = (function () {
         if (t >= 1) { sparks.kill(i); continue; }
         i3 = i * 3;
         heat(t, sparks.c, i3);
+        sparks.c[i3] *= sparkTint.r; sparks.c[i3 + 1] *= sparkTint.g; sparks.c[i3 + 2] *= sparkTint.b;
         sparks.a[i] = Math.pow(1 - t, 1.3);
         sparks.s[i] = sparks.s0[i] * (1 - 0.4 * t);
         V[i3 + 2] -= G * 0.6 * dt;
@@ -658,7 +670,7 @@ var TNC_FX = (function () {
           a = Math.random() * TAU; sp = rnd(250, 1300);
           var gr = rnd(0.45, 0.62);
           var i = chips.add(x + rnd(-2, 2), y + rnd(-2, 2), z + rnd(0.5, 5), Math.cos(a) * sp, Math.sin(a) * sp,
-            rnd(350, 1400), rnd(1.2, 1.5), rnd(1.8, 3.6), gr, gr * 1.01, gr * 1.05, 1, 0);
+            rnd(350, 1400), rnd(1.2, 1.5), rnd(1.8, 3.6), gr * chipTint.r, gr * 1.01 * chipTint.g, gr * 1.05 * chipTint.b, 1, 0);
           chips.g[i * 3] = Math.random() * TAU; chips.g[i * 3 + 1] = Math.random() * TAU; chips.g[i * 3 + 2] = 1;
           chips.e[i * 4] = rnd(-40, 40); chips.e[i * 4 + 1] = rnd(-50, 50);
         }
@@ -666,7 +678,7 @@ var TNC_FX = (function () {
           a = Math.random() * TAU; sp = rnd(300, 1800);
           var g2 = rnd(0.62, 0.9);
           var i2 = chips.add(x + rnd(-2, 2), y + rnd(-2, 2), z + rnd(0.5, 4), Math.cos(a) * sp, Math.sin(a) * sp,
-            rnd(300, 1200), rnd(1.1, 1.5), rnd(1, 2.2), g2, g2, g2 * 1.03, 1, 0);
+            rnd(300, 1200), rnd(1.1, 1.5), rnd(1, 2.2), g2 * chipTint.r, g2 * chipTint.g, g2 * 1.03 * chipTint.b, 1, 0);
           chips.g[i2 * 3] = Math.random() * TAU; chips.g[i2 * 3 + 1] = Math.random() * TAU; chips.g[i2 * 3 + 2] = 0;
           chips.e[i2 * 4] = rnd(-40, 40); chips.e[i2 * 4 + 1] = rnd(-50, 50);
         }
@@ -680,6 +692,17 @@ var TNC_FX = (function () {
     fx.set = function (o) {
       if (!o) return;
       for (var key in en) if (Object.prototype.hasOwnProperty.call(o, key)) en[key] = !!o[key];
+    };
+
+    // Addition (not in the original spec): lets materials.js (or anything
+    // else) tell the effects which alloy is on the machine right now, so
+    // chips and sparks pick up its colour instead of a fixed aluminium grey
+    // and steel orange. preset = {chipColor, sparkColor} (hex number or
+    // "#rrggbb" string); either field is optional.
+    fx.setMaterial = function (preset) {
+      if (!preset) return;
+      setTint(chipTint, hexOf(preset.chipColor, 0xb8bec8));
+      setTint(sparkTint, hexOf(preset.sparkColor, 0xffffff));
     };
 
     fx.resize = function (h, fovDeg, pr) {
@@ -708,9 +731,12 @@ var TNC_FX = (function () {
     };
 
     fx.object3d = root;   // addition: the group holding everything (e.g. to toggle visibility)
+    api.instance = fx;    // addition: last-created instance, so a sibling plugin (materials.js)
+                           // can reach fx.setMaterial() without ui.js having to hand it out
     return fx;
   }
 
-  return { create: create };
+  var api = { create: create };
+  return api;
 })();
 if (typeof module !== 'undefined') module.exports = TNC_FX;

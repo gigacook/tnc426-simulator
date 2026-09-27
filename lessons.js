@@ -143,6 +143,41 @@ var TNC_LESSONS = (function () {
      'L Z+50 R0 FMAX M30']                      // 23
   ));                                           // 24 END PGM
 
+  var L7 = prog('POCKET', [
+    'TOOL CALL 5 Z S3000',                      // 3
+    'L Z+50 R0 FMAX M3',                        // 4
+    'L X+50 Y+40 R0 FMAX',                      // 5
+    'CYCL DEF 4.0 POCKET MILLING',              // 6
+    'CYCL DEF 4.1 SET UP 2',                    // 6 (indented, same block)
+    'CYCL DEF 4.2 DEPTH -10',                   // 6
+    'CYCL DEF 4.3 PECKG 5 F80',                 // 6
+    'CYCL DEF 4.4 X60',                         // 6
+    'CYCL DEF 4.5 Y40',                         // 6
+    'CYCL DEF 4.6 F300 DR+ RADIUS 0',           // 6
+    'L Z+2 R0 FMAX',                            // 7
+    'CYCL CALL',                                // 8
+    'L Z+50 R0 FMAX M30'                        // 9
+  ]);                                           // 10 END PGM
+
+  var L8 = prog('SUBPGM', [
+    'TOOL CALL 4 Z S3000',                      // 3
+    'L Z+50 R0 FMAX M3',                        // 4
+    'L X+20 Y+20 R0 FMAX',                      // 5
+    'CALL LBL 5',                               // 6
+    'L X+60 Y+50 R0 FMAX',                      // 7
+    'CALL LBL 5',                               // 8
+    'L Z+50 R0 FMAX M30',                       // 9
+    'LBL 5',                                    // 10
+    'L Z+2 R0 FMAX',                            // 11
+    'L Z-2 R0 F150',                            // 12
+    'L IX+15 R0 F500',                          // 13
+    'L IY+15 R0',                               // 14
+    'L IX-15 R0',                               // 15
+    'L IY-15 R0',                               // 16
+    'L Z+2 R0 FMAX',                            // 17
+    'LBL 0'                                     // 18
+  ]);                                           // 19 END PGM
+
   var learn = [
     {
       id: 'hello',
@@ -247,6 +282,40 @@ var TNC_LESSONS = (function () {
         { say: "Where it hurts: an incremental move only knows where the tool **is**, not where it should be. If you start the program part-way through, add a block, or change the REP count, every move after that shifts. Rule of thumb: go to an **absolute** position before each feature, and use incremental moves inside it.",
           program: null, focus: [6, 13], run: false },
         { say: "Run it: a column of holes and a four-step staircase. The FRONT view shows the staircase best.",
+          program: null, focus: null, run: true }
+      ]
+    },
+    {
+      id: 'pocket',
+      title: 'Pocket milling with CYCL DEF 4',
+      blurb: 'One canned cycle clears a whole rectangle: centre, definition, call.',
+      steps: [
+        { say: "`CYCL DEF 4` only comes in the **dotted** form: `4.0` names it, `4.1`–`4.6` set its parameters. All of them, indent and all, are still just **one** NC block — block 6 here, the same as the `CYCL DEF 200` block in the drilling lesson.",
+          program: L7, focus: [6], run: false },
+        { say: "Before any of that runs, the tool has to be sitting at the **pocket centre**, at set-up clearance above the surface. `L X+50 Y+40 R0 FMAX` puts it there in X/Y while still up at Z+50; the actual Z move comes later. Get the centre wrong and the whole pocket lands in the wrong place.",
+          program: null, focus: [5], run: false },
+        { say: "The six sub-lines: `4.1` set-up clearance, `4.2` depth, `4.3` peck per level and plunge feed, `4.4`/`4.5` the pocket's X and Y size, `4.6` milling feed and direction (`DR+` climb with M3). The simulator reads `4.2` DEPTH -10 straight off, no sign games.",
+          program: null, focus: [6], run: false },
+        { say: "`L Z+2 R0 FMAX` is the move that actually matters: it puts the tool at Z = surface + set-up clearance (0 + 2), which is exactly where the cycle expects to find it. `CYCL CALL` then plunges at the centre and spirals outward in widening rectangles, one depth level at a time.",
+          program: null, focus: [7, 8], run: false },
+        { say: "The cutter has to fit: a 60 × 40 pocket with a Ø12 end mill leaves 24 mm and 14 mm of half-width to clear, so it fits with room to spare. Size the pocket smaller than the tool and you get `TOOL TOO LARGE` instead of a crash.",
+          program: null, focus: null, run: true }
+      ]
+    },
+    {
+      id: 'subprogram',
+      title: 'A true subprogram',
+      blurb: 'CALL LBL without REP: run a block of code from two places, and come back both times.',
+      steps: [
+        { say: "This is not the depth-loop trick from the LOOPS lesson. `LBL 5` marks a block of moves, `LBL 0` ends it, and both sit **after** `M30` so the main program never falls into them by accident.",
+          program: L8, focus: [9, 10, 18], run: false },
+        { say: "`CALL LBL 5` with **no REP** is a true subprogram call: it jumps to `LBL 5`, runs down to `LBL 0`, and returns to the block right after the call. Compare that with `CALL LBL n REP r/r`, which repeats a section in place instead of jumping away and back.",
+          program: null, focus: [6], run: false },
+        { say: "The subprogram itself is written with **incremental** moves — `IX`, `IY` — so it draws the same 15 × 15 square outline no matter where it is called from. It only needs an absolute position before the call.",
+          program: null, focus: [11, 12, 13, 14, 15, 16, 17], run: false },
+        { say: "The main program calls it once at X20 Y20, moves to X60 Y50, and calls it again. Same code, two squares. That is the entire point of a subprogram: write the feature once, position and call it as many times as you need.",
+          program: null, focus: [5, 6, 7, 8], run: false },
+        { say: "Run it and watch both squares appear from the one block of code between `LBL 5` and `LBL 0`.",
           program: null, focus: null, run: true }
       ]
     }
@@ -520,6 +589,130 @@ var TNC_LESSONS = (function () {
         'L Z+50 R0 FMAX M30'
       ]),
       rule: "BEGIN PGM is the first line and END PGM is the last, with the same name and unit on both."
+    },
+    {
+      id: 'wrong-tool',
+      title: 'The wrong tool number',
+      blurb: 'A TOOL CALL for a tool that was never put in the table.',
+      broken: prog('WRONGTOOL', [
+        'TOOL CALL 99 Z S3000',
+        'L Z+50 R0 FMAX M3',
+        'L X+20 Y+40 R0 FMAX',
+        'L Z+2 R0 FMAX',
+        'L Z-2 R0 F150',
+        'L X+80 R0 F500',
+        'L Z+50 R0 FMAX M30'
+      ]),
+      expect: 'ERROR:TOOL 99 NOT DEFINED',
+      story: "The setup sheet says T4, the operator's own note on the traveler says T9, and what gets typed at the control is T99 — a slip of the fingers on the MDI block. The control does not guess. It stops cold before the spindle ever turns, with a tool number that simply is not in the table.",
+      why: "`TOOL CALL 99` asks for a tool the machine's table has never heard of. `toolByNumber` finds nothing, and the simulator reports `TOOL 99 NOT DEFINED` instead of quietly picking something close. A real control does exactly the same: an undefined tool call stops the program before any motion.",
+      fix: prog('WRONGTOOL', [
+        'TOOL CALL 4 Z S3000',
+        'L Z+50 R0 FMAX M3',
+        'L X+20 Y+40 R0 FMAX',
+        'L Z+2 R0 FMAX',
+        'L Z-2 R0 F150',
+        'L X+80 R0 F500',
+        'L Z+50 R0 FMAX M30'
+      ]),
+      rule: "Check the tool number against the table before you run, not after the alarm."
+    },
+    {
+      id: 'clearance-sign',
+      title: 'Q200 with the wrong sign',
+      blurb: 'Set-up clearance above the surface, typed as a number below it.',
+      broken: prog('CLRSIGN', [].concat(
+        ['TOOL CALL 1 Z S2000', 'L Z+50 R0 FMAX M3'],
+        ['CYCL DEF 200 DRILLING',
+         '  Q200=-2     ;SET-UP CLEARANCE',
+         '  Q201=-8     ;DEPTH',
+         '  Q206=+100   ;FEED RATE FOR PLNGNG',
+         '  Q202=+8     ;PLUNGING DEPTH',
+         '  Q210=+0     ;DWELL TIME AT TOP',
+         '  Q203=+0     ;SURFACE COORDINATE',
+         '  Q204=+50    ;2ND SET-UP CLEARANCE'],
+        ['L X+50 Y+40 R0 FMAX M99',
+         'L Z+50 R0 FMAX M30']
+      )),
+      expect: 'RAPID_IN_MATERIAL',
+      story: "Every other Q200 in the program is +2, so this one gets typed from muscle memory as -2 without a second thought — maybe copied from a Q201 depth line one row up. The cycle's very first move, the rapid down to \"set-up clearance\", drives the drill 2 mm under the surface at full rapid before a single word about feed has been read.",
+      why: "`Q200` is a distance **above** the surface, and the cycle rapids straight to `Q203 + Q200` before it ever switches to a feed rate. With `Q200=-2` that target sits 2 mm **below** the surface instead of above it, so the first move of the cycle is a rapid traverse into solid material.",
+      fix: prog('CLRSIGN', [].concat(
+        ['TOOL CALL 1 Z S2000', 'L Z+50 R0 FMAX M3'],
+        ['CYCL DEF 200 DRILLING',
+         '  Q200=+2     ;SET-UP CLEARANCE',
+         '  Q201=-8     ;DEPTH',
+         '  Q206=+100   ;FEED RATE FOR PLNGNG',
+         '  Q202=+8     ;PLUNGING DEPTH',
+         '  Q210=+0     ;DWELL TIME AT TOP',
+         '  Q203=+0     ;SURFACE COORDINATE',
+         '  Q204=+50    ;2ND SET-UP CLEARANCE'],
+        ['L X+50 Y+40 R0 FMAX M99',
+         'L Z+50 R0 FMAX M30']
+      )),
+      rule: "Q200 (and Q204) are clearances above the surface: always positive."
+    },
+    {
+      id: 'q203-surface',
+      title: 'Q203 set to the wrong surface',
+      blurb: 'The cycle’s own idea of "the top" does not match the blank.',
+      broken: prog('SURFQ', [].concat(
+        ['TOOL CALL 2 Z S1800', 'L Z+50 R0 FMAX M3'],
+        ['CYCL DEF 200 DRILLING',
+         '  Q200=+2     ;SET-UP CLEARANCE',
+         '  Q201=-15    ;DEPTH',
+         '  Q206=+150   ;FEED RATE FOR PLNGNG',
+         '  Q202=+5     ;PLUNGING DEPTH',
+         '  Q210=+0     ;DWELL TIME AT TOP',
+         '  Q203=-10    ;SURFACE COORDINATE',
+         '  Q204=+50    ;2ND SET-UP CLEARANCE'],
+        ['L X+50 Y+40 R0 FMAX M99',
+         'L Z+50 R0 FMAX M30']
+      )),
+      expect: 'BELOW_BLANK',
+      story: "The last job had the part sitting on a 10 mm riser plate, so `Q203` got set to -10 to match. This job has no riser — the blank's top face is Z0 — but the old cycle definition gets reused without anyone touching that one line. The drill rapids down through 10 mm of solid aluminium before it even reaches its own set-up clearance, and by the time it stops it is 5 mm through the bottom of the blank and into the parallels.",
+      why: "`Q203` is not a spare field; it is the Z of the surface the whole cycle measures from. Every other number in the cycle — the rapid-down target, the depth, the retract — is computed as an offset from `Q203`. Set it 10 mm below the real surface and the cycle's \"safe\" rapid lands inside material, and the programmed -15 mm depth ends up 25 mm below the true top: 5 mm past the bottom of a 20 mm blank.",
+      fix: prog('SURFQ', [].concat(
+        ['TOOL CALL 2 Z S1800', 'L Z+50 R0 FMAX M3'],
+        ['CYCL DEF 200 DRILLING',
+         '  Q200=+2     ;SET-UP CLEARANCE',
+         '  Q201=-15    ;DEPTH',
+         '  Q206=+150   ;FEED RATE FOR PLNGNG',
+         '  Q202=+5     ;PLUNGING DEPTH',
+         '  Q210=+0     ;DWELL TIME AT TOP',
+         '  Q203=+0     ;SURFACE COORDINATE',
+         '  Q204=+50    ;2ND SET-UP CLEARANCE'],
+        ['L X+50 Y+40 R0 FMAX M99',
+         'L Z+50 R0 FMAX M30']
+      )),
+      rule: "Q203 must match the real Z of the part surface for this setup — check it every time you reuse a cycle definition."
+    },
+    {
+      id: 'never-started',
+      title: 'The spindle that never starts',
+      blurb: 'A short, one-tool job, and the M3 that got left out of it entirely.',
+      broken: prog('NOSTART', [
+        'TOOL CALL 4 Z S3000',
+        'L Z+50 R0 FMAX',
+        'L X+20 Y+40 R0 FMAX',
+        'L Z+2 R0 FMAX',
+        'L Z-2 R0 F150',
+        'L X+80 R0 F500',
+        'L Z+50 R0 FMAX M30'
+      ]),
+      expect: 'SPINDLE_OFF',
+      story: "It is one slot, one tool, five minutes of work, so it feels too small a job to bother stepping through carefully. The tool comes down, feeds sideways, and nothing turns. On a machine with a spindle-load interlock it just stalls; on one without, the flutes rub instead of cutting and the surface finish is ruined before the operator even reaches for the feed hold.",
+      why: "There is no `M3` (or `M4`) anywhere in the whole program — not missing from a second `TOOL CALL`, just never written in the first place. Nothing turns the spindle on, so every cutting move after the tool goes down runs with `spindle === 0`, and the simulator flags each one as cutting with the spindle stopped.",
+      fix: prog('NOSTART', [
+        'TOOL CALL 4 Z S3000',
+        'L Z+50 R0 FMAX M3',
+        'L X+20 Y+40 R0 FMAX',
+        'L Z+2 R0 FMAX',
+        'L Z-2 R0 F150',
+        'L X+80 R0 F500',
+        'L Z+50 R0 FMAX M30'
+      ]),
+      rule: "Every program needs an M3 or M4 before its first cut, no matter how small the job looks."
     }
   ];
 

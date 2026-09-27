@@ -26,8 +26,9 @@ var TNC_SIM = (function () {
     var r = Math.hypot(f.x - cx, f.y - cy);
     var a0 = Math.atan2(f.y - cy, f.x - cx), a1 = Math.atan2(to.y - cy, to.x - cx);
     var sw = a1 - a0;
-    if (mv.ccw) { while (sw <= 1e-9) sw += Math.PI * 2; }
-    else        { while (sw >= -1e-9) sw -= Math.PI * 2; }
+    if (mv.sweep !== null && mv.sweep !== undefined) sw = mv.sweep;     // helices / multi-turn arcs
+    else if (mv.ccw) { while (sw <= 1e-9) sw += Math.PI * 2; }
+    else             { while (sw >= -1e-9) sw -= Math.PI * 2; }
     var n = Math.max(6, Math.ceil(Math.abs(sw) / (Math.PI / 36)));
     var prev = f;
     for (var i = 1; i <= n; i++) {
