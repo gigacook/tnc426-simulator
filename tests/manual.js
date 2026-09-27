@@ -369,5 +369,41 @@ console.log('CYCLES — 202 205 206 207 208 209 and old 1 / 2 / 17 against the m
   r = TNC.run(hdr + 'L X+50 Y+50 R0 FMAX\nL Z+2 R0 FMAX\nCYCL DEF 17.0 RIGID TAPPING\nCYCL DEF 17.1 SET UP 2\nCYCL DEF 17.2 DEPTH -12\nCYCL DEF 17.3 PITCH +1\nCYCL CALL\nEND PGM C MM');
   ok(!r.errors.length && near(zmin(r), -12) && r.moves.some(m => m.cycle && m.feed === 500), 'cycle 17: F = S x pitch = 500');
 }
+
+console.log('CYCLES — 212/213/214/215 finishing, 210/211 slots, 220/221 patterns, 230/231 surfaces');
+{ const hdr = 'BEGIN PGM C MM\nBLK FORM 0.1 Z X+0 Y+0 Z-40\nBLK FORM 0.2 X+100 Y+100 Z+0\nTOOL DEF 1 L+0 R+3\nTOOL CALL 1 Z S3000\nL Z+50 R0 FMAX M3\n';
+  const R = s => TNC.run(hdr + s + '\nEND PGM C MM');
+  const P = r => pts(r).filter(q => q.m.cycle && q.m.kind !== 'rapid');
+  let r = R('CYCL DEF 212 POCKET FINISHING\n Q200=2\n Q201=-20\n Q206=150\n Q202=5\n Q207=500\n Q203=+0\n Q204=50\n Q216=+50\n Q217=+50\n Q218=80\n Q219=60\n Q220=5\n Q221=0\nCYCL CALL');
+  let q = P(r).filter(p => near(p.z, -20));
+  ok(!r.errors.length, '212 no errors ' + JSON.stringify(r.errors));
+  ok(near(Math.max(...q.map(p => p.x)), 87) && near(Math.min(...q.map(p => p.x)), 13) && near(Math.max(...q.map(p => p.y)), 77) && near(Math.min(...q.map(p => p.y)), 23),
+     '212: wall at 80x60 about (50,50) -> tool centre 13..87 / 23..77');
+  ok(new Set(P(r).map(p => +p.z.toFixed(3))).size >= 4, '212: 4 levels of Q202=5 down to 20');
+  r = R('CYCL DEF 213 STUD FINISHING\n Q200=2\n Q201=-10\n Q206=150\n Q202=10\n Q207=500\n Q203=+0\n Q204=50\n Q216=+50\n Q217=+50\n Q218=40\n Q219=30\n Q220=2\n Q221=0\nCYCL CALL');
+  q = P(r).filter(p => near(p.z, -10) && p.m.kind === 'feed' && Math.abs(p.y - 50) < 12);
+  ok(!r.errors.length && q.some(p => near(p.x, 73)), '213: stud side X+70 -> tool centre X73 (outside)');
+  r = R('CYCL DEF 214 C. POCKET FINISHING\n Q200=2\n Q201=-10\n Q206=150\n Q202=10\n Q207=500\n Q203=+0\n Q204=50\n Q216=+50\n Q217=+50\n Q222=79\n Q223=80\nCYCL CALL');
+  const circ = r.moves.find(m => m.kind === 'arc' && near(Math.abs(m.sweep), 2 * Math.PI));
+  ok(!r.errors.length && circ && near(Math.hypot(circ.from.x - 50, circ.from.y - 50), 37) && circ.sweep > 0, '214: full circle radius 40-3, counter-clockwise (climb)');
+  r = R('CYCL DEF 215 C. STUD FINISHING\n Q200=2\n Q201=-10\n Q206=150\n Q202=10\n Q207=500\n Q203=+0\n Q204=50\n Q216=+50\n Q217=+50\n Q222=81\n Q223=80\nCYCL CALL');
+  const c2 = r.moves.find(m => m.kind === 'arc' && near(Math.abs(m.sweep), 2 * Math.PI));
+  ok(!r.errors.length && c2 && near(Math.hypot(c2.from.x - 50, c2.from.y - 50), 43) && c2.sweep < 0, '215: full circle radius 40+3, clockwise (climb outside)');
+  r = R('CYCL DEF 200 DRILLING\n Q200=2\n Q201=-15\n Q206=250\n Q202=5\n Q210=0\n Q203=+0\n Q204=20\n Q211=0\nCYCL DEF 220 POLAR PATTERN\n Q216=+50\n Q217=+50\n Q244=80\n Q245=+0\n Q246=+360\n Q247=+0\n Q241=8\n Q200=2\n Q203=+0\n Q204=50\n Q301=1');
+  const holes = r.moves.filter(m => m.cycle && m.kind === 'feed' && near(m.to.z, -15));
+  ok(!r.errors.length && holes.length === 8 && holes.every(m => near(Math.hypot(m.to.x - 50, m.to.y - 50), 40)), '220: 8 holes on a D80 circle, got ' + holes.length);
+  ok(holes.length === 8 && near(holes[1].to.x, 50 + 40 * Math.cos(Math.PI / 4)), '220: 45 deg steps (Q247=0, full circle / 8)');
+  r = R('CYCL DEF 200 DRILLING\n Q200=2\n Q201=-5\n Q206=250\n Q202=5\n Q210=0\n Q203=+0\n Q204=20\n Q211=0\nCYCL DEF 221 CARTESIAN PATTERN\n Q225=+15\n Q226=+15\n Q237=+10\n Q238=+8\n Q242=6\n Q243=4\n Q224=+0\n Q200=2\n Q203=+0\n Q204=50\n Q301=1');
+  const g = r.moves.filter(m => m.cycle && m.kind === 'feed' && near(m.to.z, -5));
+  ok(!r.errors.length && g.length === 24 && near(Math.max(...g.map(m => m.to.x)), 65) && near(Math.max(...g.map(m => m.to.y)), 39), '221: 6 x 4 grid from (15,15) step 10/8, got ' + g.length);
+  r = R('CYCL DEF 210 SLOT RECIP. PLNG\n Q200=2\n Q201=-10\n Q207=500\n Q202=5\n Q215=0\n Q203=+0\n Q204=50\n Q216=+50\n Q217=+50\n Q218=80\n Q219=12\n Q224=+0\n Q338=5\nCYCL CALL');
+  q = P(r).filter(p => near(p.z, -10));
+  ok(!r.errors.length && near(Math.max(...q.map(p => p.x)), 50 + 40 - 3) && near(Math.max(...q.map(p => p.y)), 53), '210: slot 80 x 12 finished to X87 / Y53');
+  r = R('CYCL DEF 230 MULTIPASS MILLING\n Q225=+10\n Q226=+12\n Q227=+2.5\n Q218=80\n Q219=60\n Q240=7\n Q206=150\n Q207=500\n Q209=200\n Q200=2\nCYCL CALL');
+  const passes = r.moves.filter(m => m.cycle && m.feed === 500);
+  ok(!r.errors.length && passes.length === 7 && near(Math.max(...passes.map(m => m.to.y)), 72), '230: 7 passes from Y12 to Y72');
+  r = R('CYCL DEF 231 RULED SURFACE\n Q225=+0\n Q226=+5\n Q227=-2\n Q228=+100\n Q229=+15\n Q230=+5\n Q231=+15\n Q232=+125\n Q233=+25\n Q234=+15\n Q235=+125\n Q236=+25\n Q240=40\n Q207=500\nCYCL CALL');
+  ok(!r.errors.length && r.moves.some(m => m.cycle && near(m.to.z, 25)), '231: reaches the 3rd/4th point height Z+25');
+}
 console.log(fails ? `\n${fails} FAILED` : '\nALL MANUAL EXAMPLES PASS');
 process.exit(fails ? 1 : 0);
