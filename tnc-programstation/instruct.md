@@ -42,7 +42,7 @@ Goal: use a HEIDENHAIN programming station as a behaviour oracle (ground truth) 
    - HEIDENHAIN still offers a free iTNC 530 / TNC 640 programming-station demo, and what its block limit is.
    - The Windows x64 installer runs in an ARM Windows VM (UTM/Parallels) under emulation.
    - Test the demo before any licence purchase. Rule #4: name the tool and ask the user before installing anything.
-4. **Golden set, 15–25 programs:** BRACKET.H, TRIFUNOVIC.H, TRIFUNOVIC_V2.H, the tests/manual.js examples, and 1–2 per top failing corpus bucket. Per program, capture from TEST RUN:
+4. **Golden set, 15–25 programs:** BRACKET.H, NAMEPLATE.H, NAMEPLATE_V2.H, the tests/manual.js examples, and 1–2 per top failing corpus bucket. Per program, capture from TEST RUN:
    - accepted, or error text + block number;
    - machining time;
    - end position;

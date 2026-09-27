@@ -1,7 +1,7 @@
 # HANDOFF — TNC 426 / 430 Simulator
 
 **Written:** 2026-09-27 (docs sync pass)
-**Project root:** `/Users/danieltrifunovic/Developer/sandbox/mac_tnc426-orbital`
+**Project root:** `<repo>`
 **Repo:** https://github.com/gigacook/tnc426-simulator · **Live:** https://gigacook.github.io/tnc426-simulator/
 **HEAD:** `9618cce` "CONTINUE.md: TNC 430 layout — A/B swivel head, optional C table" (local
 `main` == `origin/main`, working tree clean apart from this docs pass). The repo moved twice more
@@ -16,7 +16,7 @@ Section 3 = the standing rules. Everything here was checked against the repo on 
 
 ## 0. WHAT THIS IS
 
-Started as a joke gift for Nebojsa Trifunovic, a CNC engineer (Daniel's father). Grew into a
+Started as a small side project for a CNC engineer. Grew into a
 real browser-based HEIDENHAIN TNC 426/430 simulator. One self-contained offline HTML file
 (`index.html`, built by `build.py`); no build step or server for the end user. Standing user
 priorities, in the order they were given:
@@ -175,4 +175,4 @@ still reference; use whatever this session's own system instructions specify if 
   not yet re-verified here. It gets amended in place during a session, so re-read it — don't
   assume the version you last saw is current.
 
-© 2026 Daniel and Nebojsa Trifunovic Corp.
+© 2026 TNC 426 Simulator contributors

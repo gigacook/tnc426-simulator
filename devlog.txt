@@ -88,10 +88,10 @@ EFFECTS (fx.js):
   - Chips that land on the part, sparks, coolant spray on M8, smoke and
     fire (toggle, off by default), crash burst.
 
-PROGRAMS (selector in the Program header, TRIFUNOVIC.H opens first):
-  - TRIFUNOVIC.H - V1 garage plate 300 x 200 x 20: chamfered letters with
+PROGRAMS (selector in the Program header, NAMEPLATE.H opens first):
+  - NAMEPLATE.H - V1 garage plate 300 x 200 x 20: chamfered letters with
     T9, 1 x 45 edge break with T8, four mounting holes with CYCL 200.
-  - TRIFUNOVIC_V2.H - 220 x 60 x 10: letters with real CC/C and CR arcs.
+  - NAMEPLATE_V2.H - 220 x 60 x 10: letters with real CC/C and CR arcs.
   - BRACKET.H - the teaching program: LBL/REP, FN formulas, arcs, CYCL 200.
 
 BUILD:

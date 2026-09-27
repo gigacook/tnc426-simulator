@@ -42,9 +42,9 @@ server, no install.
 
 ## The programs
 
-Ship on the control, selectable from the Program header. `TRIFUNOVIC.H` opens first — a
+Ship on the control, selectable from the Program header. `NAMEPLATE.H` opens first — a
 300 × 200 × 20 mm garage plate engraving the family name, with a 1 × 45° edge break and four
-mounting holes. `TRIFUNOVIC_V2.H` is the same idea on a 220 × 60 × 10 mm blank, drawn with real
+mounting holes. `NAMEPLATE_V2.H` is the same idea on a 220 × 60 × 10 mm blank, drawn with real
 `CC`+`C` and `CR` arcs, for A/B comparison. `BRACKET.H` is the teaching one — a 120 × 80 × 20 mm
 blank exercising `LBL`/`REP`, `FN` formulas, arcs and `CYCL DEF 200`.
 

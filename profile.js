@@ -115,7 +115,7 @@ var TNC_PROFILE = (function () {
       n + ' program(s). Import this .zip on any browser: profile button -> Import.', '',
       'programs/ holds each program as a numbered TNC listing (.H, CRLF).',
       'TOOL_*.T are HEIDENHAIN tool tables. profile.json is the whole profile.', '',
-      '(c) 2026 Daniel and Nebojsa Trifunovic Corp.'].join('\r\n'));
+      '(c) 2026 TNC 426 Simulator contributors'].join('\r\n'));
     return z.generateAsync({ type: 'blob' }).then(function (b) { return { blob: b, name: 'TNC_PROFILE_' + slug(p.name) + '.zip', count: n }; });
   }
 

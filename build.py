@@ -2,7 +2,7 @@
 """Bundle shell + libraries + modules into one standalone HTML.
 
   python3 build.py          -> index.html        (public, pushed; never contains a key)
-                            -> index.local.html  (only if .env has OPENROUTER_API_KEY; gitignored)
+                            -> index.local.html  (only if private/.env has OPENROUTER_API_KEY; gitignored)
 
 A new module is one line in MODULES. Missing optional files are skipped, never fatal.
 """
@@ -63,11 +63,12 @@ def tag(label, src):
     return f'<script>/* ===== {label} ===== */\n{src}\n</script>\n'
 
 def env_key():
-    f = d / '.env'
-    if not f.exists(): return None
-    for line in f.read_text().splitlines():
-        m = re.match(r'\s*OPENROUTER_API_KEY\s*=\s*["\']?([^"\'\s#]+)', line)
-        if m: return m.group(1)
+    # private/.env (gitignored folder) first, then a root .env
+    for f in (d / 'private' / '.env', d / '.env'):
+        if not f.exists(): continue
+        for line in f.read_text().splitlines():
+            m = re.match(r'\s*OPENROUTER_API_KEY\s*=\s*["\']?([^"\'\s#]+)', line)
+            if m: return m.group(1)
     return None
 
 shell = (d / 'sim-shell.html').read_text()

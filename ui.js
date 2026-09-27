@@ -823,7 +823,7 @@ function zipProject(id){
   z.file('README.txt',[p.name,'Exported '+new Date().toISOString().slice(0,16).replace('T',' ')+' from the TNC 426 Simulator','',
     'Programs:',...names.map(n=>'  '+n),'','Numbered TNC listing format, CRLF line ends.',
     'Simulator output only - prove out any program on the real machine the usual way.','',
-    '(c) 2026 Daniel and Nebojsa Trifunovic Corp.'].join('\r\n'));
+    '(c) 2026 TNC 426 Simulator contributors'].join('\r\n'));
   z.generateAsync({type:'blob'}).then(b=>{ download(p.name.replace(/[^\w.-]+/g,'_')+'.zip',b); say('PROJECT ZIP SAVED — '+names.length+' PROGRAM(S)'); });
 }
 
@@ -1062,7 +1062,7 @@ function renderProfile(){
   const c=profCounts(), t=PSTORE.lastSaved, tools=mtools();
   $('prof-body').innerHTML=`<div class="prose">${PROF&&PROF.name?'':'<h4>Welcome. What\'s your name?</h4><p>Everything you make — programs, projects, tools, settings — is kept under your name in this browser and saved automatically. Export it to move it to another computer.</p>'}</div>
 <div class="fgrid" style="max-width:760px">
- <label class="fld wide"><span>YOUR NAME</span><input id="prof-name" maxlength="40" autocomplete="name" spellcheck="false" value="${esc(PROF&&PROF.name||'')}" placeholder="e.g. Nebojsa"></label>
+ <label class="fld wide"><span>YOUR NAME</span><input id="prof-name" maxlength="40" autocomplete="name" spellcheck="false" value="${esc(PROF&&PROF.name||'')}" placeholder="your name"></label>
 </div>
 <p class="note" id="prof-saved" style="margin:8px 0 0">${t?'Autosaved '+t.toLocaleTimeString()+' — in this browser':'Not saved yet'}</p>
 <p class="note" style="margin:4px 0 0">${c.programs} program(s) of yours · ${c.projects} project(s) · ${c.tools} tool(s) of yours · machines: ${Object.values(MACHINES).map(m=>esc(m.label)).join(', ')}</p>

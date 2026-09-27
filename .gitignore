@@ -9,3 +9,6 @@ node_modules/
 .env
 .env.*
 index.local.html
+
+# personal notes and keys — never committed
+private/

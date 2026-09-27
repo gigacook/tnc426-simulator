@@ -2,10 +2,10 @@
 
 ---
 
-You're taking over a browser-based HEIDENHAIN TNC 426/430 simulator. It's a gift from Daniel to
-his father Nebojsa, a CNC engineer. Authentic TNC behaviour is the product.
+You're taking over a browser-based HEIDENHAIN TNC 426/430 simulator. It's built for a working CNC engineer.
+Authentic TNC behaviour is the product.
 
-**Repo:** `/Users/danieltrifunovic/Developer/sandbox/mac_tnc426-orbital` (git, remote `origin`)
+**Repo:** `<repo>` (git, remote `origin`)
 **Live:** https://gigacook.github.io/tnc426-simulator/
 **HEAD as of the last docs sync (2026-09-27):** `9618cce` — this repo moves fast; run
 `git log --oneline -5` before trusting any commit hash written down in these docs.

@@ -1,7 +1,7 @@
 TNC 426 SIMULATOR - VERSION HISTORY
 ====================================
-A browser-based HEIDENHAIN TNC 426 CNC simulator, built by Daniel
-Trifunovic for his father Nebojsa, a CNC engineer, with an AI coding
+A browser-based HEIDENHAIN TNC 426 CNC simulator, built for a CNC engineer,
+ with an AI coding
 assistant (Claude) and several AI sub-agents. Live at
 https://gigacook.github.io/tnc426-simulator/
 
@@ -103,10 +103,10 @@ miss, not a pass, even when the diff turns out fine.
 v0.4  2026-09-21 15:15  INTERIM PUSH
 --------------------------------------
 WHAT SHIPPED (commit d3aa945, 15:15:49, 9 files, 1257 insertions):
-  - TRIFUNOVIC.H (V1): a side conversation with no tool access
+  - NAMEPLATE.H (V1): a side conversation with no tool access
     produced a 300 x 200 x 20 garage plate engraving the family name,
     unverified at the time it was written.
-  - Testing TRIFUNOVIC.H found: it called a Ø3 end mill (T9) that
+  - Testing NAMEPLATE.H found: it called a Ø3 end mill (T9) that
     didn't exist in the tool table (added); the "break the outer
     edge" pass was tracing an engraved frame instead of the actual
     plate edge (fixed); F1000 at S3000 on a Ø3 cutter is a high chip
@@ -132,7 +132,7 @@ WHAT SHIPPED (commit d3aa945, 15:15:49, 9 files, 1257 insertions):
     couldn't represent a column cut to the bottom. All three fixed -
     every deliberate crash test case now caught, clean programs stay
     clean.
-  - A second sub-agent (Opus) generated TRIFUNOVIC_V2.H independently:
+  - A second sub-agent (Opus) generated NAMEPLATE_V2.H independently:
     rounded letters using real CC/C and CR arcs for O, C, U and the R
     bowl, S7500 F600, four 0.5 mm passes - zero errors, zero warnings
     on first verification.
@@ -141,7 +141,7 @@ WHAT SHIPPED (commit d3aa945, 15:15:49, 9 files, 1257 insertions):
     actually live yet, and fixed them before shipping - "a DEV tab
     that lies on day one is worse than none."
   - Shipped with an orange glowing DEV button, a program selector
-    (TRIFUNOVIC opens first), and a Ø3-capable height field
+    (NAMEPLATE opens first), and a Ø3-capable height field
     (401 x 268 cells) to resolve fine engraving.
 
 HIGHS:
@@ -152,7 +152,7 @@ HIGHS:
     caught before it went out under the user's name.
 
 LOWS:
-  - The side-conversation program (TRIFUNOVIC.H) needed a missing
+  - The side-conversation program (NAMEPLATE.H) needed a missing
     tool, a wrong edge-break pass, and a high-chip-load call the user
     had to make - none of that surfaced until it was actually tested.
   - Chrome turned out not to be installed on the machine, so the
@@ -184,8 +184,7 @@ WHAT HAS BEEN WRITTEN (assistant plus six sub-agents):
     sections), plus the system prompt the AI feature will use.
   - tools3d.js, callouts.js, flow.js: real tool geometries in holders,
     leader-line callouts, and the program-as-flowchart view.
-  - This version history, and a copyright notice for Daniel and
-    Nebojsa Trifunovic.
+  - This version history, and a copyright notice.
 
 WHAT HAS NOT BEEN WRITTEN:
   - ai.js. AI program generation was asked for as the third way to make
@@ -335,7 +334,7 @@ BY THE NUMBERS (2026-09-27)
   Live version:              v0.6 (interpreter accuracy, profiles, AI,
                              materials/look, three.js r186 all shipped
                              and in the build)
-  Programs shipped:          3 (BRACKET.H, TRIFUNOVIC.H, TRIFUNOVIC_V2.H)
+  Programs shipped:          3 (BRACKET.H, NAMEPLATE.H, NAMEPLATE_V2.H)
   Lessons written:           14 (6 LEARN + 8 BREAK IT) + 16 manual sections
   Cycles implemented:        23 motion/pocket/drilling cycles (1, 2, 4,
                              17, 18, 200-215, 220, 221, 230, 231) plus 7
@@ -354,4 +353,4 @@ BY THE NUMBERS (2026-09-27)
                              still only checked against a mock, not the
                              real OpenRouter API).
 
-(c) 2026 Daniel and Nebojsa Trifunovic Corp.
+(c) 2026 TNC 426 Simulator contributors

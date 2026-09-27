@@ -9,7 +9,7 @@
  *
  * World: millimetres, Z up.
  *
- * MIT License - Copyright (c) 2026 Daniel Trifunovic
+ * MIT License - Copyright (c) 2026 TNC 426 Simulator contributors
  * (written from scratch for this project; no third-party code vendored)
  */
 var TNC_FX = (function () {

@@ -9,7 +9,7 @@ Status tags:
   `.tools/qa/qa.mjs`)
 
 Anything `[~]` counts as unfinished. Code that isn't wired into `build.py` and built is worth
-the same to Nebojsa as code that was never written.
+the same to the machinist as code that was never written.
 
 ---
 
@@ -194,4 +194,4 @@ manual.js`'s expected values are derived from the manual, not measured on a cont
 4. **If a tool is missing, name it and ask before installing.**
 5. A DEV tab that lies is worse than no DEV tab.
 
-© 2026 Daniel and Nebojsa Trifunovic Corp.
+© 2026 TNC 426 Simulator contributors

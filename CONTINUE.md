@@ -24,7 +24,9 @@ Repo stays PUBLIC (user decision). Commit trailer: `Co-Authored-By: Claude Opus 
 
 ## Docs
 The docs (TODO, HANDOFF, NEXT-SESSION-PROMPT, devlog, history, README, LICENSE) were synced and committed at the end of the 2026-09-27 session.
-The Serbian questions for Nebojsa (pivot lengths, axis limits, which head axis is outer, C table position) were sent via the user. Wait for his answer before building the 430 kinematics.
+The Serbian questions for the machinist (pivot lengths, axis limits, which head axis is outer, C table position) were sent via the user. Wait for the answer before building the 430 kinematics.
+
+`private/` is gitignored and holds personal material: the question sheet with answer slots (the Q&A .md in there) and `private/.env` (`OPENROUTER_API_KEY=`, read by `build.py` for the local build). Keep all personal names and keys out of tracked files.
 
 ## Next, in order
 1. **`SPINDLE ?` false alarms** (~399 in the corpus). `cycleTap` in `core.js` fails when `st.spinDir` is 0 at the cycle call. Check how those programs start the spindle (M3 on the M99 block starts at block START, but `runCycle` may run before `applyM`?). Fix, then re-run the corpus.
