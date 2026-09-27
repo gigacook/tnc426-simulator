@@ -1113,7 +1113,8 @@ var TNC_LESSONS = (function () {
         ['Event', 'Severity', 'Triggers when'],
         ['RAPID_IN_MATERIAL', 'crash', 'any rapid (including inside cycles) where the tool touches material more than 0.05 mm above the tool tip'],
         ['SPINDLE_OFF', 'crash', 'a feed or arc move removes material while the spindle is stopped'],
-        ['BELOW_BLANK', 'crash', 'a feed move over the blank goes more than 3 mm below its bottom'],
+        ['HOLDER', 'crash', 'the tool holder (collet nose) reaches the part: the stick-out is shorter than the depth'],
+        ['THROUGH_CUT', 'note', 'the tool goes below the blank bottom — allowed (through holes, taps)'],
         ['THROUGH_CUT', 'info', 'a feed move breaks through the bottom (parallels assumed underneath)'],
         ['CHIP_LOAD', 'warning', 'end mill or face mill, mainly sideways move, cutting material, with fz = F ÷ (S × flutes) > 0.012·D + 0.005']
       ]

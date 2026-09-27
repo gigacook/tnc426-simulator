@@ -535,6 +535,7 @@ var TNC = (function () {
       mpos: { x: 0, y: 0, z: 0 },         // machine coordinates: where the tool really is
       xf: { on: false, dx: 0, dy: 0, dz: 0, mx: false, my: false, mz: false, rot: 0, s: 1, flip: false, tilt: null },
       steps: 0,
+      exec: [], seq: 0,                   // executed blocks in order; moves carry their step number (seq)
       rot: { a: 0, b: 0, c: 0 },          // rotary axis positions, degrees
       feed: DEFAULT_FEED,
       tool: { t: 0, name: '', r: 3, l: 0, dr: 0 },
@@ -699,6 +700,7 @@ var TNC = (function () {
       cycle: cycleName || null,
       rc: tagRc,
       rcAct: !!(tagRc && st.rcAct),
+      seq: st.seq,
       rot0: dRot > EPS || r0.a || r0.b || r0.c ? r0 : null,
       rot1: dRot > EPS || r1.a || r1.b || r1.c ? r1 : null,
       dur: dur,
@@ -724,7 +726,7 @@ var TNC = (function () {
     if (!(L > 0) || !st.holder || !st.holder.stack || !st.tool.t) return null;
     return Math.max(L - st.holder.stack(st.tool.r), 0.25 * L);
   }
-  function mark(st, m) { m.kind = 'mark'; st.moves.push(m); }   // m.len is the APPR/DEP LEN, not a path length
+  function mark(st, m) { m.kind = 'mark'; m.seq = st.seq; st.moves.push(m); }   // m.len is the APPR/DEP LEN, not a path length
 
   /* M-functions take effect either at block start (M3 M4 M8 M13 M14) or at
      block end (M5 M9 M2 M30), as on the TNC. `phase` is 'start' or 'end'. */
@@ -1677,6 +1679,7 @@ var TNC = (function () {
       var b = st.blocks[i];
       if (!b) continue;
       if (++st.steps > MAX_STEPS) { st.abort = true; fail(st, i, 'EXCESSIVE SUBPROGRAM NESTING'); return; }
+      if (!(b.kind === 'CYCLPARM' && !b.args.dot) && st.exec.length < 400000) { st.seq = st.exec.length; st.exec.push(i); }   // execution order, for single block
       if (b.kind === 'BLANK' || b.kind === 'COMMENT') continue;
       if (b.error) continue;                        // bad block: report once, carry on
 
@@ -1890,7 +1893,7 @@ var TNC = (function () {
     var mv = { kind: tpl.kind === 'arc' ? 'feed' : tpl.kind, from: pStart(p), to: pEnd(p), cx: null, cy: null, ccw: false, sweep: null,
       feed: tpl.feed, tool: tpl.tool, toolR: tpl.toolR, toolDR: tpl.toolDR || 0, toolL: tpl.toolL, stick: tpl.stick, toolName: tpl.toolName, spindle: tpl.spindle,
       coolant: tpl.coolant, block: tpl.block, cycle: tpl.cycle || null, rc: null, rcAct: false, len: 0,
-      rot0: tpl.rot1 || tpl.rot0 || null, rot1: tpl.rot1 || null, dur: null };
+      rot0: tpl.rot1 || tpl.rot0 || null, rot1: tpl.rot1 || null, dur: null, seq: tpl.seq };
     if (p.type === 'arc') {
       mv.kind = 'arc'; mv.cx = p.cx; mv.cy = p.cy; mv.ccw = p.sw > 0; mv.sweep = p.sw;
       if (tpl.kind === 'rapid') mv.feed = RAPID_RATE;
@@ -2234,7 +2237,8 @@ var TNC = (function () {
         removedVolume: removed
       },
       errors: st.errors,
-      machine: st.mach
+      machine: st.mach,
+      exec: st.exec
     };
   }
 
@@ -2247,6 +2251,7 @@ var TNC = (function () {
       stock: c.stock,
       stats: c.stats,
       machine: c.machine,
+      exec: c.exec,
       errors: p.errors.concat(c.errors)
     };
   }

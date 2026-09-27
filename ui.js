@@ -204,7 +204,7 @@ function compile(){
   try{ S.ex=m.expand(res); }catch(e){ S.ex={segs:[],total:0}; }
   S.segs=S.ex.segs; S.total=S.ex.total;
   try{ S.events=(m.analyse(res,S.ex)||[]).slice().sort((a,b)=>a.t-b.t); }catch(e){ S.events=[]; }
-  S.evIdx=0; S.t=0; S.stampT=0; S.running=false; S.execB=-1; hideAlarm();
+  S.evIdx=0; S.t=0; S.stampT=0; S.running=false; S.execB=-1; S.k=0; hideAlarm();
   S.cursor=clamp(S.cursor,0,Math.max(0,res.blocks.length-1));
   buildScene(); if(FXO) FXO.clear();
   $('pgm-path').textContent='TNC:\\'+S.pgm;
@@ -511,11 +511,24 @@ function seek(t, fire){
   syncExec();
 }
 function syncExec(){
-  if(!S.segs.length) return;
-  const b=S.segs[segAt(S.t)].block;
+  if(!S.segs.length||!S.running) return;                 // while running, the highlight follows the machine
+  const sg=S.segs[segAt(S.t)], b=sg.block; if(sg.seq!=null) S.k=sg.seq;
   if(b!==S.execB){ S.execB=b; if(!S.editing){ S.cursor=b; } markRows(); flowHighlight(); }
 }
-function reset(){ S.running=false; seek(0,false); hideAlarm(); if(FXO) FXO.clear(); setState('READY'); traceFor(S.cursor); }
+/* ---- single block by NC block, in execution order (res.exec from the interpreter; moves carry seq) ----
+   The highlighted block is the one that runs next. The machine stands where it is just before it. */
+const EX=()=>(S.res&&S.res.exec)||[];
+function segFromSeq(k){ let lo=0,hi=S.segs.length; while(lo<hi){ const m=(lo+hi)>>1; if((S.segs[m].seq??-1)<k) lo=m+1; else hi=m; } return lo; }
+function startT(k){ const i=segFromSeq(k); return i<S.segs.length?S.segs[i].t0:S.total; }
+function selectStep(k){                                  // machine to just before step k, highlight its block
+  const E=EX(); if(!E.length) return; k=clamp(k,0,E.length); S.k=k; S.running=false;
+  seek(startT(k),false); S.cursor=k<E.length?E[k]:Math.max(0,S.res.blocks.length-1); S.execB=S.cursor; markRows(true); flowHighlight(); traceFor(S.cursor);
+}
+function stepFor(block){                                 // the next time this block runs (after the current step), else its first time
+  const E=EX(), from=S.k||0; for(let k=from;k<E.length;k++) if(E[k]===block) return k;
+  for(let k=0;k<E.length;k++) if(E[k]===block) return k; return -1;
+}
+function reset(){ S.running=false; hideAlarm(); if(FXO) FXO.clear(); S.k=0; selectStep(0); setState('READY'); }
 function start(){
   if(!S.segs.length){ say('NO MOVES TO RUN'); return; }
   if(S.t>=S.total-1e-6){ seek(0,false); if(FXO) FXO.clear(); }
@@ -526,11 +539,15 @@ function stop(){ if(S.running){ S.running=false; setState('FEED HOLD'); } }
 /* NC START does what the operating mode says: SINGLE-BLOCK = the next block, TEST / FULL-RUN = run, PROGRAM = nothing */
 function ncStart(){ if(S.mode==='single') stepBlock(); else if(S.mode==='edit') say('PROGRAM MODE — NC START WORKS IN 2 TEST, 3 SINGLE-BLOCK, 4 FULL-RUN'); else start(); }
 function runMax(){ S.running=false; seek(S.total,true); if(S.t>=S.total-1e-6) setState('PROGRAM END'); }
-function stepBlock(){
-  if(!S.segs.length) return;
-  const i=segAt(S.t), b=S.segs[i].block; let j=i; while(j<S.segs.length&&S.segs[j].block===b) j++;
-  S.running=false; seek(j<S.segs.length?S.segs[j].t0+1e-6:S.total,true);
-  if(!/CRASH/.test($('run-state').textContent)) setState('SINGLE BLOCK');
+function stepBlock(){                                   // NC START in SINGLE-BLOCK: exactly the highlighted block, then the next one is highlighted
+  const E=EX(); if(!E.length) return;
+  let k=S.k==null?stepFor(S.cursor):S.k; if(k<0) k=0;
+  if(E[k]!==S.cursor){ const k2=stepFor(S.cursor); if(k2>=0) k=k2; }
+  if(k>=E.length){ setState('PROGRAM END'); return; }
+  S.running=false; seek(startT(k+1),true);              // runs step k (crash events stop it where they happen)
+  if(/CRASH/.test($('run-state').textContent)) return;
+  S.k=k+1; S.cursor=S.k<E.length?E[S.k]:Math.max(0,S.res.blocks.length-1); S.execB=S.cursor; markRows(true); flowHighlight(); traceFor(S.cursor);
+  setState(S.k>=E.length?'PROGRAM END':'SINGLE BLOCK');
 }
 function setState(s){ $('run-state').textContent=s; }
 
@@ -590,14 +607,13 @@ function markRows(scroll){
   if(S.flowView) flowHighlight();
 }
 /* TEST / SINGLE-BLOCK / FULL-RUN: moving the block cursor moves the machine to the end of that block */
-function followCursor(){
-  if(S.mode==='edit'||S.running||!S.segs.length) return;
-  let j=-1; for(let k=S.segs.length-1;k>=0;k--) if(S.segs[k].block<=S.cursor){ j=k; break; }
-  const cur=S.cursor; seek(j<0?0:S.segs[j].t1,false); S.cursor=cur; markRows(); traceFor(S.cursor);
+function followCursor(){                                // run modes: selecting a block puts the machine just before it
+  if(S.mode==='edit'||S.running) return;
+  const k=stepFor(S.cursor); if(k>=0) selectStep(k);
 }
 function moveCursor(i){ S.cursor=clamp(i,0,Math.max(0,S.res.blocks.length-1)); markRows(); }
 plist.addEventListener('click',e=>{ const d=e.target.closest('.blk'); if(!d) return;
-  moveCursor(+d.dataset.i); const s=S.segs.find(x=>x.block===S.cursor); if(s&&!S.running) seek(s.t0+1e-6,false); });
+  moveCursor(+d.dataset.i); followCursor(); });
 plist.addEventListener('dblclick',e=>{ if(e.target.closest('.blk')) beginEdit(); });
 
 /* ================= side panels ================= */

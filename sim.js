@@ -63,7 +63,7 @@ var TNC_SIM = (function () {
         var f = mv.kind === 'rapid' ? rapid : Math.max(1, mv.feed || 500);
         var dt = mv.dur != null ? mv.dur * (total > 1e-9 ? len / total : 1) : len / f * 60;   // machine time when the core knows it
         segs.push({ a: a, b: b, len: len, f: f, kind: mv.kind === 'rapid' ? 'rapid' : 'feed',
-                    block: mv.block, tool: mv.tool, toolR: mv.toolR || 3, stick: mv.stick, toolL: mv.toolL, sRpm: mv.sRpm, cone: isCone(mv.tool) || /CHAMFER|SPOT|CENTER|CENTRE/i.test(mv.toolName || ''),
+                    block: mv.block, tool: mv.tool, toolR: mv.toolR || 3, stick: mv.stick, toolL: mv.toolL, sRpm: mv.sRpm, seq: mv.seq, cone: isCone(mv.tool) || /CHAMFER|SPOT|CENTER|CENTRE/i.test(mv.toolName || ''),
                     spindle: mv.spindle || 0, coolant: !!mv.coolant, cycle: mv.cycle || null,
                     t0: t, t1: t + dt });
         t += dt;
@@ -149,8 +149,7 @@ var TNC_SIM = (function () {
             if (zn < st.z1 && disc(hm, st, g, p.x, p.y, zn, hr, false, false))
               add('HOLDER', 'crash', s, idx, t, p, ' — T' + s.tool + ' STICK-OUT ' + s.stick.toFixed(1) + ' MM FROM L ' + (s.toolL || 0).toFixed(1) + ' (TOOL LIST / TOOL HOLDER LENGTH)');
           }
-          if (p.z < st.z0 - 3) add('BELOW_BLANK', 'crash', s, idx, t, p);
-          else if (p.z < st.z0 - 0.01) add('THROUGH_CUT', 'info', s, idx, t, p);
+          if (p.z < st.z0 - 0.01) add('THROUGH_CUT', 'info', s, idx, t, p);   // a note, never a crash: through cuts are normal
         }
         var cut = disc(hm, st, g, p.x, p.y, p.z, s.toolR, s.cone, true);
         if (cut) {

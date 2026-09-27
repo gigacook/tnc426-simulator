@@ -6881,6 +6881,7 @@ var TNC = (function () {
       mpos: { x: 0, y: 0, z: 0 },         // machine coordinates: where the tool really is
       xf: { on: false, dx: 0, dy: 0, dz: 0, mx: false, my: false, mz: false, rot: 0, s: 1, flip: false, tilt: null },
       steps: 0,
+      exec: [], seq: 0,                   // executed blocks in order; moves carry their step number (seq)
       rot: { a: 0, b: 0, c: 0 },          // rotary axis positions, degrees
       feed: DEFAULT_FEED,
       tool: { t: 0, name: '', r: 3, l: 0, dr: 0 },
@@ -7045,6 +7046,7 @@ var TNC = (function () {
       cycle: cycleName || null,
       rc: tagRc,
       rcAct: !!(tagRc && st.rcAct),
+      seq: st.seq,
       rot0: dRot > EPS || r0.a || r0.b || r0.c ? r0 : null,
       rot1: dRot > EPS || r1.a || r1.b || r1.c ? r1 : null,
       dur: dur,
@@ -7070,7 +7072,7 @@ var TNC = (function () {
     if (!(L > 0) || !st.holder || !st.holder.stack || !st.tool.t) return null;
     return Math.max(L - st.holder.stack(st.tool.r), 0.25 * L);
   }
-  function mark(st, m) { m.kind = 'mark'; st.moves.push(m); }   // m.len is the APPR/DEP LEN, not a path length
+  function mark(st, m) { m.kind = 'mark'; m.seq = st.seq; st.moves.push(m); }   // m.len is the APPR/DEP LEN, not a path length
 
   /* M-functions take effect either at block start (M3 M4 M8 M13 M14) or at
      block end (M5 M9 M2 M30), as on the TNC. `phase` is 'start' or 'end'. */
@@ -8023,6 +8025,7 @@ var TNC = (function () {
       var b = st.blocks[i];
       if (!b) continue;
       if (++st.steps > MAX_STEPS) { st.abort = true; fail(st, i, 'EXCESSIVE SUBPROGRAM NESTING'); return; }
+      if (!(b.kind === 'CYCLPARM' && !b.args.dot) && st.exec.length < 400000) { st.seq = st.exec.length; st.exec.push(i); }   // execution order, for single block
       if (b.kind === 'BLANK' || b.kind === 'COMMENT') continue;
       if (b.error) continue;                        // bad block: report once, carry on
 
@@ -8236,7 +8239,7 @@ var TNC = (function () {
     var mv = { kind: tpl.kind === 'arc' ? 'feed' : tpl.kind, from: pStart(p), to: pEnd(p), cx: null, cy: null, ccw: false, sweep: null,
       feed: tpl.feed, tool: tpl.tool, toolR: tpl.toolR, toolDR: tpl.toolDR || 0, toolL: tpl.toolL, stick: tpl.stick, toolName: tpl.toolName, spindle: tpl.spindle,
       coolant: tpl.coolant, block: tpl.block, cycle: tpl.cycle || null, rc: null, rcAct: false, len: 0,
-      rot0: tpl.rot1 || tpl.rot0 || null, rot1: tpl.rot1 || null, dur: null };
+      rot0: tpl.rot1 || tpl.rot0 || null, rot1: tpl.rot1 || null, dur: null, seq: tpl.seq };
     if (p.type === 'arc') {
       mv.kind = 'arc'; mv.cx = p.cx; mv.cy = p.cy; mv.ccw = p.sw > 0; mv.sweep = p.sw;
       if (tpl.kind === 'rapid') mv.feed = RAPID_RATE;
@@ -8580,7 +8583,8 @@ var TNC = (function () {
         removedVolume: removed
       },
       errors: st.errors,
-      machine: st.mach
+      machine: st.mach,
+      exec: st.exec
     };
   }
 
@@ -8593,6 +8597,7 @@ var TNC = (function () {
       stock: c.stock,
       stats: c.stats,
       machine: c.machine,
+      exec: c.exec,
       errors: p.errors.concat(c.errors)
     };
   }
@@ -8669,7 +8674,7 @@ var TNC_SIM = (function () {
         var f = mv.kind === 'rapid' ? rapid : Math.max(1, mv.feed || 500);
         var dt = mv.dur != null ? mv.dur * (total > 1e-9 ? len / total : 1) : len / f * 60;   // machine time when the core knows it
         segs.push({ a: a, b: b, len: len, f: f, kind: mv.kind === 'rapid' ? 'rapid' : 'feed',
-                    block: mv.block, tool: mv.tool, toolR: mv.toolR || 3, stick: mv.stick, toolL: mv.toolL, sRpm: mv.sRpm, cone: isCone(mv.tool) || /CHAMFER|SPOT|CENTER|CENTRE/i.test(mv.toolName || ''),
+                    block: mv.block, tool: mv.tool, toolR: mv.toolR || 3, stick: mv.stick, toolL: mv.toolL, sRpm: mv.sRpm, seq: mv.seq, cone: isCone(mv.tool) || /CHAMFER|SPOT|CENTER|CENTRE/i.test(mv.toolName || ''),
                     spindle: mv.spindle || 0, coolant: !!mv.coolant, cycle: mv.cycle || null,
                     t0: t, t1: t + dt });
         t += dt;
@@ -8755,8 +8760,7 @@ var TNC_SIM = (function () {
             if (zn < st.z1 && disc(hm, st, g, p.x, p.y, zn, hr, false, false))
               add('HOLDER', 'crash', s, idx, t, p, ' — T' + s.tool + ' STICK-OUT ' + s.stick.toFixed(1) + ' MM FROM L ' + (s.toolL || 0).toFixed(1) + ' (TOOL LIST / TOOL HOLDER LENGTH)');
           }
-          if (p.z < st.z0 - 3) add('BELOW_BLANK', 'crash', s, idx, t, p);
-          else if (p.z < st.z0 - 0.01) add('THROUGH_CUT', 'info', s, idx, t, p);
+          if (p.z < st.z0 - 0.01) add('THROUGH_CUT', 'info', s, idx, t, p);   // a note, never a crash: through cuts are normal
         }
         var cut = disc(hm, st, g, p.x, p.y, p.z, s.toolR, s.cone, true);
         if (cut) {
@@ -10138,7 +10142,8 @@ var TNC_LESSONS = (function () {
         ['Event', 'Severity', 'Triggers when'],
         ['RAPID_IN_MATERIAL', 'crash', 'any rapid (including inside cycles) where the tool touches material more than 0.05 mm above the tool tip'],
         ['SPINDLE_OFF', 'crash', 'a feed or arc move removes material while the spindle is stopped'],
-        ['BELOW_BLANK', 'crash', 'a feed move over the blank goes more than 3 mm below its bottom'],
+        ['HOLDER', 'crash', 'the tool holder (collet nose) reaches the part: the stick-out is shorter than the depth'],
+        ['THROUGH_CUT', 'note', 'the tool goes below the blank bottom — allowed (through holes, taps)'],
         ['THROUGH_CUT', 'info', 'a feed move breaks through the bottom (parallels assumed underneath)'],
         ['CHIP_LOAD', 'warning', 'end mill or face mill, mainly sideways move, cutting material, with fz = F ÷ (S × flutes) > 0.012·D + 0.005']
       ]
@@ -13183,7 +13188,7 @@ toolLine(tools),
 'SAFETY RULES THE SIMULATOR ENFORCES (a violation is reported as a crash)',
 '1. No FMAX into uncut stock: FMAX over the part only at Z+2 or higher; feed into the cut; FMAX back to Z+2 before any XY rapid.',
 '2. No cutting move without M3/M4 since the last TOOL CALL.',
-'3. Never feed more than 3 mm below the blank bottom; through-cuts at most 1 mm below.',
+'3. Going below the blank is allowed (through holes, taps); the holder must never reach the part: stick-out = tool length L minus the holder A dimension.',
 '4. Chip load for end mills (3 flutes) and face mills (5): F / (S x flutes) <= 0.012 x D + 0.005.',
 '   Safe: T9 S8000 F900 | T4 S3000 F500 | T5 S3000 F1000 | T6 S1200 F2000. Drills: T1 S2000 Q206=+100, T2 S1800 Q206=+150.',
 'Plunge at F100-F200. Keep every cut within the blank.',
@@ -13966,7 +13971,7 @@ function compile(){
   try{ S.ex=m.expand(res); }catch(e){ S.ex={segs:[],total:0}; }
   S.segs=S.ex.segs; S.total=S.ex.total;
   try{ S.events=(m.analyse(res,S.ex)||[]).slice().sort((a,b)=>a.t-b.t); }catch(e){ S.events=[]; }
-  S.evIdx=0; S.t=0; S.stampT=0; S.running=false; S.execB=-1; hideAlarm();
+  S.evIdx=0; S.t=0; S.stampT=0; S.running=false; S.execB=-1; S.k=0; hideAlarm();
   S.cursor=clamp(S.cursor,0,Math.max(0,res.blocks.length-1));
   buildScene(); if(FXO) FXO.clear();
   $('pgm-path').textContent='TNC:\\'+S.pgm;
@@ -14273,11 +14278,24 @@ function seek(t, fire){
   syncExec();
 }
 function syncExec(){
-  if(!S.segs.length) return;
-  const b=S.segs[segAt(S.t)].block;
+  if(!S.segs.length||!S.running) return;                 // while running, the highlight follows the machine
+  const sg=S.segs[segAt(S.t)], b=sg.block; if(sg.seq!=null) S.k=sg.seq;
   if(b!==S.execB){ S.execB=b; if(!S.editing){ S.cursor=b; } markRows(); flowHighlight(); }
 }
-function reset(){ S.running=false; seek(0,false); hideAlarm(); if(FXO) FXO.clear(); setState('READY'); traceFor(S.cursor); }
+/* ---- single block by NC block, in execution order (res.exec from the interpreter; moves carry seq) ----
+   The highlighted block is the one that runs next. The machine stands where it is just before it. */
+const EX=()=>(S.res&&S.res.exec)||[];
+function segFromSeq(k){ let lo=0,hi=S.segs.length; while(lo<hi){ const m=(lo+hi)>>1; if((S.segs[m].seq??-1)<k) lo=m+1; else hi=m; } return lo; }
+function startT(k){ const i=segFromSeq(k); return i<S.segs.length?S.segs[i].t0:S.total; }
+function selectStep(k){                                  // machine to just before step k, highlight its block
+  const E=EX(); if(!E.length) return; k=clamp(k,0,E.length); S.k=k; S.running=false;
+  seek(startT(k),false); S.cursor=k<E.length?E[k]:Math.max(0,S.res.blocks.length-1); S.execB=S.cursor; markRows(true); flowHighlight(); traceFor(S.cursor);
+}
+function stepFor(block){                                 // the next time this block runs (after the current step), else its first time
+  const E=EX(), from=S.k||0; for(let k=from;k<E.length;k++) if(E[k]===block) return k;
+  for(let k=0;k<E.length;k++) if(E[k]===block) return k; return -1;
+}
+function reset(){ S.running=false; hideAlarm(); if(FXO) FXO.clear(); S.k=0; selectStep(0); setState('READY'); }
 function start(){
   if(!S.segs.length){ say('NO MOVES TO RUN'); return; }
   if(S.t>=S.total-1e-6){ seek(0,false); if(FXO) FXO.clear(); }
@@ -14288,11 +14306,15 @@ function stop(){ if(S.running){ S.running=false; setState('FEED HOLD'); } }
 /* NC START does what the operating mode says: SINGLE-BLOCK = the next block, TEST / FULL-RUN = run, PROGRAM = nothing */
 function ncStart(){ if(S.mode==='single') stepBlock(); else if(S.mode==='edit') say('PROGRAM MODE — NC START WORKS IN 2 TEST, 3 SINGLE-BLOCK, 4 FULL-RUN'); else start(); }
 function runMax(){ S.running=false; seek(S.total,true); if(S.t>=S.total-1e-6) setState('PROGRAM END'); }
-function stepBlock(){
-  if(!S.segs.length) return;
-  const i=segAt(S.t), b=S.segs[i].block; let j=i; while(j<S.segs.length&&S.segs[j].block===b) j++;
-  S.running=false; seek(j<S.segs.length?S.segs[j].t0+1e-6:S.total,true);
-  if(!/CRASH/.test($('run-state').textContent)) setState('SINGLE BLOCK');
+function stepBlock(){                                   // NC START in SINGLE-BLOCK: exactly the highlighted block, then the next one is highlighted
+  const E=EX(); if(!E.length) return;
+  let k=S.k==null?stepFor(S.cursor):S.k; if(k<0) k=0;
+  if(E[k]!==S.cursor){ const k2=stepFor(S.cursor); if(k2>=0) k=k2; }
+  if(k>=E.length){ setState('PROGRAM END'); return; }
+  S.running=false; seek(startT(k+1),true);              // runs step k (crash events stop it where they happen)
+  if(/CRASH/.test($('run-state').textContent)) return;
+  S.k=k+1; S.cursor=S.k<E.length?E[S.k]:Math.max(0,S.res.blocks.length-1); S.execB=S.cursor; markRows(true); flowHighlight(); traceFor(S.cursor);
+  setState(S.k>=E.length?'PROGRAM END':'SINGLE BLOCK');
 }
 function setState(s){ $('run-state').textContent=s; }
 
@@ -14352,14 +14374,13 @@ function markRows(scroll){
   if(S.flowView) flowHighlight();
 }
 /* TEST / SINGLE-BLOCK / FULL-RUN: moving the block cursor moves the machine to the end of that block */
-function followCursor(){
-  if(S.mode==='edit'||S.running||!S.segs.length) return;
-  let j=-1; for(let k=S.segs.length-1;k>=0;k--) if(S.segs[k].block<=S.cursor){ j=k; break; }
-  const cur=S.cursor; seek(j<0?0:S.segs[j].t1,false); S.cursor=cur; markRows(); traceFor(S.cursor);
+function followCursor(){                                // run modes: selecting a block puts the machine just before it
+  if(S.mode==='edit'||S.running) return;
+  const k=stepFor(S.cursor); if(k>=0) selectStep(k);
 }
 function moveCursor(i){ S.cursor=clamp(i,0,Math.max(0,S.res.blocks.length-1)); markRows(); }
 plist.addEventListener('click',e=>{ const d=e.target.closest('.blk'); if(!d) return;
-  moveCursor(+d.dataset.i); const s=S.segs.find(x=>x.block===S.cursor); if(s&&!S.running) seek(s.t0+1e-6,false); });
+  moveCursor(+d.dataset.i); followCursor(); });
 plist.addEventListener('dblclick',e=>{ if(e.target.closest('.blk')) beginEdit(); });
 
 /* ================= side panels ================= */
