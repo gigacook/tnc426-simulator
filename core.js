@@ -32,7 +32,7 @@ var TNC = (function () {
     { t: 42, name: 'REAMER_H7',     l: 101.30,  r: 5.000  }
   ];
 
-  var IMPLEMENTED_CYCLES = { 4: 1, 200: 1, 201: 1, 203: 1 };
+  var IMPLEMENTED_CYCLES = { 1: 1, 2: 1, 4: 1, 17: 1, 18: 1, 200: 1, 201: 1, 202: 1, 203: 1, 204: 1, 205: 1, 206: 1, 207: 1, 208: 1, 209: 1 };
   // definition-only cycles with no tool motion in this simulator (9 dwell, 32 tolerance)
   var NOMOTION_CYCLES = { 7: 1, 8: 1, 9: 1, 10: 1, 11: 1, 32: 1, 247: 1 };
 
@@ -872,6 +872,161 @@ var TNC = (function () {
     emit(st, 'rapid', { x: cxp, y: cyp, z: surf + clr }, RAPID_RATE, bi, lab);
   }
 
+
+  /* ---- spindle helpers for tapping / boring: reverse, stop, restore ---- */
+  function spin(st, dir) { st.spinDir = dir; st.spindle = st.sRpm * st.spinDir; }
+
+  /* --- CYCL DEF 202 BORING: down at Q206, dwell, oriented stop, disengage 0.2 (Q214), out at Q208 --- */
+  function cycleBore(st, cy, bi) {
+    var clr = qp(cy, 200, 2), dep = -Math.abs(qp(cy, 201, 0)), fpl = qp(cy, 206, st.feed) || st.feed;
+    var fret = qp(cy, 208, 0) || fpl, surf = qp(cy, 203, 0), clr2 = qp(cy, 204, clr), dirn = Math.round(qp(cy, 214, 0));
+    var x = st.pos.x, y = st.pos.y, lab = cy.label, keep = st.spinDir;
+    if (Math.abs(dep) <= EPS) { fail(st, bi, 'CYCL DEF INCOMPLETE'); return; }
+    emit(st, 'rapid', { x: x, y: y, z: surf + clr }, RAPID_RATE, bi, lab);
+    emit(st, 'feed', { x: x, y: y, z: surf + dep }, fpl, bi, lab);
+    var off = { 1: [-0.2, 0], 2: [0, -0.2], 3: [0.2, 0], 4: [0, 0.2] }[dirn] || [0, 0];
+    spin(st, 0);                                                // oriented spindle stop
+    emit(st, 'feed', { x: x + off[0], y: y + off[1], z: surf + dep }, fpl, bi, lab);
+    emit(st, 'feed', { x: x + off[0], y: y + off[1], z: surf + clr }, fret, bi, lab);
+    emit(st, 'rapid', { x: x, y: y, z: surf + clr }, RAPID_RATE, bi, lab);
+    emit(st, 'rapid', { x: x, y: y, z: surf + clr2 }, RAPID_RATE, bi, lab);
+    spin(st, keep);                                             // spindle state as before the cycle
+  }
+
+  /* --- CYCL DEF 204 BACK BORING: through the hole off-centre, counterbore upward from below --- */
+  function cycleBackBore(st, cy, bi) {
+    var clr = qp(cy, 200, 2), cb = qp(cy, 249, 0), thick = Math.abs(qp(cy, 250, 0)), offc = Math.abs(qp(cy, 251, 0)), edge = Math.abs(qp(cy, 252, 0));
+    var fpre = qp(cy, 253, RAPID_RATE) || RAPID_RATE, fcb = qp(cy, 254, st.feed) || st.feed, surf = qp(cy, 203, 0), clr2 = qp(cy, 204, clr);
+    var dirn = Math.round(qp(cy, 214, 1)), x = st.pos.x, y = st.pos.y, lab = cy.label, keep = st.spinDir;
+    if (thick <= EPS || Math.abs(cb) <= EPS) { fail(st, bi, 'CYCL DEF INCOMPLETE'); return; }
+    var off = { 1: [-offc, 0], 2: [0, -offc], 3: [offc, 0], 4: [0, offc] }[dirn] || [-offc, 0];
+    var zStart = surf - thick - edge - clr, zEnd = surf - thick - edge + Math.abs(cb);
+    emit(st, 'rapid', { x: x, y: y, z: surf + clr }, RAPID_RATE, bi, lab);
+    spin(st, 0);
+    emit(st, 'rapid', { x: x + off[0], y: y + off[1], z: surf + clr }, RAPID_RATE, bi, lab);
+    emit(st, 'feed', { x: x + off[0], y: y + off[1], z: zStart }, fpre, bi, lab);
+    emit(st, 'feed', { x: x, y: y, z: zStart }, fpre, bi, lab);
+    spin(st, keep || 1);
+    emit(st, 'feed', { x: x, y: y, z: zEnd }, fcb, bi, lab);
+    spin(st, 0);
+    emit(st, 'feed', { x: x, y: y, z: zStart }, fpre, bi, lab);
+    emit(st, 'feed', { x: x + off[0], y: y + off[1], z: zStart }, fpre, bi, lab);
+    emit(st, 'feed', { x: x + off[0], y: y + off[1], z: surf + clr }, fpre, bi, lab);
+    emit(st, 'rapid', { x: x, y: y, z: surf + clr }, RAPID_RATE, bi, lab);
+    emit(st, 'rapid', { x: x, y: y, z: surf + clr2 }, RAPID_RATE, bi, lab);
+    spin(st, keep);
+  }
+
+  /* --- CYCL DEF 205 UNIVERSAL PECKING: decrementing pecks, advanced stop Q258 -> Q259, chip breaking Q257/Q256 --- */
+  function cyclePeck205(st, cy, bi) {
+    var clr = qp(cy, 200, 2), total = Math.abs(qp(cy, 201, 0)), fpl = qp(cy, 206, st.feed) || st.feed, peck = Math.abs(qp(cy, 202, 0));
+    var surf = qp(cy, 203, 0), clr2 = qp(cy, 204, clr), decr = Math.abs(qp(cy, 212, 0)), minp = Math.abs(qp(cy, 205, 0));
+    var up = Math.abs(qp(cy, 258, 0.2)), lo = Math.abs(qp(cy, 259, up)), cbd = Math.abs(qp(cy, 257, 0)), cbr = Math.abs(qp(cy, 256, 0.2));
+    var x = st.pos.x, y = st.pos.y, lab = cy.label;
+    if (total <= EPS) { fail(st, bi, 'CYCL DEF INCOMPLETE'); return; }
+    emit(st, 'rapid', { x: x, y: y, z: surf + clr }, RAPID_RATE, bi, lab);
+    var step = peck > EPS ? peck : total, d = 0, g = 0, sinceBreak = 0;
+    while (d < total - 1e-6 && g++ < 2000 && !st.abort) {
+      var target = Math.min(d + step, total);
+      if (cbd > EPS) {                                          // chip breaking inside the peck
+        while (d < target - 1e-6 && g++ < 4000) {
+          var nd = Math.min(d + cbd - sinceBreak, target); sinceBreak = 0;
+          emit(st, 'feed', { x: x, y: y, z: surf - nd }, fpl, bi, lab); d = nd;
+          if (d < target - 1e-6) emit(st, 'rapid', { x: x, y: y, z: surf - d + cbr }, RAPID_RATE, bi, lab),
+                                 emit(st, 'feed', { x: x, y: y, z: surf - d }, fpl, bi, lab);
+        }
+      } else { emit(st, 'feed', { x: x, y: y, z: surf - target }, fpl, bi, lab); d = target; }
+      if (d >= total - 1e-6) break;
+      var adv = total > EPS ? up + (lo - up) * (d / total) : up; // advanced stop distance, first -> last
+      emit(st, 'rapid', { x: x, y: y, z: surf + clr }, RAPID_RATE, bi, lab);
+      emit(st, 'rapid', { x: x, y: y, z: surf - d + adv }, RAPID_RATE, bi, lab);
+      emit(st, 'feed', { x: x, y: y, z: surf - d }, fpl, bi, lab);
+      if (decr > EPS) step = Math.max(step - decr, minp > EPS ? minp : decr);
+    }
+    emit(st, 'rapid', { x: x, y: y, z: surf + clr }, RAPID_RATE, bi, lab);
+    emit(st, 'rapid', { x: x, y: y, z: surf + clr2 }, RAPID_RATE, bi, lab);
+  }
+
+  /* --- tapping: 206 (floating holder, F = Q206), 207 (rigid, F = S x Q239), 209 (rigid, chip breaking) --- */
+  function cycleTap(st, cy, bi, kind) {
+    var clr = qp(cy, 200, 2), dep = Math.abs(qp(cy, 201, 0)), surf = qp(cy, 203, 0), clr2 = qp(cy, 204, clr);
+    var x = st.pos.x, y = st.pos.y, lab = cy.label, keep = st.spinDir, f;
+    if (dep <= EPS) { fail(st, bi, 'CYCL DEF INCOMPLETE'); return; }
+    if (kind === 206) f = qp(cy, 206, st.feed) || st.feed;
+    else { var pitch = qp(cy, 239, 0); f = Math.abs(pitch) * st.sRpm; if (!(f > 0)) { fail(st, bi, 'CYCL DEF INCOMPLETE'); return; } }
+    if (!keep) { fail(st, bi, 'SPINDLE ?'); }
+    var dir = keep || 1;
+    emit(st, 'rapid', { x: x, y: y, z: surf + clr }, RAPID_RATE, bi, lab);
+    if (kind === 209) {                                         // infeed Q257, reverse, retract Q256 (0: to set-up clearance)
+      var inf = Math.abs(qp(cy, 257, dep)) || dep, back = Math.abs(qp(cy, 256, 0)), d = 0, g = 0;
+      while (d < dep - 1e-6 && g++ < 1000) {
+        d = Math.min(d + inf, dep);
+        emit(st, 'feed', { x: x, y: y, z: surf - d }, f, bi, lab);
+        if (d >= dep - 1e-6) break;
+        spin(st, -dir);
+        emit(st, 'feed', { x: x, y: y, z: back > EPS ? surf - d + back : surf + clr }, f, bi, lab);
+        spin(st, dir);
+        emit(st, 'feed', { x: x, y: y, z: surf - d }, f, bi, lab);
+      }
+    } else emit(st, 'feed', { x: x, y: y, z: surf - dep }, f, bi, lab);
+    spin(st, -dir);                                             // reverse at the bottom, feed out
+    emit(st, 'feed', { x: x, y: y, z: surf + clr }, f, bi, lab);
+    spin(st, kind === 206 ? dir : 0);                           // 207/209: spindle stops at the end (manual)
+    emit(st, 'rapid', { x: x, y: y, z: surf + clr2 }, RAPID_RATE, bi, lab);
+  }
+
+  /* --- CYCL DEF 208 BORE MILLING: helix Q334 per turn down to depth, full circle, back to centre --- */
+  function cycleBoreMill(st, cy, bi) {
+    var clr = qp(cy, 200, 2), dep = Math.abs(qp(cy, 201, 0)), f = qp(cy, 206, st.feed) || st.feed, pitch = Math.abs(qp(cy, 334, 0.25));
+    var surf = qp(cy, 203, 0), clr2 = qp(cy, 204, clr), dia = Math.abs(qp(cy, 335, 0)), x = st.pos.x, y = st.pos.y, lab = cy.label;
+    var r = dia / 2 - st.tool.r;
+    if (dep <= EPS || dia <= EPS) { fail(st, bi, 'CYCL DEF INCOMPLETE'); return; }
+    if (r < -EPS) { fail(st, bi, 'TOOL RADIUS TOO LARGE'); return; }
+    emit(st, 'rapid', { x: x, y: y, z: surf + clr }, RAPID_RATE, bi, lab);
+    if (r <= EPS) { emit(st, 'feed', { x: x, y: y, z: surf - dep }, f, bi, lab); }      // tool = bore: plunge
+    else {
+      emit(st, 'feed', { x: x + r, y: y, z: surf + clr }, f, bi, lab);
+      var drop = dep + clr, turns = drop / Math.max(pitch, 1e-3);
+      emit(st, 'arc', { x: x + r * Math.cos(turns * 2 * Math.PI), y: y + r * Math.sin(turns * 2 * Math.PI), z: surf - dep }, f, bi, lab,
+           { cx: x, cy: y, ccw: true, sweep: turns * 2 * Math.PI });
+      var a0 = Math.atan2(st.pos.y - y, st.pos.x - x);
+      emit(st, 'arc', { x: st.pos.x, y: st.pos.y, z: surf - dep }, f, bi, lab, { cx: x, cy: y, ccw: true, sweep: 2 * Math.PI });  // clean-up circle
+      emit(st, 'feed', { x: x, y: y, z: surf - dep }, f, bi, lab);
+    }
+    emit(st, 'rapid', { x: x, y: y, z: surf + clr }, RAPID_RATE, bi, lab);
+    emit(st, 'rapid', { x: x, y: y, z: surf + clr2 }, RAPID_RATE, bi, lab);
+  }
+
+  /* --- old dotted cycles, started from set-up clearance above the surface (tool already there) ---
+     1 PECKING: 1.1 SET UP, 1.2 DEPTH, 1.3 PECKG, 1.4 DWELL, 1.5 F
+     2 TAPPING: 2.1 SET UP, 2.2 DEPTH, 2.3 DWELL, 2.4 F       17 RIGID TAPPING: 17.1 SET UP, 17.2 DEPTH, 17.3 PITCH
+     18 THREAD CUTTING: 18.1 DEPTH, 18.2 PITCH (from the current position) */
+  function cycleOld(st, cy, bi) {
+    var x = st.pos.x, y = st.pos.y, z0 = st.pos.z, lab = cy.label, keep = st.spinDir || 1, n = cy.num;
+    if (n === 18) {
+      var d18 = sub(cy, 1, 0, 0), p18 = Math.abs(sub(cy, 2, 0, 0)), f18 = p18 * st.sRpm;
+      if (!d18 || !(f18 > 0)) { fail(st, bi, 'CYCL DEF INCOMPLETE'); return; }
+      emit(st, 'feed', { x: x, y: y, z: z0 + d18 }, f18, bi, lab); spin(st, -keep);
+      emit(st, 'feed', { x: x, y: y, z: z0 }, f18, bi, lab); spin(st, keep); return;
+    }
+    var set = Math.abs(sub(cy, 1, 0, 2)), dep = -Math.abs(sub(cy, 2, 0, 0)), surf = z0 - set;
+    if (Math.abs(dep) <= EPS) { fail(st, bi, 'CYCL DEF INCOMPLETE'); return; }
+    if (n === 1) {
+      var peck = Math.abs(sub(cy, 3, 0, 0)) || Math.abs(dep), f1 = sub(cy, 5, 0, st.feed) || st.feed, d = 0;
+      while (d < Math.abs(dep) - 1e-6) {
+        d = Math.min(d + peck, Math.abs(dep));
+        emit(st, 'feed', { x: x, y: y, z: surf - d }, f1, bi, lab);
+        emit(st, 'rapid', { x: x, y: y, z: z0 }, RAPID_RATE, bi, lab);
+        if (d < Math.abs(dep) - 1e-6) emit(st, 'rapid', { x: x, y: y, z: surf - d + 0.2 }, RAPID_RATE, bi, lab);
+      }
+      return;
+    }
+    var f = n === 2 ? (sub(cy, 4, 0, st.feed) || st.feed) : Math.abs(sub(cy, 3, 0, 0)) * st.sRpm;
+    if (!(f > 0)) { fail(st, bi, 'CYCL DEF INCOMPLETE'); return; }
+    emit(st, 'feed', { x: x, y: y, z: surf + dep }, f, bi, lab); spin(st, -keep);
+    emit(st, 'feed', { x: x, y: y, z: z0 }, f, bi, lab); spin(st, n === 17 ? 0 : keep);
+  }
+
   function runCycle(st, bi) {
     var cy = st.cycle;
     if (!cy) { fail(st, bi, 'CYCL DEF INCOMPLETE'); return; }
@@ -880,6 +1035,12 @@ var TNC = (function () {
     else if (cy.num === 203) cycleDrill(st, cy, bi, true);
     else if (cy.num === 201) cycleReam(st, cy, bi);
     else if (cy.num === 4)   cyclePocket(st, cy, bi);
+    else if (cy.num === 202) cycleBore(st, cy, bi);
+    else if (cy.num === 204) cycleBackBore(st, cy, bi);
+    else if (cy.num === 205) cyclePeck205(st, cy, bi);
+    else if (cy.num === 206 || cy.num === 207 || cy.num === 209) cycleTap(st, cy, bi, cy.num);
+    else if (cy.num === 208) cycleBoreMill(st, cy, bi);
+    else if (cy.num === 1 || cy.num === 2 || cy.num === 17 || cy.num === 18) cycleOld(st, cy, bi);
   }
 
   /* ---------------------------------------------------------------- 7. execution */

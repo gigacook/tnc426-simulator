@@ -338,5 +338,36 @@ L X+0 Y+0 R0`;
   const setA = new Set(A.map(q => key({ x: -q.x, y: q.y })));
   ok(B.length > 10 && B.every(q => setA.has(key(q)) || A.some(z => Math.hypot(-z.x - q.x, z.y - q.y) < 0.05)), 'mirrored tool path is the exact mirror of the original');
 }
+
+console.log('CYCLES — 202 205 206 207 208 209 and old 1 / 2 / 17 against the manual\'s parameter rules');
+{ const hdr = 'BEGIN PGM C MM\nBLK FORM 0.1 Z X+0 Y+0 Z-40\nBLK FORM 0.2 X+100 Y+100 Z+0\nTOOL DEF 1 L+0 R+3\nTOOL CALL 1 Z S500\nL Z+50 R0 FMAX M3\n';
+  const cyc = (def, call = 'L X+50 Y+50 R0 FMAX M99') => TNC.run(hdr + def + '\n' + call + '\nEND PGM C MM');
+  const zmin = r => Math.min(...r.moves.map(m => m.to.z));
+  let r = cyc('CYCL DEF 207 RIGID TAPPING NEW\n Q200=2\n Q201=-20\n Q239=+1.5\n Q203=+0\n Q204=50');
+  ok(!r.errors.length, '207 no errors ' + JSON.stringify(r.errors));
+  const tap = r.moves.filter(m => m.cycle && m.kind === 'feed');
+  ok(tap.length === 2 && tap.every(m => m.feed === 750), '207: in and out at F = S x pitch = 500 x 1.5 = 750, got ' + tap.map(m => m.feed));
+  ok(tap[1] && tap[1].spindle < 0, '207: spindle reversed for the way out');
+  ok(near(zmin(r), -20), '207: thread depth Z-20');
+  ok(r.moves[r.moves.length - 1].spindle === 0, '207: spindle stopped at the end (manual)');
+  r = cyc('CYCL DEF 209 TAPPING W/ CHIP BRKG\n Q200=2\n Q201=-20\n Q239=+1\n Q203=+0\n Q204=50\n Q257=5\n Q256=0.5\n Q336=0');
+  ok(!r.errors.length && near(zmin(r), -20), '209 reaches Z-20');
+  ok(r.moves.filter(m => m.cycle && m.spindle < 0).length >= 4, '209: reverses at every Q257 infeed (4 infeeds of 5)');
+  r = cyc('CYCL DEF 208 BORE MILLING\n Q200=2\n Q201=-10\n Q206=150\n Q334=2\n Q203=+0\n Q204=50\n Q335=20\n Q342=0');
+  const h = r.moves.find(m => m.kind === 'arc');
+  ok(!r.errors.length && h && near(Math.hypot(h.from.x - 50, h.from.y - 50), 7), '208: helix radius = D/2 - R = 10 - 3 = 7');
+  ok(h && near(Math.abs(h.sweep) / (2 * Math.PI), 6), '208: (10 depth + 2 clearance) / 2 per turn = 6 turns, got ' + (h && (Math.abs(h.sweep) / (2 * Math.PI)).toFixed(3)));
+  r = cyc('CYCL DEF 205 UNIVERSAL PECKING\n Q200=2\n Q201=-30\n Q206=150\n Q202=10\n Q203=+0\n Q204=50\n Q212=2\n Q205=4\n Q258=0.5\n Q259=1\n Q257=0\n Q256=0.2\n Q211=0');
+  ok(!r.errors.length && near(zmin(r), -30), '205 reaches Z-30');
+  const pecks = r.moves.filter(m => m.cycle && m.kind === 'feed' && m.to.z < m.from.z).map(m => +(-m.to.z).toFixed(3));
+  ok(pecks.includes(10) && pecks.includes(18) && pecks.includes(24), '205: pecks 10, 8, 6 ... (Q212 decrement), depths ' + pecks.join(','));
+  r = cyc('CYCL DEF 202 BORING\n Q200=2\n Q201=-15\n Q206=100\n Q211=0.5\n Q208=250\n Q203=+0\n Q204=100\n Q214=1\n Q336=0');
+  const out = r.moves.find(m => m.cycle && m.kind === 'feed' && m.to.z > m.from.z);
+  ok(!r.errors.length && out && out.feed === 250 && near(out.from.x, 49.8), '202: disengage 0.2 in -X (Q214=1), retract at Q208 250');
+  r = TNC.run(hdr + 'L X+50 Y+50 R0 FMAX\nL Z+2 R0 FMAX\nCYCL DEF 1.0 PECKING\nCYCL DEF 1.1 SET UP 2\nCYCL DEF 1.2 DEPTH -15\nCYCL DEF 1.3 PECKG 5\nCYCL DEF 1.4 DWELL 0\nCYCL DEF 1.5 F80\nCYCL CALL\nEND PGM C MM');
+  ok(!r.errors.length && near(zmin(r), -15) && r.moves.filter(m => m.cycle && m.feed === 80).length === 3, 'cycle 1: 3 pecks of 5 to Z-15 at F80');
+  r = TNC.run(hdr + 'L X+50 Y+50 R0 FMAX\nL Z+2 R0 FMAX\nCYCL DEF 17.0 RIGID TAPPING\nCYCL DEF 17.1 SET UP 2\nCYCL DEF 17.2 DEPTH -12\nCYCL DEF 17.3 PITCH +1\nCYCL CALL\nEND PGM C MM');
+  ok(!r.errors.length && near(zmin(r), -12) && r.moves.some(m => m.cycle && m.feed === 500), 'cycle 17: F = S x pitch = 500');
+}
 console.log(fails ? `\n${fails} FAILED` : '\nALL MANUAL EXAMPLES PASS');
 process.exit(fails ? 1 : 0);
