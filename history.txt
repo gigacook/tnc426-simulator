@@ -205,17 +205,16 @@ WHAT HAS NOT BEEN WRITTEN:
     draws that block with the tool trace animating the direction of
     cut. Both halves exist; they have never been connected.
 
-STATUS: nothing in this version is live. build.py still bundles the old
-ui.js and none of the new modules, so even a build today would ship v0.4
-plus a shell fix. The work left is wiring, not writing - except ai.js,
-which has to be written.
+STATUS AT THE TIME THIS SECTION WAS FIRST WRITTEN: nothing in v0.5 was live
+yet. That has since changed - see the v0.5 SHIPPED update directly below,
+written after the fact once it actually went out.
 
 HIGHS:
   - Six modules written in parallel, all syntax-clean, the UI built to
     degrade gracefully when a module is missing rather than white-screen.
   - The lessons module shipped with its own test script, all passing.
 
-LOWS:
+LOWS (at the time):
   - Two sub-agents were killed mid-task by a session limit: the product
     manager stopped part-way through flow.js, leaving three modules with
     no demo and no run behind them, and the TNC 430 lead stopped after
@@ -224,57 +223,135 @@ LOWS:
   - The effects sub-agent installed Playwright's browsers - 1.1 GB -
     without asking. The user's standing rule is to name a missing tool
     and ask first. The brief it was given did not forbid it, so this is
-    the assistant's failure rather than the agent's.
-  - The rewritten shell fixes the scanline bleed the user photographed,
-    and has sat unbuilt on disk ever since - the fix exists and the bug
-    is still live.
+    the assistant's failure rather than the agent's. (That install is now
+    in active use by .tools/qa/qa.mjs - kept, not removed.)
+  - The rewritten shell fixed the scanline bleed the user photographed,
+    but had sat unbuilt on disk - the fix existed and the bug was still
+    live at the time this was written. Resolved once v0.5 actually built
+    and shipped (below).
   - Roughly 220 KB of work across nine files sat untracked in git for
     two days.
 
 LESSON: written is not shipped. Six parallel agents produced a lot of
 syntax-clean code and moved the live site forward by nothing; the build
-script is the bottleneck, and a module nobody has wired in is worth the
+script was the bottleneck, and a module nobody has wired in is worth the
 same as a module nobody has written.
 
 
-v0.6  PLANNED
---------------
-  - Commit the untracked work, extend build.py to inline the new
-    modules, swap in the new UI, push. That alone fixes the scanline
-    bleed and lights up lessons, effects, projects, undo and PGM MGT.
-  - Write ai.js.
-  - Antialiasing, metal surfaces and the material presets.
-  - RELEASES.txt, then the TNC 430.
-  - Cycle 200 with Q208 = 0 should retract at the Q206 feed, not rapid.
+v0.5  SHIPPED (9c61b09)
+------------------------
+WHAT ACTUALLY SHIPPED:
+  - The untracked work was committed, build.py was made fully data-driven
+    (LIBS / MODULES / TEXTS lists - a new module is one line, not a
+    special case), the new UI (formerly ui.new.js) replaced the old one
+    as ui.js, and it all built and went live. Lessons, fx, tools3d,
+    callouts and flow all shipped in this push.
+  - The scanline bleed fixed itself as a side effect of the rebuild.
+  - The TNC_UI plugin bus was introduced: other modules (fx.js, look.js,
+    materials.js, later) attach to it via scene/tool/tick/crash/resize
+    hooks and a shared ui.render hook, instead of reaching into ui.js
+    directly.
+
+LESSON CONFIRMED: once the build script stopped being the bottleneck, six
+sessions' worth of written-but-invisible work went live in one push. The
+lesson from the "written is not shipped" entry above was correct, and the
+fix was exactly what it named - the build script, not more writing.
 
 
-BY THE NUMBERS
----------------
-  Commits pushed:            3 (37b63a5, e971807, d3aa945)
-  Live version:              v0.4
+v0.6  SHIPPED (interpreter accuracy, profiles, AI, materials/look)
+---------------------------------------------------------------------
+WHAT SHIPPED, across several commits (216a76e, 7d2e05d, b59950b, aea56a5,
+2992d42):
+  - Interpreter: RL/RR as real offset paths (previously drawn on the tool
+    centreline - a known simplification, now fixed and documented as
+    fixed rather than as a limitation), RND, CHF, CT, CP/LP/CTP, APPR/DEP,
+    ZX/YZ plane arcs, Q-parameter formulas (FN 0-FN 19), jumps, REP Q,
+    F AUTO approximation, a tool-table fallback that auto-creates tools
+    a program calls but the table lacks.
+  - Cycles: 1, 2, 17, 18 (old-style), 7/8/9/10/11/32/247 (non-motion),
+    200-215, 220/221, 230/231 - all against the 426/430 manual's own
+    worked examples (tests/manual.js).
+  - Materials (materials.js): alloy and industry presets driving PBR
+    look and chip/spark color, with a picker.
+  - Look (look.js): RoomEnvironment reflections, ACES tone mapping, FXAA
+    - the antialiasing/surface-quality ask from the user's screenshot,
+    addressed with an environment map rather than just more AA, per the
+    diagnosis that a metal PBR material with nothing to reflect is what
+    reads as plastic.
+  - Profiles (profile.js): one personal profile per browser, autosave,
+    export/import as .zip with Merge/Replace, per-machine tool table as
+    TOOL.T.
+  - Program I/O: .H/.I load (UTF-8 and Windows-1252), .zip, drag-drop,
+    Ctrl+S save.
+  - AI (ai.js): OpenRouter-only BYOK, deepseek/deepseek-v4.1-flash
+    default, one repair pass, tested against a mocked OpenRouter (51/52
+    Playwright QA checks pass - the 1 failure is a stale test expectation
+    about auto-created tools, not a product bug).
+  - three.js upgraded r128 -> r186, bundled with three.quarks by esbuild
+    from vendor/three-entry.mjs. window.QUARKS is in the page but not yet
+    used by fx.js.
+
+VERIFIED: node tests/manual.js all pass. AUTOTOOLS=1 node tests/corpus.js
+against 2,806 real-world CAM programs: 2,495 clean (1,066 clean without
+AUTOTOOLS, i.e. before missing tools are auto-created the way an import
+would). Remaining failures are almost all TCH PROBE 4xx (correctly
+rejected - confirmed not in the 426/430 manual, an iTNC 530/TNC 640
+dialect) plus a real open bug: ~399 SPINDLE ? errors from the tapping
+cycles' spindle-direction check.
+
+STILL OPEN, NOT YET DONE:
+  - The SPINDLE ? false alarms above - under investigation.
+  - fx.js on three.quarks (bundled, unused so far).
+  - Thread milling cycles 262-265, 267.
+  - Cycles 3, 5, 12, 13, 14/20-25, 19, 26, 27/28 - not implemented.
+  - FK, TCH PROBE (deliberately, see above) - not implemented.
+  - RELEASES.txt does not exist; the DEV modal's third tab is wired up
+    and empty.
+  - Live visual translation (cursor-on-block -> animated trace) - both
+    halves exist, never connected.
+  - TNC 430 multi-axis: the user has now specified the machine layout
+    (X Y Z linear, A+B swivel head, optional C rotary table) but no code
+    exists yet.
+  - LICENSE's bundled-library note still says three.js r128; needs
+    updating to r186 + three.quarks.
+  - One stale QA check (TOOL 27 NOT DEFINED expectation, now auto-fixed
+    by the product) needs updating, not the product.
+  - AI generation has only ever been tested against a mocked OpenRouter -
+    no real-API run has happened in this repo yet.
+
+LESSON: the antialiasing ask ("fake antialiasing... shiny surface
+texture") turned out to be mostly a lighting problem, not a geometry or
+AA problem - diagnosing the actual cause (no environment map for a PBR
+metal to reflect) before reaching for the expensive fix (re-meshing,
+heavier AA) was the right call and shipped faster.
+
+
+BY THE NUMBERS (2026-09-27)
+-----------------------------
+  Commits, v0.1 through the last verified HEAD: 13 (37b63a5 through
+                             9618cce - see git log for the full list;
+                             this count will already be stale by the
+                             time you read it, this repo moves fast)
+  Live version:              v0.6 (interpreter accuracy, profiles, AI,
+                             materials/look, three.js r186 all shipped
+                             and in the build)
   Programs shipped:          3 (BRACKET.H, TRIFUNOVIC.H, TRIFUNOVIC_V2.H)
   Lessons written:           14 (6 LEARN + 8 BREAK IT) + 16 manual sections
-  Sub-agents used:           10 (interpreter; engraving V2 [Opus]; DEV log
-                             [Sonnet]; lessons; effects; version history
-                             [Sonnet]; product manager [Sonnet]; TNC 430
-                             lead [Opus] - the last two killed by a session
-                             limit - plus two workers under them)
-  Sub-agents still owed:     1 (the QC pass on antialiasing and materials,
-                             asked for and not yet started)
-  Bugs caught by testing:    8
-    before any push          5 (REP-default recursion; M99 cycle never
-                             firing; the REP=1 regression, fixed in the
-                             file before the commit; the safety check's
-                             false alarm on a correct through-drill;
-                             duplicate warnings masking events)
-    after being live         3 (Q-line block numbering, TOOL CALL
-                             switching the spindle on, BRACKET.H missing
-                             M3 - live in v0.3 for about 25 minutes,
-                             fixed in v0.4)
-  Known bugs open:           2 (Q208 = 0 retracts at rapid; scanline bleed
-                             over the 3D view, fixed on disk, still live)
-  Builds opened in a real browser: 0 - Chrome is not installed on the
-                             build machine; every check has been a syntax
-                             check or a stubbed-DOM boot in node.
+  Cycles implemented:        23 motion/pocket/drilling cycles (1, 2, 4,
+                             17, 18, 200-215, 220, 221, 230, 231) plus 7
+                             non-motion cycles (7, 8, 9, 10, 11, 32, 247)
+  Manual test coverage:      node tests/manual.js - all pass
+  Real-world corpus:         2,806 programs, 2,495 clean with AUTOTOOLS=1
+                             (1,066 clean without it)
+  QA (Playwright):           51 / 52 checks pass (1 stale expectation)
+  Known bugs open:           1 (SPINDLE ? false alarms in tapping cycles,
+                             ~399 corpus programs affected)
+  Known stale test:          1 (QA feature 5, TOOL 27 NOT DEFINED)
+  Builds opened in a real browser: now checked by .tools/qa/qa.mjs via
+                             Playwright's Chromium (the "Chrome is not
+                             installed" gap from earlier versions is
+                             closed for QA purposes; AI generation is
+                             still only checked against a mock, not the
+                             real OpenRouter API).
 
 (c) 2026 Daniel and Nebojsa Trifunovic Corp.

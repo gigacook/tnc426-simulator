@@ -1,133 +1,138 @@
-TNC 426 SIMULATOR - DEVELOPER FEATURE LOG
-Updated 2026-09-23
+TNC 426 / 430 SIMULATOR - DEVELOPER FEATURE LOG
+Updated 2026-09-27
 
-LIVE - v0.3 AND EARLIER
+LIVE - IN THE BUILD, VERIFIED
 ==============================================================================
-37b63a5  TNC 426 Klartext CNC simulator
-e971807  Document interpreter simplifications in README
+Verified by: node tests/manual.js (all pass), AUTOTOOLS=1 node tests/corpus.js
+(2,495 / 2,806 real CAM programs clean), .tools/qa/qa.mjs (51 / 52 Playwright
+checks pass; the 1 failure is a stale test expectation, not a product bug -
+see BUGS below).
 
-INTERPRETER:
-  - Klartext parser/interpreter: linear moves (L) with modal feed and
-    incremental IX/IY/IZ; circular moves via CC + C and CR, DR+/DR-.
-  - Drilling cycles CYCL DEF 200/201/203 and pocket cycle CYCL DEF 4
-    (spiral-out rectangular clearing).
-  - LBL as both subprogram call and program-section repeat via
-    CALL LBL n REP r/r (r + 1 passes total); Q parameters with FN 0-4.
-  - M3/M4/M5/M8/M9/M2/M30, M99 blockwise cycle call, tool table via
-    TOOL CALL, TNC-style error register (FEED RATE MISSING, ARC END
-    POS. INCORRECT, LABEL NUMBER NOT FOUND, etc).
+INTERPRETER (core.js):
+  - Klartext parser/interpreter: L/C/CC/CR/CP/LP moves, RL/RR as real offset
+    paths (not centreline), RND, CHF, CT, APPR/DEP, ZX/YZ plane arcs.
+  - Q-parameter formulas FN 0-FN 19, jumps (FN 9, CALL LBL n REP), REP Q.
+  - Cycles: 1, 2, 4, 17, 18 (old-style); 7, 8, 9, 10, 11, 32, 247 (non-motion:
+    datum shift, mirror, rotation, scaling, tolerance, datum point); 200-215
+    (drilling/reaming/boring/tapping/slots); 220/221 (patterns); 230/231
+    (surface milling).
+  - M3/M4/M5/M8/M9/M2/M30, M99 blockwise cycle call, correct block-start vs
+    block-end M-function timing, tool table via TOOL CALL, TNC-style error
+    register.
+  - F AUTO approximated as the TOOL CALL block's F (the real control reads a
+    cutting-data table the simulator doesn't have - documented simplification).
+  - Tools missing from the table are auto-created on program upload/import,
+    matching import behaviour on a real control.
 
 SIMULATOR:
-  - Height-field material removal: the tool stamps its real radius
-    along every feed move; scrubbing backwards rebuilds the blank;
-    removed volume integrated from the height field.
-  - Four operating modes as on the control (PROGRAMMING AND EDITING,
-    TEST RUN, PGM RUN SINGLE BLOCK, PGM RUN FULL SEQ), each with its
-    own soft-key row; speeds 1x/4x/16x/64x/MAX; views 3D/TOP/FRONT/SIDE.
-  - Run comparison: store a finished run as reference A, run again,
-    read the delta on cycle time, feed/rapid path, moves, min Z, volume.
-  - Keyboard: arrows, ENTER, ESC, SPACE, S, R, E/I/D/C, TAB, G, 1-5,
-    F1-F4, +/-, HOME/END, PGUP/PGDN.
+  - Height-field material removal: the tool stamps its real radius along
+    every feed move; scrubbing backwards rebuilds the blank; removed volume
+    integrated from the height field. Vertical tool axis only - no undercuts,
+    no 5-axis yet.
+  - Four operating modes as on the control, each with its own soft-key row;
+    run comparison (reference A vs. current run: cycle time, feed/rapid path,
+    moves, min Z, volume).
+  - sim.js: shared timing/arc tessellation and a safety analysis (rapid into
+    material, cutting with spindle stopped, tool below the blank, chip load).
 
-BUILD / DOCS:
-  - build.py bundles everything into one self-contained index.html.
-  - README lists known simplifications: RL/RR drawn on the centreline,
-    INCH not converted, dwell not counted in cycle time, Q213 chip
-    breaking approximated, height field cannot show undercuts.
+MATERIALS AND LOOK (materials.js, look.js):
+  - Alloy presets (aluminium, titanium, steel, stainless, brass, cast iron)
+    and industry presets (turbine, aerospace, ground finish, cast): color,
+    metalness, roughness, chip/spark color, with a picker.
+  - RoomEnvironment via PMREMGenerator for metal reflections, ACES filmic
+    tone mapping, FXAA through EffectComposer - all wired through the
+    TNC_UI plugin bus's ui.render hook.
 
-LIVE - v0.4 (d3aa945, the current build)
-==============================================================================
-INTERPRETER:
-  - T9 ENDMILL_3 (R1.5) added to the tool table for engraving.
-  - Block numbering as on the TNC: a CYCL DEF and its Q-parameter lines
-    are one NC block; blank lines carry no number.
-  - Spindle as on the TNC: S in TOOL CALL only sets the speed, a tool
-    change stops the spindle, M3/M4 start it. M3/M4/M8/M13/M14 act at
-    block start, M5/M9/M2/M30 at block end.
-  - Parse errors and run errors both reference the same block index.
+THREE.JS UPGRADE:
+  - r128 -> r186, bundled with its addons and the three.quarks particle
+    library by esbuild (vendor/three-entry.mjs) into one classic script
+    (window.THREE, window.QUARKS). ColorManagement kept disabled to preserve
+    the existing r128-style colour look.
+  - window.QUARKS is in the page but not yet used by fx.js - see IN
+    PROGRESS below.
 
-SIMULATOR:
-  - Height-field resolution follows the smallest cutter, so a Z3
-    engraving resolves (TRIFUNOVIC: 401 x 268 cells, 0.75 mm).
-  - sim.js: shared timing/arc tessellation and a safety analysis
-    (rapid into material, cutting with spindle stopped, tool more than
-    3 mm below the blank, through-cut note, chip load above
-    0.012 x D + 0.005 mm/tooth). Analysis runs in tests; it is not
-    shown in the UI yet.
+PROFILES AND PROGRAM I/O (profile.js, ui.js):
+  - One personal profile per browser (IndexedDB via idb-keyval), autosave,
+    name prompt on first visit, wipe/reset.
+  - Export/import profile as .zip with a Merge/Replace choice on import.
+    Per-machine tool table, import/export as TOOL.T.
+  - Load .H/.I (UTF-8 or Windows-1252), .zip of programs, drag-and-drop.
+    Save as .H with Ctrl+S in numbered TNC listing format (CRLF).
+  - PGM MGT program manager, block editor, undo/redo (Ctrl+Z /
+    Ctrl+Shift+Z), boot splash, mobile layout.
+  - window.TNC_UI plugin bus (scene/tool/tick/crash/resize, ui.render) that
+    fx.js, look.js and materials.js attach to.
+
+AI PROGRAM GENERATION (ai.js):
+  - OpenRouter only, BYOK - never Anthropic direct (checked: no Anthropic
+    endpoint string anywhere in the built page).
+  - Default model deepseek/deepseek-v4.1-flash (checked against OpenRouter's
+    model list 2026-09-27: $0.035/M in, $0.29/M out - prices move, recheck
+    periodically).
+  - One repair pass: compile the AI's program, feed errors back. Prompt
+    includes the operator's own tool table.
+  - Key in sessionStorage/localStorage, never a cookie.
+  - Tested so far only against a mocked OpenRouter (QA suite). No run
+    against the real API in this repo yet.
+
+TEACHING (lessons.js):
+  - LEARN lessons, BREAK IT (famous ways to wreck a machine, each with the
+    fix), a power-user manual, and the AI system prompt.
+
+TOOLS, CALLOUTS, FLOW (tools3d.js, callouts.js, flow.js):
+  - Real tool geometries in their holders.
+  - View-aligned leader-line callouts (TOOL, TOOL HOLDER, PART).
+  - Program-as-flowchart alternative view.
+
+EFFECTS (fx.js):
+  - Chips that land on the part, sparks, coolant spray on M8, smoke and
+    fire (toggle, off by default), crash burst.
 
 PROGRAMS (selector in the Program header, TRIFUNOVIC.H opens first):
-  - TRIFUNOVIC.H - V1 garage plate 300 x 200 x 20: chamfered letters
-    20 x 15 x 2 deep with T9, rules and two frames, 1 x 45 edge break
-    on the real plate edge with T8, four mounting holes with CYCL 200.
-    Runs clean; the simulator flags F1000 at S3000 on a Z3 cutter as
-    high chip load (fz 0.111 against 0.041).
-  - TRIFUNOVIC_V2.H - 220 x 60 x 10: letters with real CC/C and CR
-    arcs for O, C, U and the R bowl, S7500 F600 plunge F150, four
-    passes of 0.5 mm. Zero errors, zero warnings. For A/B against V1.
-  - BRACKET.H - fixed: the T5 pocket had no M3 after the tool change.
+  - TRIFUNOVIC.H - V1 garage plate 300 x 200 x 20: chamfered letters with
+    T9, 1 x 45 edge break with T8, four mounting holes with CYCL 200.
+  - TRIFUNOVIC_V2.H - 220 x 60 x 10: letters with real CC/C and CR arcs.
+  - BRACKET.H - the teaching program: LBL/REP, FN formulas, arcs, CYCL 200.
 
-UI:
-  - DEV tab behind the orange button (this log).
-  - Program listing shows no block number on Q-parameter lines.
+BUILD:
+  - build.py is fully data-driven: LIBS (JSZip, idb-keyval), MODULES
+    (project .js files, ui.js last), TEXTS (this file, history.txt,
+    RELEASES.txt/ROADMAP.txt when they exist -> window.TNC_* globals for
+    this DEV modal). A new module is one line.
 
-STILL TO DO - WRITTEN, NOT IN THE BUILD YET
+IN PROGRESS - NOT YET DONE
 ==============================================================================
-Every item below is outstanding work, not finished work. These modules exist in
-the repo and pass a syntax check, but build.py does not inline them and the
-bundled UI is still the old ui.js - so none of this is in the page you are
-reading. The remaining work is wiring, not writing. The full task list, with
-priorities, is in TODO.md; nothing leaves that list until it has shipped.
+  - SPINDLE ? false alarms: ~399 real-world programs trip the tapping
+    cycles' spindle-direction check (cycleTap in core.js). Under
+    investigation - see TODO.md.
+  - fx.js does not yet use three.quarks, even though it is bundled into the
+    page. Chips/sparks/coolant still run on the pre-upgrade approach.
+  - Thread milling cycles 262-265, 267 not implemented.
+  - Cycles 3, 5, 12, 13, 14/20-25, 19, 26, 27/28 not implemented.
+  - TCH PROBE touch-probe cycles not implemented - confirmed not in the
+    426/430 manual (iTNC 530/TNC 640 dialect); real CAM programs that call
+    them are correctly rejected, not a bug.
+  - FK (free contour programming) not implemented.
+  - RELEASES.txt does not exist yet, so the DEV modal's third tab (which
+    build.py already wires up) is empty.
+  - Live visual translation: cursor-on-a-block driving the flow view with
+    an animated tool trace. Both halves exist (traceFor/traceTick in
+    ui.js, pathSVG in flow.js) and have never been connected.
+  - TNC 430 multi-axis: research only, no code. Needs the user's machine
+    layout before starting.
 
-  - ui.new.js - the UI rewrite: PGM MGT program manager, NEW PGM from scratch
-    with the MM and BLK FORM dialog, save as .H, load .H from disk and by
-    drag-drop, undo/redo per program (Ctrl+Z, Ctrl+Shift+Z / Ctrl+Y),
-    programs and projects kept in browser storage, settings in a cookie,
-    projects panel with .zip download, machine profiles so a second control
-    can plug in, mobile layout with a bottom tab bar, boot splash.
-    Never executed in a browser.
-  - ui.new.js - safety checks surfaced live during the run, crash alarm that
-    stops the run with camera shake and a beep; chamfer and spot tools
-    stamped as 45-degree cones; live tool-trace comet showing cut direction.
-  - lessons.js - LEARN (6 lessons), BREAK IT (8 famous ways to wreck a
-    machine, each with the fix), power-user MANUAL (16 sections).
-    Verified by its own test script, all pass.
-  - fx.js - metal chips that land on the part, sparks, coolant spray on M8,
-    smoke and fire (toggle, off by default), crash burst. Has a demo page
-    (fx-demo.html); loads clean outside the browser.
-  - tools3d.js - real tool geometries in their holders.
-  - callouts.js - leader lines with view-aligned labels for TOOL, TOOL
-    HOLDER and PART.
-  - flow.js - the alternative program view: code read row by row and drawn
-    as a top-to-bottom flowchart.
-    tools3d.js, callouts.js and flow.js have had a syntax check and nothing
-    more - no demo, no run. Their author stopped at a session limit.
-
-STILL TO DO - NOT STARTED
+KNOWN BUG, STALE TEST (not a product bug)
 ==============================================================================
-  - ai.js - AI program generation, the third way to make a program: OpenRouter
-    with the user's own key, DeepSeek V4.1 Flash by default, the simulator
-    checking the AI's program and sending errors back for one repair pass,
-    setup guide included. The UI already calls it. The file does not exist.
-  - Antialiasing and surface quality: diagonal walls in the height field come
-    out as visible stairs, and the surfaces read as plastic. Wanted: smoothed
-    height-field geometry, a shiny metal look, a material picker for aluminium
-    and titanium, and presets for turbines, aerospace, ground and cast work.
-  - TNC 430 five-axis support as a second machine profile, with its own tool
-    visuals from real dimensions and the same programs, examples, lessons and
-    visual translation as the 426. Manuals have been collected; no code yet.
-  - Live visual translation for both controls: put the cursor on a block and
-    the alternative view draws that block, with the tool trace animating the
-    cut direction. The trace and the flowchart both exist; they have never
-    been connected.
-  - RELEASES.txt - the release plan behind the DEV button's third tab.
+  - .tools/qa/qa.mjs feature 5 still expects "TOOL 27 NOT DEFINED" after an
+    upload. Uploads now auto-create missing tools, so the product is
+    correct and the test expectation is stale. Fix the test.
 
-KNOWN BUG, NOT YET FIXED
+NOT VERIFIED
 ==============================================================================
-  - Cycle 200: Q208 = 0 should retract at the Q206 plunging feed rate. It
-    currently retracts at rapid.
-
-NOT VERIFIED IN A BROWSER
-==============================================================================
-  Chrome is not installed on the build machine. Every check so far is a syntax
-  check plus booting the built file in node against a stubbed DOM. No build of
-  this simulator has ever been opened in a real browser.
+  - AI generation has never been run against the real OpenRouter API in
+    this repo - every check so far, including the QA suite, uses a mocked
+    OpenRouter.
+  - No real HEIDENHAIN control or programming station has verified any of
+    this. tests/manual.js's expected values are derived from the manual's
+    own rules, not measured on a control - see tnc-programstation/
+    instruct.md for the plan to close that gap.

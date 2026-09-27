@@ -22,11 +22,9 @@ Repo stays PUBLIC (user decision). Commit trailer: `Co-Authored-By: Claude Opus 
 - three.js r186 + three.quarks bundled by esbuild. `python3 build.py` needs `.tools/node_modules` (three@0.186.1, three.quarks@0.17.1, esbuild@0.28.2, playwright-core); it prints the npm command if they're missing.
 - Local AI key: put `OPENROUTER_API_KEY=` in `.env` and run `python3 build.py` → `index.local.html` (gitignored). No real-key run has been done yet.
 
-## Uncommitted when this was written
-A Sonnet docs agent was rewriting `TODO.md`, `HANDOFF.md`, `NEXT-SESSION-PROMPT.md`, `devlog.txt`, `history.txt` and `README.md` to match reality.
-- Run `git diff --stat`, skim, then commit them as "Docs synced to v0.6".
-- If they're missing or wrong, redo them from this file plus `git log`.
-- Also update `LICENSE` (it still says three.js r128; now r186 + three.quarks MIT).
+## Docs
+The docs (TODO, HANDOFF, NEXT-SESSION-PROMPT, devlog, history, README, LICENSE) were synced and committed at the end of the 2026-09-27 session.
+The Serbian questions for Nebojsa (pivot lengths, axis limits, which head axis is outer, C table position) were sent via the user. Wait for his answer before building the 430 kinematics.
 
 ## Next, in order
 1. **`SPINDLE ?` false alarms** (~399 in the corpus). `cycleTap` in `core.js` fails when `st.spinDir` is 0 at the cycle call. Check how those programs start the spindle (M3 on the M99 block starts at block START, but `runCycle` may run before `applyM`?). Fix, then re-run the corpus.

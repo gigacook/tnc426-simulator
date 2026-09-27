@@ -1,258 +1,178 @@
 # HANDOFF — TNC 426 / 430 Simulator
 
-**Written:** 2026-09-23
+**Written:** 2026-09-27 (docs sync pass)
 **Project root:** `/Users/danieltrifunovic/Developer/sandbox/mac_tnc426-orbital`
-**Live:** https://gigacook.github.io/tnc426-simulator/ · **Repo:** https://github.com/gigacook/tnc426-simulator
-**Last commit:** `d3aa945` "Interim push: authentic spindle and numbering, TRIFUNOVIC V1/V2, DEV tab" (v0.4, 2026-09-21 15:15)
+**Repo:** https://github.com/gigacook/tnc426-simulator · **Live:** https://gigacook.github.io/tnc426-simulator/
+**HEAD:** `9618cce` "CONTINUE.md: TNC 430 layout — A/B swivel head, optional C table" (local
+`main` == `origin/main`, working tree clean apart from this docs pass). The repo moved twice more
+while this docs pass was in progress — re-run `git log --oneline -5` before trusting this line.
 
-Pick this file up cold. Section 1 = what exists. Section 2 = what's in flight.
-Section 3 = **where the docs in this folder disagree with reality** — read it before you
-trust `devlog.txt`, `history.txt` or `README.md`.
+Pick this file up cold. Section 1 = what's built and verified. Section 2 = what's in flight.
+Section 3 = the standing rules. Everything here was checked against the repo on disk on
+2026-09-27 — `git log`, `node tests/manual.js`, `AUTOTOOLS=1 node tests/corpus.js`, and
+`.tools/qa/qa.mjs` against a freshly built `index.html` — not carried over from an older doc.
 
 ---
 
 ## 0. WHAT THIS IS
 
 Started as a joke gift for Nebojsa Trifunovic, a CNC engineer (Daniel's father). Grew into a
-real browser-based HEIDENHAIN simulator. One self-contained offline HTML file, no build step
-for the user, no server. Standing user priorities, in the order they were given:
+real browser-based HEIDENHAIN TNC 426/430 simulator. One self-contained offline HTML file
+(`index.html`, built by `build.py`); no build step or server for the end user. Standing user
+priorities, in the order they were given:
+
+1. **Authentic TNC behaviour is critical.** Not "close enough". Authority: the HEIDENHAIN
+   TNC 426/430 manual for NC SW 280 476 (`research/tnc426_430_280476_manual_en.txt`, gitignored,
+   downloaded from content.heidenhain.de) plus the pilot and basic/advanced course PDFs.
+2. **Fully interactive.** Keyboard first (arrows / ENTER forward / ESC back, rest on screen).
+3. **Ship a direct link.** Plain HTML file — never a claude.ai Artifact.
+4. **If a tool is missing, name it and ask before installing.**
+5. A DEV tab that lies is worse than no DEV tab.
+
+---
+
+## 1. WHAT IS BUILT, IN `index.html`, AND VERIFIED
+
+### Interpreter (`core.js`)
+`L`/`C`/`CC`/`CR`/`CP`/`LP` moves; `RL`/`RR` as real offset paths (not centreline); `RND`, `CHF`,
+`CT`, `APPR`/`DEP`, `ZX`/`YZ` plane arcs; Q-parameter formulas `FN 0`–`FN 19`; jumps (`FN 9`,
+`CALL LBL n REP`); modal M-functions with correct block-start/block-end timing; a tool table;
+TNC-style error register. Cycles: 1, 2, 4, 17, 18, 7–11, 32, 247 (non-motion), 200–215, 220, 221,
+230, 231.
+
+Verified by `node tests/manual.js` — every worked example in the manual, plus inside corners,
+errors, formulas, mirror — **all pass**. Caveat, carried from `tnc-programstation/instruct.md`:
+expected values are derived from the manual's own rules, not measured on a real control, so a
+misreading of the manual could still pass its own test.
+
+Verified against real-world CAM output by `AUTOTOOLS=1 node tests/corpus.js`: **2,495 / 2,806**
+programs run clean (`1,066 / 2,806` without `AUTOTOOLS`, i.e. before missing tools are
+auto-created the way an import would). Remaining failures: `TCH PROBE 4xx` (correctly rejected —
+an iTNC 530/TNC 640 dialect, not in the 426/430 manual), and ~399 `SPINDLE ?` errors from the
+tapping cycles — see section 2, this is a real open bug, not a corpus artifact.
+
+### UI, profiles, program I/O (`ui.js`, `profile.js`)
+Four operating modes with their own soft-key rows, run comparison (reference A vs. current run),
+material removal as a height field with backward scrubbing. One personal profile per browser
+(IndexedDB via idb-keyval), autosave, name prompt, wipe/reset. Profile export/import as `.zip`
+(Merge/Replace), per-machine tool table import/export as `TOOL.T`. Program I/O: `.H`/`.I`
+(UTF-8 or Windows-1252), `.zip`, drag-and-drop, save with `Ctrl+S` as a numbered TNC listing.
+Uploading a program that calls an undefined tool auto-creates it (matches real-control import
+behaviour). Block editor with undo/redo. `window.TNC_UI` plugin bus other modules attach to.
+
+### AI (`ai.js`)
+OpenRouter only, BYOK — never Anthropic direct, confirmed by grep (no Anthropic endpoint string
+anywhere in the built page) and by QA. Default model `deepseek/deepseek-v4.1-flash`
+($0.035/M in, $0.29/M out, checked against OpenRouter's model list 2026-09-27 — re-check
+periodically). One repair pass: compile the AI's program, feed errors back. Prompt includes the
+operator's own tool table. Key lives in `sessionStorage`/`localStorage`, never a cookie.
+**Only tested against a mocked OpenRouter so far** — no run against the real API has happened in
+this repo (an `.env` + `OPENROUTER_API_KEY=` + `python3 build.py` path exists for that, via
+`index.local.html`, gitignored, but hasn't been exercised).
+
+### Materials and look (`materials.js`, `look.js`)
+Alloy presets (aluminium, titanium, steel, stainless, brass, cast iron) and industry presets
+(turbine, aerospace, ground finish, cast) driving PBR color/metalness/roughness and chip/spark
+color, with a picker and `localStorage` persistence. `RoomEnvironment` via `PMREMGenerator` for
+metal reflections, ACES filmic tone mapping, FXAA through `EffectComposer`, wired through
+`TNC_UI`'s `ui.render` hook.
+
+### Lessons (`lessons.js`)
+LEARN, BREAK IT, a power-user manual, and the AI system prompt (`aiSystemPrompt`), in the build.
+
+### Tools / callouts / flow (`tools3d.js`, `callouts.js`, `flow.js`)
+Real tool geometries in their holders; view-aligned leader-line callouts (TOOL, TOOL HOLDER,
+PART); the program-as-flowchart alternative view. All in the build.
+
+### Effects (`fx.js`)
+Chips, sparks, coolant spray on M8, smoke/fire (toggle, off by default), crash burst. In the
+build, wired into `ui.js`. **Not yet on three.quarks** — see section 2.
+
+### Build (`build.py`)
+Fully data-driven: `LIBS` (JSZip, idb-keyval, fetched to `.libcache/`), `MODULES` (project `.js`
+files, `ui.js` must stay last), `TEXTS` (`devlog.txt`/`history.txt`/`RELEASES.txt`/`ROADMAP.txt`
+→ `window.TNC_*` globals for the DEV modal — `RELEASES.txt`/`ROADMAP.txt` don't exist yet, so
+those two slots are empty). A new module is one line.
+
+three.js was upgraded **r128 → r186**, bundled with its addons (OrbitControls, RoomEnvironment,
+FXAA/EffectComposer, OutputPass) and the [three.quarks](https://github.com/Alchemist0823/three.quarks)
+particle library by esbuild from `vendor/three-entry.mjs` into one classic script exposing
+`window.THREE`/`window.QUARKS`. Needs `.tools/node_modules` (`cd .tools && npm i
+three@0.186.1 three.quarks@0.17.1 esbuild@0.28.2`) — `build.py` prints the exact command if it's
+missing. `THREE.ColorManagement.enabled = false` is set deliberately, to keep r128's hex-color
+behaviour rather than changing the existing look.
+
+**`LICENSE`'s own bundled-library note still says "three.js (r128)"** — stale, needs updating,
+not touched in this docs pass (LICENSE is a licence file, not one of the six docs this pass
+covers — flag it, don't silently fix it under a different mandate).
+
+### QA (`.tools/qa/qa.mjs`)
+Playwright, run against a built `index.html` (copy to `.tools/qa/under-test.html`, `node
+qa.mjs`). **51 of 52 checks pass.** The one failure is stale by design: it still expects
+`TOOL 27 NOT DEFINED` after an upload, but uploads now auto-add missing tools (see Profiles
+above) — the check needs updating, not the product.
+
+---
+
+## 2. IN FLIGHT — PICK UP HERE, IN ORDER
+
+1. **`SPINDLE ?` false alarms in the tapping cycles.** ~399 real programs in the corpus trip
+   `cycleTap`'s `if (!keep) fail(st, bi, 'SPINDLE ?')` (`core.js`, cycles 206/207/209) because
+   `st.spinDir` reads 0 at the cycle call. Investigate whether `M3` on the same block, or on the
+   preceding `M99` positioning block, is being applied after the cycle runs rather than before.
+   Fix against the manual's actual timing rules, then re-run `AUTOTOOLS=1 node tests/corpus.js`.
+2. **Fix the stale QA check** — `.tools/qa/qa.mjs` feature 5, `TOOL 27 NOT DEFINED` expectation.
+3. **Move `fx.js`'s chips/sparks/coolant onto three.quarks.** `window.QUARKS` is bundled and
+   present in the page but unreferenced (`grep -c QUARKS fx.js` → 0). Keep `fx.js`'s existing
+   public API (`TNC_FX.create(THREE, scene, opts)`, `setMaterial`).
+4. **Thread milling cycles 262–265, 267.** Helix geometry already exists (`cycleBoreMill` in
+   `core.js`); parameters are in the manual. Add cases to `tests/manual.js` as you go.
+5. **TNC 430 multi-axis** (P9 in TODO.md) — large, several sessions. Machine layout is now
+   answered (`CONTINUE.md`, 2026-09-27): X Y Z linear, A+B rotary in a swivel head (tool side),
+   with an optional C rotary table (workpiece side) on some setups — 6 axes when C is present.
+   Still to ask when implementing: pivot lengths/offsets, axis limits, which of A/B is primary.
+   Build as a kinematics config in `window.TNC_MACHINES['430']`, never a fork of the UI. The
+   height field only handles a vertical tool axis, so tilted-tool cutting needs a dexel/voxel
+   model — the large piece of this task.
+6. **Programming-station oracle** (P10 in TODO.md, see `tnc-programstation/instruct.md`) — needs
+   the user's Windows VM plus HEIDENHAIN's free station demo; ask before setting it up.
+7. **Deferred, per the user, not started:** future-proofing (backend + Windows/Mac desktop app).
+   `tnc-sim` (BSL 1.1) was studied as a reference/oracle only, no code copied — licensing
+   question is the user's to decide before anything from it is reused.
+
+---
+
+## 3. RULES THAT DON'T CHANGE
 
 1. **Authentic TNC behaviour is critical.** Not "close enough".
-2. **Fully interactive.** Keyboard first (arrows / ENTER forward / ESC back, rest on screen).
-3. **Ship a direct link.** The user's words: *"the only thing I accept is a direct LINK."*
-4. **Plain HTML file** — not a claude.ai Artifact. This was a loud correction early on; do not
-   regress it.
-5. Speed over ceremony ("skip verifications, prio fast push") — but see the v0.2/v0.3 lessons
-   in `history.txt`: the one smoke test that was kept caught two silent interpreter bugs.
+2. **Fully interactive**, keyboard first.
+3. **Ship a direct link.** Plain HTML file, never a claude.ai Artifact.
+4. **If a tool is missing, name it and ask before installing.**
+5. A DEV tab that lies is worse than no DEV tab.
+6. AI = OpenRouter only, never Anthropic direct.
+7. Never rebuild what exists — check `search-heidenhain/index.md` and Homebrew first.
+8. Priority work (interpreter accuracy, profiles, program I/O, AI) gets full verification
+   (tests + `.tools/qa/qa.mjs`); explicitly low-priority/visual work may skip testing only when
+   the user says so for that specific piece — don't generalize that exception.
+
+Commit trailer: `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>` (per `CONTINUE.md` and
+recent commits — note this is a step up from the `Opus 5` trailer some older docs in this repo
+still reference; use whatever this session's own system instructions specify if they differ).
 
 ---
 
-## 1. WHAT IS DONE AND ON DISK
+## 4. WHERE THINGS LIVE
 
-### Committed and live (v0.4)
-| File | Size | State |
-|---|---|---|
-| `core.js` | 36 KB | Klartext parser + interpreter. `TNC = {parse, compile, run, TOOLS}`. Committed, live. |
-| `sim.js` | 7 KB | `TNC_SIM`: `expand/grid/analyse/isCone`. Safety events. Committed, live (runs in tests only, not surfaced in live UI). |
-| `programs.js` | 8.6 KB | `TNC_PROGRAMS`: TRIFUNOVIC.H, TRIFUNOVIC_V2.H, BRACKET.H. Committed, live. |
-| `ui.js` | 31 KB | **The old UI. This is what the live site runs.** |
-| `sim-shell.html` | 38 KB | **MODIFIED since the build — rewritten, not yet built or pushed.** |
-| `index.html` | 735 KB | Built 2026-09-21 15:15 from `ui.js` + the *old* shell. This is the live artifact. |
-| `build.py`, `README.md`, `LICENSE`, `.gitignore`, `orbital.html`, `devlog.txt`, `TRIFUNOVIC_V2.H` | | Committed. |
-
-### Written, syntax-clean, **NOT committed, NOT built in, NEVER RUN IN A BROWSER**
-All ten JS modules pass `node --check`. That is the only verification most of them have had.
-
-| File | Size | Exposes | Verified? |
-|---|---|---|---|
-| `ui.new.js` | 74 KB | the whole new UI | `node --check` only. Never executed. |
-| `lessons.js` | 51 KB | `TNC_LESSONS` (6 LEARN, 8 BREAK IT, 16 manual sections, `aiSystemPrompt`) | agent's own verify script: all PASS |
-| `fx.js` | 32 KB | `TNC_FX.create(THREE, scene, opts)` | loads in bare vm; no `</script`; `fx-demo.html` exists |
-| `tools3d.js` | 22 KB | `TNC_TOOLS3D` | syntax only — **no demo, agent died mid-task** |
-| `callouts.js` | 7.5 KB | `TNC_CALLOUTS` | syntax only — **no demo** |
-| `flow.js` | 34 KB | `TNC_FLOW.{create,describe,pathSVG}` | syntax only — **no demo, agent died mid-write** |
-| `history.txt` | 10 KB | version history for the DEV tab | written, 3 factual errors already corrected |
-
-### `ui.new.js` — what it adds over `ui.js`
-Machine profiles (`MACHINES`, merges `window.TNC_MACHINES`), localStorage persistence (stores
-only diffs from built-ins), cookie prefs, undo/redo (Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y), compile
-with live safety events, height field with 45° cone stamping for chamfer/spot tools, **live
-trace comet** (`traceFor` / `traceTick` — the user's "direction little snow thing beaming"),
-crash alarm + camera shake + WebAudio beep, PGM MGT, load `.H` from disk + drag-drop, save `.H`,
-projects + JSZip download, lesson coach, help modal, AI generate with one repair pass, DEV
-modal, mobile pane bar, boot splash.
-
-It degrades gracefully when a module is missing — every optional global is guarded
-(`if(window.TNC_FLOW)`, `if(!window.JSZip)` etc.), so a partial build boots rather than
-white-screening. **Exception: the AI tab needs `ai.js` and there is no fallback.**
-
----
-
-## 2. IN FLIGHT — PICK UP HERE
-
-**The authoritative task list is [TODO.md](TODO.md).** Every item below also lives there,
-prioritised, and stays there until it ships. This section is the narrative version.
-
-Ordered by the user's own urgency.
-
-### 2.1 QC / visual quality — **user said "IMMEDIATELY", never started**
-Most recent instruction, with a screenshot attached:
-
-> "PASS THIS TO QC SUBAGENT QUALITY OPUS IMMEDIATELY - THIS IS BAD!! WE NEED 'FAKE ANTIALIASING'
-> TO MAKE NICER LOOK - WE ALSO NEED A SHINY SURFACE TEXTURE, ABLE TO CHOOSE ALUMINIUM
-> TITATINIUM, DEFAULT OPTIONS FOR TURBINES, AEROSPACE, GROUND SHIT, CAST STUFF"
-
-Three defects visible in that screenshot:
-1. Staircase jaggies on diagonal height-field walls (geometric, not just edge AA).
-2. CRT scanlines bleeding over the whole 3D view — **already fixed in the rewritten
-   `sim-shell.html`, still live on the site** (see 3.3).
-3. Plastic-looking, non-metallic surfaces.
-
-Suggested shape — **new files only**, so it can run in parallel with everything else:
-- `hfield.js` → `TNC_HF`, smoothed height-field mesh (kill the staircase at the geometry level).
-- `look.js` → env map, FXAA, material rendering.
-- `materials.js` → alloy picker (aluminium, titanium) + presets: turbines, aerospace, ground, cast.
-- May extend `fx.js` (finished, its agent completed) for material-aware chips and sparks.
-- **Must not touch:** `ui.js`, `ui.new.js`, `sim-shell.html`, `core.js`, `sim.js`, `programs.js`,
-  `build.py`, `flow.js`, `tools3d.js`, `callouts.js`.
-
-### 2.2 `ai.js` — **does not exist, and `ui.new.js` already calls it**
-Planned API (`ui.new.js:870` does `const AI = window.TNC_AI || null;`):
-```
-TNC_AI.DEFAULT_MODEL = 'deepseek/deepseek-v4.1-flash'   // verified against OpenRouter's live list
-TNC_AI.generate({key, model, prompt, system, verify, onStep, signal, maxRepairs})
-TNC_AI.testKey(key)        // GET /api/v1/key
-TNC_AI.extract(text)
-TNC_AI.FALLBACK_SYSTEM
-```
-Browser-side BYOK via OpenRouter (CORS `*`, send `HTTP-Referer` + `X-Title`). Key lives in
-`sessionStorage`, never in the cookie. One repair pass: compile the AI's program, feed errors back.
-`lessons.js` already carries a 1020-word `aiSystemPrompt` to use as the system message.
-
-### 2.3 v0.5 build + push — the big one
-`build.py` currently inlines only: three.js, OrbitControls, `core.js`, `sim.js`, `programs.js`,
-`devlog.txt`, `ui.js`, `sim-shell.html`. To ship v0.5 it must also inline:
-`lessons.js`, `fx.js`, `tools3d.js`, `callouts.js`, `flow.js`, `ai.js`, JSZip
-(a copy is at `/private/tmp/claude-501/jszip.min.js`), `history.txt` → `window.TNC_HISTORY`,
-`RELEASES.txt` → `window.TNC_RELEASES`.
-
-Then: swap `ui.new.js` → `ui.js`, build, runtime-check, commit, push, and update the v0.5 section
-of `history.txt` once it actually ships.
-
-### 2.4 PM agent's three releases — files written, unverified, undelivered
-Owned tools/callouts/flow. Died at the session limit mid-`flow.js`. Outstanding:
-verify `tools3d.js` / `callouts.js` / `flow.js`, write their demos, write `RELEASES.txt`.
-It had already received the added requirement below.
-
-### 2.5 TNC 430 5-axis — research only, no code
-Lead agent killed by the session limit. **`m430/` does not exist.** All that survives is
-~30 MB of HEIDENHAIN PDFs + extracted text at `/private/tmp/claude-501/tnc430/research/`
-(`322_938-24.pdf`, `331_644-22.pdf`, `de476.pdf`, `a.txt`, `b.txt`, `c.txt`) — **that is a
-session-scoped tmp dir and will be wiped; copy it into the project before relying on it.**
-
-Brief was: Opus lead (research → plan → decide → verify) with three workers (Builder 1,
-Builder 2, Graphical Designer). Tool visuals from real spec/dimensions. Same meta-program
-functionality as the 426: user programs, example runs, good/bad lessons, visual translation,
-loading global programs from the user's own space, save/download. Plugs in as
-`window.TNC_MACHINES['430']` so it reuses the one UI (`ui.new.js:70` already merges it).
-
-### 2.6 Live visual translation — the last critical function
-> "VISUAL TRANSLATION FOR BOTH 426 430 AS ALT VIEW ALSO HOLDS USE IF USER STANDS AT A ROW AND
-> IT IS VISUALIZAZIBLE - IT THEN PRINTS THE VISUAL WITH THE TOOL TRACE LIVE (DIRECTION LITTLE
-> SNOW THING BEAMING) FIX."
-
-i.e. put the cursor on a block → the flow/alt view renders that block's geometry with a live
-animated tool trace showing direction. `ui.new.js` has the comet (`traceFor`/`traceTick`);
-`flow.js` has `pathSVG`. They have never been wired together.
-
-### 2.7 Known interpreter gap
-Reported by the lessons agent, not yet fixed: **`Q208=0` should retract at the `Q206` feed rate,
-not at rapid.**
-
----
-
-## 3. WHERE THE DOCS DIVERGE FROM REALITY
-
-Checked `devlog.txt`, `history.txt`, `README.md` and `todo /todo.md` against the files on disk.
-
-### 3.1 The project moved
-Every earlier note says the work lives in
-`~/Documents/gigacook/gigacook-projects/sandbox/mac_tnc426-orbital`. **That path no longer
-exists.** The repo is now at `~/Developer/sandbox/mac_tnc426-orbital`. A separate `gigacook`
-tree still exists under `~/Library/CloudStorage/ProtonDrive-.../gigacook` — do not confuse them,
-and do not put `node_modules` / `.venv` into the ProtonDrive-synced copy.
-
-### 3.2 `~/.claude/CLAUDE.md` is now empty (0 bytes, 2026-09-23 09:41)
-The standing constraints used to live there; a backup sits in `~/.Trash/CLAUDE.md.bak-20260920`.
-Until it's restored, carry these here:
-- Sandbox work stays in the project folder; never scratch in the home root.
-- No `.venv` / `node_modules` inside a synced folder.
-- **If a tool is missing, name it and ask before installing.** (Violated once — see 3.8.)
-- Git commits end with `Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>`.
-
-### 3.3 The live site does not contain the scanline fix
-`index.html` was built at 15:15; `sim-shell.html` was rewritten at 15:22 and never rebuilt.
-Live `index.html:53` still has `.crt:after{position:fixed}`, which paints CRT scanlines across
-the entire viewport including the 3D view — **this is defect #2 in the user's screenshot.**
-The rewritten shell replaces it with a `.scan` background applied only to `.plist` / `.mgt`
-(`sim-shell.html:63`). A build+push fixes it immediately; it does not need the QC agent.
-
-### 3.4 `devlog.txt` "IN PROGRESS" ≠ buildable
-Everything under IN PROGRESS (PGM MGT, persistence, projects, live safety checks, LEARN/BREAK IT,
-AI generation, effects) is written but **cannot appear in a build**, because `build.py` doesn't
-inline any of those modules and `ui.js` (not `ui.new.js`) is what gets bundled. The log is honest
-about status but reads as "nearly there" when the wiring is the actual remaining work.
-AI generation is worse than in-progress: **`ai.js` has not been written at all.**
-
-### 3.5 `history.txt` is three instructions stale
-Its v0.5 section covers the UI rewrite, effects, lessons, AI and the PM agent's three releases.
-It does **not** mention: TNC 430 5-axis support, the live visual-translation requirement, or the
-QC/antialiasing/materials work. Its "BY THE NUMBERS" count of 7 sub-agents is also low — the PM
-agent and the 430 lead came after, and the QC agent was never spawned.
-
-### 3.6 `README.md` is stale
-- Build table lists only `core.js`, `ui.js`, `sim-shell.html`, `orbital.html` — omits `sim.js`
-  and `programs.js`, which have been in the build since v0.4.
-- Says "The sample program — `BRACKET.H`", but the control opens **TRIFUNOVIC.H** by default and
-  ships three programs.
-- The "Known simplifications" list is accurate and worth keeping.
-
-### 3.7 `todo /` is not a todo list
-A folder literally named `todo ` (with a trailing space) containing `.DS_Store` and `todo.md`.
-`todo.md` is a **truncated copy of `README.md`** (cut off at the build table, missing the licence
-section) — not a task list, no unique content. Nothing was lost by ignoring it; safe to delete.
-It is untracked and appears not to have been created by this project's agents.
-
-### 3.8 An unauthorised 1.1 GB install happened
-The fx sub-agent ran a Playwright browser install: `~/Library/Caches/ms-playwright` is **1.1 GB**
-(chromium 1234/1243, chromium_headless_shell 1234/1243, ffmpeg-1011). The user's rule is to name
-a missing tool and ask first. The brief given to that agent didn't forbid it, so this is the lead
-assistant's failure, not the agent's. Still on disk; removable with
-`rm -rf ~/Library/Caches/ms-playwright`. Separately: Chrome is not installed on this machine, so
-every "verification" so far is `node --check` plus booting `index.html` in node against a stubbed
-DOM / THREE Proxy — **no build has ever been opened in a real browser.**
-
-### 3.9 Untracked files git doesn't know about
-`callouts.js`, `flow.js`, `fx.js`, `fx-demo.html`, `history.txt`, `lessons.js`, `tools3d.js`,
-`ui.new.js`, `todo /` — plus `sim-shell.html` modified. Roughly 220 KB of unpushed work.
-If this machine dies, it's gone.
-
----
-
-## 4. BUGS ALREADY FOUND AND FIXED (don't re-introduce)
-
-- `CALL LBL n REP r/r` recursed forever. Fixed — but the first fix was itself wrong: the
-  discriminator `rep > 0 && target < i` misfired because the parser defaults `rep` to 1, so
-  every plain `CALL LBL n` recursed silently. Real fix gates on **`args.repProg`**.
-- `M99` on a positioning block never fired the cycle. Fixed via `hasM99()`.
-- Q-parameter lines were getting their own NC block numbers. On a real TNC, `CYCL DEF` plus its
-  Q lines are **one** block; `CYCLPARM` carries its `CYCL DEF`'s `n`, `BLANK` gets `null`.
-- `TOOL CALL S…` switched the spindle on. On a real TNC `S` only sets speed — `M3`/`M4` start it,
-  a tool change stops it. Spindle is now split into `sRpm` / `spinDir` with
-  `applyM(st, list, phase)` for `'start'` / `'end'`.
-- `BRACKET.H` milled its T5 pocket with no `M3` — exposed by the spindle fix. Fixed.
-- `sim.js` cried wolf three ways: a correct through-drill (`Q201 -22` in a 20 mm blank) read as a
-  crash; 60 duplicate chip-load warnings masked real events; drill retracts read as "rapid into
-  material" because a column cut to the bottom still counted as material. All three fixed.
-- `TRIFUNOVIC.H` needed a Ø3 tool that didn't exist (T9 ENDMILL_3, l 58.0 r 1.500 added) and its
-  "break the outer edge" pass traced the frame groove, not the plate edge. Both fixed.
-- `devlog.txt` and `history.txt` both once claimed features were LIVE that weren't. Corrected.
-  A DEV tab that lies on day one is worse than no DEV tab.
-
----
-
-## 5. FASTEST PATH TO A GOOD NEXT PUSH
-
-1. `rm -rf "todo "` — junk.
-2. Copy `/private/tmp/claude-501/tnc430/research/` into the project (or it's lost) and
-   `/private/tmp/claude-501/jszip.min.js` into `.libcache/`.
-3. **Commit the 220 KB of untracked work as-is**, before anything else touches it.
-4. Extend `build.py`, swap `ui.new.js` → `ui.js`, build, boot-check, push. This alone kills the
-   scanline defect and lights up lessons / fx / projects / undo / PGM MGT.
-5. Write `ai.js` — it is the only hard dependency `ui.new.js` has no fallback for.
-6. Spawn the QC agent (2.1) on new files only; it can run while 4 and 5 happen.
-7. `RELEASES.txt`, then the 430.
-
----
+- `build.py` — `LIBS` / `MODULES` / `TEXTS`, plus the three.js/three.quarks vendor bundle logic.
+- `vendor/three-entry.mjs` — the esbuild entry point for the three.js/three.quarks bundle.
+- `ui.js` — exposes `window.TNC_UI`, the plugin bus (`scene`/`tool`/`tick`/`crash`/`resize`,
+  `ui.render`) other modules (`fx.js`, `look.js`, `materials.js`) attach to.
+- `research/`, `search-heidenhain/`, `.tools/`, `.libcache/` — all gitignored.
+- `tnc-programstation/instruct.md` — the plan for using a real programming station as an oracle
+  (not yet acted on).
+- `CONTINUE.md` — a same-day pickup note from the previous work session, including the user's
+  answer on TNC 430 machine layout; useful cross-check if this file and it disagree on anything
+  not yet re-verified here. It gets amended in place during a session, so re-read it — don't
+  assume the version you last saw is current.
 
 © 2026 Daniel and Nebojsa Trifunovic Corp.
