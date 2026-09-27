@@ -427,26 +427,37 @@ body.focus .fxmenu,body.focus .lgd,body.focus #callouts,body.focus .sub-ttl{disp
 .tp .coach{position:static;width:auto;max-height:none;margin:0;box-shadow:none}
 .tp.lesson>.tp-row,.tp.lesson>.fxmenu{display:none!important}
 .tp.lesson .coach-bd{max-height:26vh;overflow:auto}
+.ai-spin{display:inline-block;width:10px;height:10px;border-radius:50%;border:2px solid currentColor;border-top-color:transparent;animation:ai-spin .7s linear infinite;margin-right:6px;vertical-align:-1px}
+@keyframes ai-spin{to{transform:rotate(360deg)}}
+.ailive .ailine{font-family:var(--mono);font-size:15px;color:#ffc2e6}
+.ailive .aithink{font-family:var(--mono);font-size:12px;color:var(--ink-faint);margin-top:6px;max-height:4.8em;overflow:hidden;white-space:pre-wrap}
+.ailive .ailog{font-family:var(--mono);font-size:13px;margin-top:8px;max-height:18vh;overflow:auto}.ailive .ailog .ok{color:var(--mint)}.ailive .ailog .bad{color:#ffc2bd}.ailive .ailog .dim{color:var(--ink-faint)}
+/* header: the operating modes on the left, like the control; the name small on the right */
+.bar .modes{margin-left:10px!important;margin-right:auto}
+.bar .ttlbox{display:flex;flex-direction:column;align-items:flex-end;line-height:1.1;margin-left:6px;opacity:.8}
+.bar .ttlbox .ttl{font-size:15px}.bar .ttlbox .sub-ttl{font-size:10.5px}
+/* soft keys: the hotkey, low contrast */
+.sk .kh{display:block;font-size:.74em;opacity:.5;letter-spacing:.06em;margin-top:2px;font-weight:400}
+.sk.go .kh,.sk.stop .kh{opacity:.7}
 </style>
 
 <div class="app">
  <header class="bar">
    <span class="logo">HDH</span>
-   <span class="ttl">TNC 426</span>
-   <span class="sub-ttl">CNC SIMULATOR &middot; NC SW 280 476-17</span>
+   <div class="modes" id="modes">
+     <button class="mode" data-m="edit"   aria-pressed="false"><b>1</b><span class="lg" data-i18n="mode.edit">PRG EDIT</span><span class="sm">PRG EDIT</span></button>
+     <button class="mode" data-m="test"   aria-pressed="true"><b>2</b><span class="lg" data-i18n="mode.test">TEST</span><span class="sm">TEST</span></button>
+     <button class="mode" data-m="single" aria-pressed="false"><b>3</b><span class="lg" data-i18n="mode.single">SINGLE-BLOCK</span><span class="sm">SINGLE</span></button>
+     <button class="mode" data-m="full"   aria-pressed="false"><b>4</b><span class="lg" data-i18n="mode.full">FULL-RUN</span><span class="sm">FULL</span></button>
+   </div>
    <button class="hbtn devbtn" id="b-dev" title="Feature log, version history, release plan" data-i18n="btn.dev">DEV</button>
    <button class="hbtn new" id="b-new" title="New program: manual or AI" aria-haspopup="menu">+ New ▾</button>
    <button class="hbtn lessons" id="b-lessons" title="Lessons and BREAK IT" aria-haspopup="menu">Lessons ▾</button>
    <button class="hbtn aibtn" id="b-ai" title="AI: change this program or write a new one" aria-haspopup="menu">AI ▾</button>
    <button class="hbtn" id="b-help" title="Lessons, pitfalls, manual, AI setup (H)" data-i18n="btn.help">Help</button>
    <button class="hbtn" id="b-focus" aria-pressed="false" title="Focus view (F)" data-i18n="btn.focus">Focus</button>
+   <span class="ttlbox"><span class="ttl">TNC 426</span><span class="sub-ttl">NC SW 280 476-17</span></span>
    <button class="hbtn prof" id="b-prof" title="Your profile: name, programs, tool table, export / import">Profile</button>
-   <div class="modes" id="modes">
-     <button class="mode" data-m="edit"   aria-pressed="false"><b>1</b><span class="lg" data-i18n="mode.edit">PROGRAM</span><span class="sm">PROGRAM</span></button>
-     <button class="mode" data-m="test"   aria-pressed="true"><b>2</b><span class="lg" data-i18n="mode.test">TEST</span><span class="sm">TEST</span></button>
-     <button class="mode" data-m="single" aria-pressed="false"><b>3</b><span class="lg" data-i18n="mode.single">SINGLE-BLOCK</span><span class="sm">SINGLE</span></button>
-     <button class="mode" data-m="full"   aria-pressed="false"><b>4</b><span class="lg" data-i18n="mode.full">FULL-RUN</span><span class="sm">FULL</span></button>
-   </div>
  </header>
 
  <div class="main" data-pane="gfx">

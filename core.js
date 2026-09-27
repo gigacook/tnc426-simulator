@@ -212,7 +212,7 @@ var TNC = (function () {
   }
 
   function parseLine(raw, idx) {
-    var block = { n: idx, raw: String(raw).trim(), kind: 'UNKNOWN', args: {}, indent: false, error: null };
+    var block = { n: idx, raw: String(raw).trim().replace(/^\d+\s+(?=[A-Z;*])/i, ''), kind: 'UNKNOWN', args: {}, indent: false, error: null };   // a listing's own numbers are not kept
 
     var line = String(raw).replace(/\t/g, ' ').trim();
     line = line.replace(/^\d+\s+/, '');          // the simulator renumbers
@@ -220,7 +220,7 @@ var TNC = (function () {
     var comment = null, ci = line.indexOf(';');
     if (ci >= 0) { comment = line.slice(ci + 1).trim(); line = line.slice(0, ci).trim(); }
 
-    var U = line.replace(/[\u2013\u2212]/g, '-').toUpperCase().replace(/\s+/g, ' ').trim();
+    var U = line.replace(/[\u2013\u2212]/g, '-').replace(/(\d),(\d)/g, '$1.$2').toUpperCase().replace(/\s+/g, ' ').trim();   // decimal comma
     U = U.replace(/\s*~$/, '')                                   // iTNC-style line continuation mark
          .replace(/\bF (MAX|AUTO)\b/g, 'F$1')                    // "F MAX" as printed in the manual
          .replace(/\b(LEN|CCA|IPR|IPA|PR|PA) (?=[+-]?(\d|\.|Q))/g, '$1');   // "CCA 180", "LEN 15"
@@ -492,7 +492,7 @@ var TNC = (function () {
       /* HEIDENHAIN numbering: a CYCL DEF and its Q-parameter lines are ONE NC
          block, so parameter lines carry their CYCL DEF's number and do not
          advance the count. Blank lines are not NC blocks and carry none. */
-      if (b.kind === 'CYCLPARM') b.n = owner;
+      if (b.kind === 'CYCLPARM' && !b.args.dot) b.n = owner;          // Q lines belong to their CYCL DEF; dotted lines are numbered
       else if (b.kind === 'BLANK') b.n = null;
       else { b.n = nc++; owner = b.n; }
       blocks.push(b);
@@ -689,10 +689,11 @@ var TNC = (function () {
       tool: st.tool.t,
       toolR: st.tool.r,
       toolDR: st.tool.dr || 0,
-      toolL: (st.tool.l > 0 ? st.tool.l : (st.holder && st.holder.len) || 0),
+      toolL: st.tool.l > 0 ? st.tool.l : 0,
       stick: stickOf(st),
       toolName: st.tool.name,
       spindle: st.spindle,
+      sRpm: st.sRpm,
       coolant: st.coolant,
       block: bi,
       cycle: cycleName || null,
@@ -716,10 +717,12 @@ var TNC = (function () {
     if (st.moves.length >= MAX_MOVES) { st.abort = true; fail(st, bi, 'EXCESSIVE SUBPROGRAM NESTING'); }
   }
 
+  /* stick-out below the holder nose. Only for a tool whose length L is known: with L = 0 the length was
+     measured on the machine and the simulator cannot know it, so no holder check. */
   function stickOf(st) {
-    var L = st.tool.l > 0 ? st.tool.l : (st.holder && st.holder.len) || 0;
+    var L = st.tool.l;
     if (!(L > 0) || !st.holder || !st.holder.stack || !st.tool.t) return null;
-    return Math.max(L - st.holder.stack(st.tool.r), 0.35 * L);
+    return Math.max(L - st.holder.stack(st.tool.r), 0.25 * L);
   }
   function mark(st, m) { m.kind = 'mark'; st.moves.push(m); }   // m.len is the APPR/DEP LEN, not a path length
 
@@ -1025,6 +1028,7 @@ var TNC = (function () {
     if (!keep && kind === 206) { fail(st, bi, 'SPINDLE ?'); }
     var dir = keep || 1;
     emit(st, 'rapid', { x: x, y: y, z: surf + clr }, RAPID_RATE, bi, lab);
+    spin(st, dir);                                                // the cycle runs the spindle for the tap
     if (kind === 209) {                                         // infeed Q257, reverse, retract Q256 (0: to set-up clearance)
       var inf = Math.abs(qp(cy, 257, dep)) || dep, back = Math.abs(qp(cy, 256, 0)), d = 0, g = 0;
       while (d < dep - 1e-6 && g++ < 1000) {
@@ -1091,6 +1095,7 @@ var TNC = (function () {
     }
     var f = n === 2 ? (sub(cy, 4, 0, st.feed) || st.feed) : Math.abs(sub(cy, 3, 0, 0)) * st.sRpm;
     if (!(f > 0)) { fail(st, bi, 'CYCL DEF INCOMPLETE'); return; }
+    if (n === 17) spin(st, keep);                                 // rigid: spindle under cycle control, no M3 needed
     emit(st, 'feed', { x: x, y: y, z: surf + dep }, f, bi, lab); spin(st, -keep);
     emit(st, 'feed', { x: x, y: y, z: z0 }, f, bi, lab); spin(st, n === 17 ? 0 : keep);
   }

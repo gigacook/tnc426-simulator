@@ -127,13 +127,14 @@ var TNC_TOOLS3D = (function () {
   // grips the tool shank -- that is where the cutter's shank should stop.
   /* steep-taper holder sizes: ISO 50 / SK50 (the operator's machine) and SK40 */
   var HOLDERS = {
-    ISO50: { label: 'ISO 50 (SK50) · ER COLLET CHUCK', flangeR: 50, taperR0: 34.9, taperR1: 22, taperLen: 70, bodyMin: 26, bodyLen: 44, flangeLen: 11, noseMin: 30 },
-    SK40:  { label: 'SK40 DIN 69871 · ER COLLET CHUCK', flangeR: 31.75, taperR0: 27.3, taperR1: 12.3, taperLen: 48, bodyMin: 17, bodyLen: 34, flangeLen: 8, noseMin: 24 }
+    ISO50: { label: 'ISO 50 (SK50) DIN 69871 · ER32 · A 100', A: 100, flangeR: 50, taperR0: 34.9, taperR1: 22, taperLen: 70, bodyMin: 26, bodyLen: 49, flangeLen: 11, noseMin: 40 },
+    SK40:  { label: 'SK40 DIN 69871 · ER32 · A 70', A: 70, flangeR: 31.75, taperR0: 27.3, taperR1: 12.3, taperLen: 48, bodyMin: 17, bodyLen: 32, flangeLen: 8, noseMin: 30 }
   };
   var style = 'ISO50';
   function setHolder(s) { if (HOLDERS[s]) style = s; }
   /* holder height below the gauge line (spindle face): nut + body + flange */
-  function holderStack(r) { var H = HOLDERS[style]; return Math.max((r || 3) * 3.2, H.noseMin) + H.bodyLen + H.flangeLen; }
+  /* gauge line (spindle face) to collet nose: the standard A dimension */
+  function holderStack(r) { return HOLDERS[style].A; }
 
   function holderSK40Collet(THREE_, opts) {
     var r = opts.r, gaugeZ = opts.gaugeZ, holdMat = mat(COL.holder, 0.5, 0.75), H = HOLDERS[style];

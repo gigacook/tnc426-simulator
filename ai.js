@@ -5,7 +5,9 @@
    operator ticks Remember), or comes from .env in the gitignored local build.
 
    TNC_AI.DEFAULT_MODEL
-   TNC_AI.generate({key, model, prompt, system, tools, verify, onStep, signal, maxRepairs}) -> {src, report, cost}
+   TNC_AI.generate({key, model, prompt, system, tools, verify, onStep, signal, maxRepairs, timeoutMs}) -> {src, report, cost}
+     onStep phases: 'request' {attempt}, 'progress' {attempt, secs, chars, reasoningChars, stage:'thinking'|'writing'}
+     (fired about once a second while the model streams), 'checked' {attempt, report, src}.
    TNC_AI.testKey(key) -> {label, usage, limit, ...}
    TNC_AI.extract(text) -> program text or null
    TNC_AI.system(tools) -> the system prompt for a tool table
@@ -26,7 +28,28 @@ var TNC_AI = (function () {
     var msg = (body && body.error && (body.error.message || body.error)) || res.statusText || 'request failed';
     var e = new Error(typeof msg === 'string' ? msg : JSON.stringify(msg)); e.status = res.status; return e;
   }
+  function dataError(obj) {
+    var msg = (obj && obj.error && (obj.error.message || obj.error)) || 'stream error';
+    var e = new Error(typeof msg === 'string' ? msg : JSON.stringify(msg)); e.status = (obj && obj.error && obj.error.code) || 502; return e;
+  }
   function readJson(res) { return res.text().then(function (t) { try { return JSON.parse(t); } catch (e) { return { raw: t }; } }); }
+
+  /* SSE line/byte parsing, kept pure (no fetch, no timers) so it can be unit-tested without a network call. */
+  function sseLine(line, onEvent) {
+    line = line.replace(/\r$/, '');
+    if (line.slice(0, 5) !== 'data:') return;
+    var data = line.slice(5).trim();
+    if (!data || data === '[DONE]') return;
+    var obj; try { obj = JSON.parse(data); } catch (e) { return; }
+    onEvent(obj);
+  }
+  function sseFeed(buf, chunk, onEvent) {
+    buf += chunk;
+    var lines = buf.split('\n');
+    buf = lines.pop();
+    for (var i = 0; i < lines.length; i++) sseLine(lines[i], onEvent);
+    return buf;
+  }
 
   function testKey(key) {
     return fetch(API + '/key', { headers: headers(key) }).then(function (res) {
@@ -34,17 +57,72 @@ var TNC_AI = (function () {
     });
   }
 
+  /* Streams the answer over SSE so the caller can show live progress (reasoning models can think for
+     minutes before writing anything). Ties together the caller's AbortSignal and an overall timeout. */
+  /* the request as sent (minus the key): shown to the user on demand.
+     reasoning: 'off' | 'low' | 'medium' | 'high' (OpenRouter unified reasoning); maxTokens caps the answer (budget guard) */
+  function requestBody(o) {
+    var b = { model: o.model, messages: o.messages, temperature: 0.2, usage: { include: true }, stream: true };
+    if (o.reasoning === 'off') b.reasoning = { enabled: false };
+    else if (o.reasoning) b.reasoning = { effort: o.reasoning };
+    if (o.maxTokens) b.max_tokens = o.maxTokens;
+    return b;
+  }
   function chat(o) {
+    var onProgress = o.onProgress || function () {};
+    var timeoutMs = o.timeoutMs || 600000; // 10 min: reasoning models can run long before the first content token
+    var text = '', reasoning = '', usage = null, streamErr = null, timedOut = false;
+    var start = Date.now();
+    var ac = new AbortController();
+    var to = setTimeout(function () { timedOut = true; ac.abort(); }, timeoutMs);
+    if (o.signal) { if (o.signal.aborted) ac.abort(); else o.signal.addEventListener('abort', function () { ac.abort(); }); }
+    var tick = setInterval(function () {
+      onProgress({ secs: (Date.now() - start) / 1000, chars: text.length, reasoningChars: reasoning.length,
+        stage: text.length ? 'writing' : 'thinking', text: text, reasoningTail: reasoning.slice(-400) });
+    }, 500);
+    function cleanup() { clearTimeout(to); clearInterval(tick); }
+    function onEvent(obj) {
+      if (obj.error) { streamErr = streamErr || dataError(obj); return; }
+      var d = obj.choices && obj.choices[0] && obj.choices[0].delta;
+      if (d) {
+        if (d.content) text += d.content;
+        if (d.reasoning) reasoning += d.reasoning; // OpenRouter puts reasoning-model "thinking" tokens here
+      }
+      if (obj.usage) usage = obj.usage;
+    }
+
     return fetch(API + '/chat/completions', {
-      method: 'POST', headers: headers(o.key), signal: o.signal,
-      body: JSON.stringify({ model: o.model, messages: o.messages, temperature: 0.2, usage: { include: true } })
+      method: 'POST', headers: headers(o.key), signal: ac.signal,
+      body: JSON.stringify(requestBody(o))
     }).then(function (res) {
-      return readJson(res).then(function (b) {
-        if (!res.ok || b.error) throw httpError(res, b);
-        var c = b.choices && b.choices[0], text = c && c.message && c.message.content;
-        if (!text) { var e = new Error('EMPTY ANSWER FROM THE MODEL'); e.status = 502; throw e; }
-        return { text: text, cost: (b.usage && +b.usage.cost) || 0 };
-      });
+      if (!res.ok) return readJson(res).then(function (b) { throw httpError(res, b); });
+      if (!res.body || !res.body.getReader) { // no streaming reader available: fall back to one shot
+        return res.text().then(function (t) { var buf = ''; var lines = t.split('\n'); for (var i = 0; i < lines.length; i++) sseLine(lines[i], onEvent); });
+      }
+      var reader = res.body.getReader(), decoder = new TextDecoder(), buf = '';
+      function pump() {
+        return reader.read().then(function (r) {
+          if (streamErr) throw streamErr;
+          if (r.done) { if (buf) sseLine(buf, onEvent); return; }
+          buf = sseFeed(buf, decoder.decode(r.value, { stream: true }), onEvent);
+          if (streamErr) throw streamErr;
+          return pump();
+        });
+      }
+      return pump();
+    }).then(function () {
+      cleanup();
+      if (streamErr) throw streamErr;
+      if (!text && reasoning) { var e = new Error('THE MODEL ANSWERED WITH REASONING ONLY, NO FINAL TEXT (' + reasoning.length + ' chars) — try a lower reasoning effort or a non-reasoning model'); e.status = 502; throw e; }
+      if (!text) { var e2 = new Error('EMPTY ANSWER FROM THE MODEL'); e2.status = 502; throw e2; }
+      return { text: text, cost: (usage && +usage.cost) || 0 };
+    }).catch(function (e) {
+      cleanup();
+      if (e && e.name === 'AbortError') {
+        if (timedOut) { var te = new Error('TIMED OUT WAITING FOR THE MODEL (' + Math.round((Date.now() - start) / 1000) + 's)'); te.status = 0; throw te; }
+        throw e; // caller cancelled: keep e.name === 'AbortError' so the UI shows CANCELLED
+      }
+      throw e;
     });
   }
 
@@ -159,8 +237,11 @@ toolLine(tools),
                     { role: 'user', content: 'Write the program for this part:\n\n' + o.prompt }];
     var cost = 0, attempt = 0, last = null;
     function step() {
-      onStep({ phase: 'request', attempt: attempt });
-      return chat({ key: o.key, model: model, messages: messages, signal: o.signal }).then(function (r) {
+      var req = { key: o.key, model: model, messages: messages, signal: o.signal, timeoutMs: o.timeoutMs, reasoning: o.reasoning, maxTokens: o.maxTokens };
+      onStep({ phase: 'request', attempt: attempt, body: JSON.parse(JSON.stringify(requestBody(req))) });
+      return chat(Object.assign(req, {
+        onProgress: function (p) { onStep({ phase: 'progress', attempt: attempt, secs: p.secs, chars: p.chars, reasoningChars: p.reasoningChars, stage: p.stage, text: p.text, reasoningTail: p.reasoningTail }); }
+      })).then(function (r) {
         cost += r.cost;
         var src = extract(r.text);
         if (!src) {
@@ -184,6 +265,7 @@ toolLine(tools),
   }
 
   return { DEFAULT_MODEL: DEFAULT_MODEL, MODELS: MODELS, FALLBACK_SYSTEM: FALLBACK_SYSTEM,
-    generate: generate, testKey: testKey, extract: extract, system: system };
+    generate: generate, testKey: testKey, extract: extract, system: system,
+    _sseLine: sseLine, _sseFeed: sseFeed /* internal: exposed only so tests can drive the SSE parser without a network call */ };
 })();
 if (typeof module !== 'undefined') module.exports = TNC_AI;

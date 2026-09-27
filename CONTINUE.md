@@ -48,6 +48,32 @@ The Serbian questions for the machinist (pivot lengths, axis limits, which head 
   - Radius compensation inside a tilted plane is approximate.
 - **Programs panel:** a program appears in "<name>'s programs" when it's created, changed, uploaded or saved.
 
+## Latest round (2026-09-27, late)
+- **AI generation is live.**
+  - Streaming (`ai.js`): progress every 0.5 s.
+  - Live view: the program appears block by block, the path grows in 3D, the run pane shows the log.
+  - Request viewer shows every round. The repair round is visible.
+  - Model picker: DeepSeek V4.1 Flash / Qwen 3.8 Flash / Opus 5.5 via OpenRouter, or any id from the live list.
+  - Thinking effort (default low) and max tokens (12000) guard the key budget.
+  - Results auto-save to TNC-SIMULATOR/AI-GEN.
+- **Downloads** go to TNC-SIMULATOR/{AI-GEN,USER-GEN,SETTINGS,TOOL-TABLES}.
+  - Chrome/Edge: Downloads folder picked once (profile dialog).
+  - Firefox: name prefix TNC-SIMULATOR_<KIND>_.
+- **Operator's GAGNING.H fixes:**
+  - decimal comma (STIGN. +1,75)
+  - dotted cycle lines numbered as own blocks
+  - rigid tapping 17/207/209 runs the spindle itself (no false SPINDLE STOPPED)
+  - the DRO shows programmed S with M5
+  - a listing's own block numbers are stripped
+  - the block preview shows only the next occurrence, twice, then stops
+- **Holder:** ISO 50 (DIN 69871 ER32) standard A = 100 mm, SK40 A = 70.
+  - L = 0 → drawn at A + typical stick-out, holder check skipped (length unknown).
+  - Uploaded unknown tools get L = 0.
+- **Header:** modes 1 PRG EDIT / 2 TEST / 3 SINGLE-BLOCK / 4 FULL-RUN on the left.
+  - Soft keys show their hotkeys.
+  - PRG EDIT: Y CYCL DEF, W TOOL CALL, A APPR/DEP, Q.
+- **Not re-run:** the full QA suite (.tools/qa/qa.mjs) was NOT re-run after this round (user asked to skip). Run it first next time; adapt tests to the new UI where needed.
+
 ## Next, in order
 1. **`SPINDLE ?` false alarms** (~399 in the corpus). `cycleTap` in `core.js` fails when `st.spinDir` is 0 at the cycle call. Check how those programs start the spindle (M3 on the M99 block starts at block START, but `runCycle` may run before `applyM`?). Fix, then re-run the corpus.
 2. **Stale QA check** in `.tools/qa/qa.mjs` feature 5: it expects `TOOL 27 NOT DEFINED` after upload, but uploads now auto-add tools. Update the expectation.
