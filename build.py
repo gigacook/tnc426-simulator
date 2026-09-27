@@ -44,6 +44,8 @@ MODULES = [
     ('look.js',      'Look: environment, antialiasing'),
     ('profile.js',   'User profile storage'),
     ('ai.js',        'AI program generation (OpenRouter)'),
+    ('dialogs.js',   'Programming dialogs: path functions, CYCL DEF, TOOL CALL'),
+    ('i18n.js',      'i18n: language strings (en/sv)'),
     ('ui.js',        'Simulator UI'),
 ]
 

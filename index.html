@@ -10,7 +10,7 @@
 <style>
 :root{
   --void:#02050a; --void-2:#070b12; --panel:#161d29; --panel-2:#1e2733;
-  --line:#3a4655; --line-2:#546274; --ink:#f2f6fb; --ink-dim:#b3bfd0; --ink-faint:#8b99ad;
+  --line:#4d5b6e; --line-2:#6a7a90; --ink:#f2f6fb; --ink-dim:#cdd8e6; --ink-faint:#a7b4c6;
   --crt:#04121f; --crt-2:#0c2740; --crt-line:#16405f;
   --cyan:#6fdcff; --mint:#63e6b0; --amber:#ffb03a; --red:#ff5347; --violet:#a596ff; --orange:#ff8a1f;
   --axX:#ff6b5e; --axY:#7ddc7d; --axZ:#6fa8ff;
@@ -19,7 +19,7 @@
   --disp:"Saira Condensed","Arial Narrow",sans-serif;
 }
 html,body{height:100%}
-body{margin:0;background:var(--void);color:var(--ink);font-family:var(--sans);font-size:14px;
+body{margin:0;background:var(--void);color:var(--ink);font-family:var(--sans);font-size:16px;
   -webkit-font-smoothing:antialiased;overflow:hidden}
 *{box-sizing:border-box}
 button,input,select,textarea{font:inherit;color:inherit}
@@ -33,31 +33,31 @@ button{cursor:pointer}
   padding:calc(8px + env(safe-area-inset-top,0px)) 14px 8px;background:var(--panel);border-bottom:1px solid var(--line)}
 .logo{font-family:var(--disp);font-weight:700;font-size:13px;letter-spacing:.22em;color:#06111c;
   background:var(--cyan);padding:3px 7px 2px;border-radius:2px}
-.ttl{font-family:var(--disp);font-weight:700;font-size:21px;letter-spacing:.05em}
-.sub-ttl{font-family:var(--mono);font-size:12px;color:var(--ink-faint)}
-.hbtn{font-family:var(--disp);font-weight:700;font-size:13px;letter-spacing:.18em;text-transform:uppercase;
-  background:var(--panel-2);color:var(--ink-dim);border:1px solid var(--line);padding:6px 11px 5px;border-radius:2px}
+.ttl{font-family:var(--disp);font-weight:700;font-size:24px;letter-spacing:.05em}
+.sub-ttl{font-family:var(--mono);font-size:14px;color:var(--ink-faint)}
+.hbtn{font-family:var(--disp);font-weight:700;font-size:15px;letter-spacing:.18em;text-transform:uppercase;
+  background:var(--panel-2);color:var(--ink-dim);border:1px solid var(--line);padding:9px 14px 8px;border-radius:2px;min-height:38px}
 .hbtn:hover{border-color:var(--cyan);color:var(--cyan)}
 .hbtn.new{background:var(--mint);border-color:var(--mint);color:#04210f}
 .hbtn.prof{max-width:18ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:.08em;border-color:var(--cyan);color:var(--cyan)}
 .hbtn.prof.warn{border-color:var(--amber);color:var(--amber)}
-.sech{font-family:var(--disp);font-weight:700;letter-spacing:.14em;font-size:13px;margin:22px 0 8px;color:var(--ink)}
+.sech{font-family:var(--disp);font-weight:700;letter-spacing:.14em;font-size:15px;margin:22px 0 8px;color:var(--ink)}
 .sech small{color:var(--ink-faint);font-weight:400;letter-spacing:.04em}
-.ttab{border-collapse:collapse;font-family:var(--mono);font-size:12.5px}
-.ttab th{text-align:left;color:var(--ink-faint);font-weight:400;padding:4px 8px;border-bottom:1px solid var(--line)}
-.ttab td{padding:2px 6px;border-bottom:1px solid var(--line)}
+.ttab{border-collapse:collapse;font-family:var(--mono);font-size:14.5px}
+.ttab th{text-align:left;color:var(--ink-faint);font-weight:400;padding:5px 9px;border-bottom:1px solid var(--line)}
+.ttab td{padding:3px 7px;border-bottom:1px solid var(--line)}
 .ttab tr.mine td:first-child{color:var(--cyan)}
-.ttab input{background:var(--void);border:1px solid var(--line);color:var(--ink);font:inherit;padding:3px 6px;width:11ch;border-radius:2px}
+.ttab input{background:var(--void);border:1px solid var(--line);color:var(--ink);font:inherit;padding:4px 6px;width:11ch;border-radius:2px}
 .ttab td:nth-child(2) input{width:18ch}
-.ttab button{background:none;border:1px solid var(--line);color:var(--ink-dim);cursor:pointer;border-radius:2px;padding:1px 7px}
+.ttab button{background:none;border:1px solid var(--line);color:var(--ink-dim);cursor:pointer;border-radius:2px;padding:2px 8px}
 .hbtn.new:hover{background:#7ff0c2;color:#04210f}
 .devbtn{background:var(--orange);border-color:#ffb066;color:#1f0f00;
   box-shadow:0 0 14px rgba(255,138,31,.55);animation:devglow 1.8s ease-in-out infinite}
 .devbtn:hover{background:#ffa04a;color:#1f0f00;border-color:#ffb066}
 @keyframes devglow{50%{box-shadow:0 0 4px 2px rgba(255,138,31,.35),0 0 28px rgba(255,138,31,.95)}}
 .modes{display:flex;gap:2px;margin-left:auto;flex-wrap:wrap}
-.mode{font-family:var(--mono);font-size:12px;letter-spacing:.04em;padding:6px 10px;
-  background:var(--panel-2);color:var(--ink-dim);border:1px solid var(--line);border-radius:2px}
+.mode{font-family:var(--mono);font-size:14px;letter-spacing:.04em;padding:9px 13px;
+  background:var(--panel-2);color:var(--ink-dim);border:1px solid var(--line);border-radius:2px;min-height:38px}
 .mode b{color:var(--ink-faint);font-weight:400;margin-right:5px}
 .mode .sm{display:none}
 .mode[aria-pressed="true"]{background:var(--cyan);color:#06111c;border-color:var(--cyan)}
@@ -66,22 +66,22 @@ button{cursor:pointer}
 .main{flex:1;display:grid;grid-template-columns:minmax(400px,1fr) minmax(400px,1.15fr) 300px;
   gap:1px;background:var(--line);min-height:0}
 .col{background:var(--void-2);display:flex;flex-direction:column;min-height:0;min-width:0}
-.ch{display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--panel);border-bottom:1px solid var(--line);
-  flex:none;flex-wrap:wrap;font-family:var(--disp);font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint)}
+.ch{display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--panel);border-bottom:1px solid var(--line);
+  flex:none;flex-wrap:wrap;font-family:var(--disp);font-size:15px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint)}
 .ch .grow{flex:1}
-.ch .rt{font-family:var(--mono);font-size:12px;letter-spacing:0;text-transform:none;color:var(--amber)}
-.chb{font-family:var(--mono);font-size:11px;letter-spacing:.04em;text-transform:uppercase;background:var(--panel-2);
-  color:var(--ink-dim);border:1px solid var(--line);padding:4px 8px;border-radius:2px}
+.ch .rt{font-family:var(--mono);font-size:14px;letter-spacing:0;text-transform:none;color:var(--amber)}
+.chb{font-family:var(--mono);font-size:13px;letter-spacing:.04em;text-transform:uppercase;background:var(--panel-2);
+  color:var(--ink-dim);border:1px solid var(--line);padding:6px 10px;border-radius:2px;min-height:32px}
 .chb:hover{border-color:var(--cyan);color:var(--cyan)}
 .chb[aria-pressed="true"]{background:var(--cyan);border-color:var(--cyan);color:#06111c}
 
 /* ================= program (CRT) ================= */
 .crt{flex:1;background:var(--crt);overflow:auto;position:relative;min-height:0}
 .scan{background-image:repeating-linear-gradient(to bottom,rgba(255,255,255,.022) 0 1px,transparent 1px 3px);min-height:100%}
-.plist{font-family:var(--mono);font-size:14px;line-height:1.5;padding:4px 0}
+.plist{font-family:var(--mono);font-size:16.5px;line-height:1.5;padding:4px 0}
 .blk{display:grid;grid-template-columns:44px 1fr;gap:8px;padding:1px 10px;white-space:pre;cursor:pointer}
 .blk:hover{background:rgba(111,220,255,.06)}
-.blk .bn{color:#7699b3;text-align:right}
+.blk .bn{color:#8fb0c7;text-align:right}
 .blk.cur{background:#1c5f92}
 .blk.cur .bn{color:#dff3ff}
 .blk.exec{background:rgba(99,230,176,.14)}
@@ -90,32 +90,32 @@ button{cursor:pointer}
 .blk.err{background:rgba(255,83,71,.18)} .blk.err .bt{color:#ffc2bd}
 .blk.warn{box-shadow:inset 3px 0 0 var(--amber)}
 .bt{color:#e8f3fd}
-.t-key{color:#fff} .t-num{color:#abdfff} .t-q{color:var(--amber)} .t-cm{color:#7fabc6;font-style:italic}
+.t-key{color:#fff} .t-num{color:#abdfff} .t-q{color:var(--amber)} .t-cm{color:#96b8cf;font-style:italic}
 .t-m{color:var(--violet)} .t-f{color:var(--mint)}
 
-.mgt{font-family:var(--mono);font-size:14px;line-height:1.6;padding:8px 0}
+.mgt{font-family:var(--mono);font-size:16px;line-height:1.6;padding:8px 0}
 .mhd,.mrow{display:grid;grid-template-columns:minmax(0,1fr) 72px 60px minmax(0,.8fr);gap:10px;padding:3px 12px;white-space:pre}
-.mhd{color:var(--ink-faint);border-bottom:1px solid var(--crt-line);margin-bottom:4px;font-size:12px;letter-spacing:.06em}
+.mhd{color:var(--ink-faint);border-bottom:1px solid var(--crt-line);margin-bottom:4px;font-size:14px;letter-spacing:.06em}
 .mrow{color:#e8f3fd;cursor:pointer}
 .mrow:hover{background:rgba(111,220,255,.06)}
 .mrow.sel{background:#1c5f92}
-.mrow .by{text-align:right;color:#abdfff}.mrow .st{color:var(--amber)}.mrow .pj{color:#7fabc6;overflow:hidden;text-overflow:ellipsis}
-.mft{padding:10px 12px;color:#7fabc6;font-size:12px;line-height:1.7}
+.mrow .by{text-align:right;color:#abdfff}.mrow .st{color:var(--amber)}.mrow .pj{color:#96b8cf;overflow:hidden;text-overflow:ellipsis}
+.mft{padding:10px 12px;color:#96b8cf;font-size:14px;line-height:1.7}
 .flowhost{min-height:100%}
 
-.dlg{flex:none;background:var(--crt-2);border-top:1px solid var(--crt-line);padding:6px 10px;
-  font-family:var(--mono);font-size:14px;display:flex;align-items:center;gap:8px}
+.dlg{flex:none;background:var(--crt-2);border-top:1px solid var(--crt-line);padding:7px 10px;
+  font-family:var(--mono);font-size:16px;display:flex;align-items:center;gap:8px}
 .dlg .pr{color:var(--amber);flex:none}
-.dlg input{flex:1;background:#041320;border:1px solid #1d557d;color:#eaf6ff;padding:4px 7px;border-radius:2px;min-width:0}
+.dlg input{flex:1;background:#041320;border:1px solid #2a6d9c;color:#eaf6ff;padding:5px 7px;border-radius:2px;min-width:0}
 .dlg input:disabled{opacity:.45}
-.dlg .hint{color:#6f93ad;font-size:12px;flex:none}
+.dlg .hint{color:#8fb0c7;font-size:13px;flex:none}
 textarea#raw{flex:1;width:100%;min-height:200px;background:var(--crt);color:#e8f3fd;border:0;
-  font-family:var(--mono);font-size:14px;line-height:1.5;padding:8px 10px;resize:none}
+  font-family:var(--mono);font-size:16px;line-height:1.5;padding:8px 10px;resize:none}
 textarea#raw:focus{outline:none}
-.sks{flex:none;display:grid;grid-template-columns:repeat(8,1fr);gap:3px;padding:6px;background:var(--panel)}
-.sk{font-family:var(--mono);font-size:10.5px;line-height:1.2;text-align:center;
-  background:linear-gradient(#57616f,#434c59);color:#f3f7fb;border:1px solid #232a33;
-  border-bottom:2px solid #1b2129;border-radius:2px;padding:7px 3px;min-height:42px}
+.sks{flex:none;display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:3px;padding:6px;background:var(--panel)}
+.sk{font-family:var(--mono);font-size:12.5px;line-height:1.2;text-align:center;
+  background:linear-gradient(#5c6673,#464f5c);color:#f8fafd;border:1px solid #2b323c;
+  border-bottom:2px solid #1b2129;border-radius:2px;padding:9px 3px;min-height:50px}
 .sk:hover{background:linear-gradient(#66717f,#4e5866)}
 .sk:active{transform:translateY(1px);border-bottom-width:1px}
 .sk:empty{visibility:hidden}
@@ -123,15 +123,15 @@ textarea#raw:focus{outline:none}
 /* ================= graphics ================= */
 .gfx{flex:1;position:relative;min-height:0;background:#04070d;overflow:hidden}
 #gl{display:block;width:100%;height:100%;touch-action:none}
-.ovl{position:absolute;font-family:var(--mono);font-size:12px;pointer-events:none;line-height:1.7;color:var(--ink-faint)}
+.ovl{position:absolute;font-family:var(--mono);font-size:14px;pointer-events:none;line-height:1.7;color:var(--ink-faint)}
 .ovl-tl{top:8px;left:10px}.ovl-tr{top:8px;right:10px;text-align:right}
 .ovl b{font-weight:500}
-.lgd{position:absolute;bottom:8px;left:10px;display:flex;gap:12px;flex-wrap:wrap;font-family:var(--mono);font-size:11px;color:var(--ink-faint);pointer-events:none}
+.lgd{position:absolute;bottom:8px;left:10px;display:flex;gap:12px;flex-wrap:wrap;font-family:var(--mono);font-size:13px;color:var(--ink-faint);pointer-events:none}
 .lgd i{display:inline-block;width:14px;height:2px;vertical-align:middle;margin-right:4px}
 .callouts{position:absolute;inset:0;pointer-events:none;overflow:hidden}
 
 .alarm{position:absolute;left:50%;top:14px;transform:translateX(-50%);z-index:5;max-width:calc(100% - 24px);
-  display:flex;gap:10px;align-items:flex-start;padding:9px 14px;border-radius:3px;font-family:var(--mono);font-size:13px;
+  display:flex;gap:10px;align-items:flex-start;padding:10px 15px;border-radius:3px;font-family:var(--mono);font-size:15px;
   line-height:1.45;box-shadow:0 18px 40px -12px #000}
 .alarm.crash{background:#3a0b09;border:1px solid var(--red);color:#ffd6d2}
 .alarm.warn{background:#3a2604;border:1px solid var(--amber);color:#ffe2b0}
@@ -147,16 +147,16 @@ textarea#raw:focus{outline:none}
   box-shadow:0 22px 50px -18px #000;backdrop-filter:blur(6px)}
 .coach-hd{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--line)}
 .coach-hd .k{font-family:var(--disp);font-weight:700;font-size:12px;letter-spacing:.2em;color:var(--orange)}
-.coach-hd .t{font-family:var(--disp);font-weight:600;font-size:16px;letter-spacing:.04em;color:var(--ink);flex:1}
-.coach-hd button{background:none;border:0;color:var(--ink-faint);font-size:18px;line-height:1;padding:0 4px}
-.coach-bd{padding:10px 12px;overflow:auto;font-size:14px;line-height:1.55;color:var(--ink)}
+.coach-hd .t{font-family:var(--disp);font-weight:600;font-size:18px;letter-spacing:.04em;color:var(--ink);flex:1}
+.coach-hd button{background:none;border:0;color:var(--ink-faint);font-size:20px;line-height:1;padding:0 4px}
+.coach-bd{padding:10px 12px;overflow:auto;font-size:16px;line-height:1.55;color:var(--ink)}
 .coach-bd p{margin:0 0 .6em}.coach-bd ul{margin:0 0 .6em;padding-left:1.2em}
 .coach-bd code{font-family:var(--mono);font-size:.92em;background:var(--crt);color:#abdfff;padding:0 4px;border-radius:2px}
 .coach-bd strong{color:#fff}
 .coach-ft{display:flex;align-items:center;gap:6px;padding:8px 10px;border-top:1px solid var(--line)}
-.coach-ft .pg{font-family:var(--mono);font-size:12px;color:var(--ink-faint);flex:1}
-.cbtn{font-family:var(--disp);font-weight:600;font-size:13px;letter-spacing:.12em;text-transform:uppercase;
-  background:var(--panel-2);color:var(--ink-dim);border:1px solid var(--line);padding:6px 12px;border-radius:2px}
+.coach-ft .pg{font-family:var(--mono);font-size:14px;color:var(--ink-faint);flex:1}
+.cbtn{font-family:var(--disp);font-weight:600;font-size:15px;letter-spacing:.12em;text-transform:uppercase;
+  background:var(--panel-2);color:var(--ink-dim);border:1px solid var(--line);padding:8px 14px;border-radius:2px;min-height:36px}
 .cbtn:hover{border-color:var(--orange);color:#ffb066}
 .cbtn.pri{background:var(--orange);border-color:var(--orange);color:#1f0f00}
 .cbtn.pri:hover{background:#ffa04a;color:#1f0f00}
@@ -164,152 +164,181 @@ textarea#raw:focus{outline:none}
 
 .tp{flex:none;background:var(--panel);border-top:1px solid var(--line);padding:8px 10px;display:flex;flex-direction:column;gap:7px}
 .tp-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-.tb{font-family:var(--disp);font-weight:600;font-size:13px;letter-spacing:.1em;text-transform:uppercase;
-  background:var(--panel-2);color:var(--ink-dim);border:1px solid var(--line);padding:6px 11px;border-radius:2px}
+.tb{font-family:var(--disp);font-weight:600;font-size:15px;letter-spacing:.1em;text-transform:uppercase;
+  background:var(--panel-2);color:var(--ink-dim);border:1px solid var(--line);padding:8px 13px;border-radius:2px;min-height:38px}
 .tb:hover{border-color:var(--line-2);color:var(--ink)}
 .tb.go{background:#2f7d4c;border-color:#3f9a5c;color:#eafff1}.tb.go:hover{background:#3a9159}
 .tb.stop{background:#8f3229;border-color:#b53a30;color:#ffeceb}.tb.stop:hover{background:#a53a30}
 .tb[data-on="1"]{background:var(--cyan);border-color:var(--cyan);color:#06111c}
 .tb.fx[data-on="1"]{background:#3b2a12;border-color:var(--amber);color:#ffd79a}
-.tb small{opacity:.6;margin-left:5px;font-size:11px}
+.tb small{opacity:.65;margin-left:5px;font-size:13px}
 .scrub{width:100%;accent-color:var(--cyan)}
 .spd{display:flex;gap:2px;margin-left:auto}
-.spd button{font-family:var(--mono);font-size:12px;padding:5px 8px;background:var(--panel-2);border:1px solid var(--line);color:var(--ink-dim);border-radius:2px}
+.spd button{font-family:var(--mono);font-size:14px;padding:7px 10px;background:var(--panel-2);border:1px solid var(--line);color:var(--ink-dim);border-radius:2px;min-height:34px}
 .spd button[data-on="1"]{background:var(--amber);border-color:var(--amber);color:#2a1a02;font-weight:600}
 
 /* ================= side ================= */
 .col-side{overflow-y:auto}
 .card{border-bottom:1px solid var(--line)}
-.card>h3{margin:0;padding:7px 10px;font-family:var(--disp);font-size:12px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;
+.card>h3{margin:0;padding:8px 10px;font-family:var(--disp);font-size:14px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;
   color:var(--ink-faint);background:var(--panel);display:flex;justify-content:space-between;align-items:center;gap:6px}
-.card>h3 .tagx{font-family:var(--mono);font-size:11px;letter-spacing:0;text-transform:none;font-weight:400}
-.card .in{padding:8px 10px}
-.dro{display:grid;gap:3px}
-.drow{display:grid;grid-template-columns:20px 1fr;align-items:baseline;gap:6px;font-family:var(--mono);font-size:15px;
-  padding:3px 6px;background:var(--void);border-radius:2px;border-left:2px solid var(--line)}
+.card>h3 .tagx{font-family:var(--mono);font-size:13px;letter-spacing:0;text-transform:none;font-weight:400}
+.card .in{padding:9px 10px}
+.dro{display:grid;gap:4px}
+.drow{display:grid;grid-template-columns:20px 1fr;align-items:baseline;gap:6px;font-family:var(--mono);font-size:17px;
+  padding:4px 6px;background:var(--void);border-radius:2px;border-left:2px solid var(--line)}
 .drow .ax{font-weight:600}.drow .val{text-align:right;color:#f7fafd}
 .drow.x{border-left-color:var(--axX)}.drow.x .ax{color:var(--axX)}
 .drow.y{border-left-color:var(--axY)}.drow.y .ax{color:var(--axY)}
 .drow.z{border-left-color:var(--axZ)}.drow.z .ax{color:var(--axZ)}
 .drow.s{border-left-color:var(--violet)}.drow.s .ax{color:var(--violet)}
 .drow.f{border-left-color:var(--mint)}.drow.f .ax{color:var(--mint)}
-.kv{display:grid;grid-template-columns:auto 1fr;gap:2px 8px;font-size:13px;margin:0}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:3px 8px;font-size:15px;margin:0}
 .kv dt{color:var(--ink-faint)}
-.kv dd{margin:0;font-family:var(--mono);text-align:right;font-size:12.5px;color:var(--ink)}
-.elist{font-family:var(--mono);font-size:12px;display:grid;gap:3px;max-height:190px;overflow:auto}
+.kv dd{margin:0;font-family:var(--mono);text-align:right;font-size:14.5px;color:var(--ink)}
+.elist{font-family:var(--mono);font-size:14px;display:grid;gap:3px;max-height:190px;overflow:auto}
 .elist div{padding:3px 6px;border-radius:2px;border-left:2px solid var(--red);background:rgba(255,83,71,.1);color:#ffc2bd;cursor:pointer}
 .elist div.warn{border-left-color:var(--amber);background:rgba(255,176,58,.09);color:#ffe2b0}
 .elist div.info{border-left-color:var(--cyan);background:rgba(111,220,255,.07);color:#cdf2ff}
 .elist div.ok{border-left-color:var(--mint);background:rgba(99,230,176,.08);color:var(--mint);cursor:default}
-.cmp{display:grid;grid-template-columns:auto auto auto auto;gap:2px 7px;font-size:12px;align-items:baseline}
-.cmp .h{color:var(--ink-faint);font-size:11px;letter-spacing:.08em;text-transform:uppercase;border-bottom:1px solid var(--line);padding-bottom:3px}
+.cmp{display:grid;grid-template-columns:auto auto auto auto;gap:2px 7px;font-size:14px;align-items:baseline}
+.cmp .h{color:var(--ink-faint);font-size:13px;letter-spacing:.08em;text-transform:uppercase;border-bottom:1px solid var(--line);padding-bottom:3px}
 .cmp .l{color:var(--ink-faint)}
 .cmp .v{font-family:var(--mono);text-align:right;color:var(--ink)}
-.cmp .d{font-family:var(--mono);text-align:right;font-size:11.5px}
+.cmp .d{font-family:var(--mono);text-align:right;font-size:13.5px}
 .cmp .d.up{color:var(--red)}.cmp .d.dn{color:var(--mint)}.cmp .d.eq{color:var(--ink-faint)}
-.mini{width:100%;background:var(--panel-2);border:1px solid var(--line);color:var(--ink-dim);font-family:var(--disp);font-size:12px;
-  letter-spacing:.12em;text-transform:uppercase;padding:6px;border-radius:2px;margin-top:6px}
+.mini{width:100%;background:var(--panel-2);border:1px solid var(--line);color:var(--ink-dim);font-family:var(--disp);font-size:14px;
+  letter-spacing:.12em;text-transform:uppercase;padding:9px;border-radius:2px;margin-top:6px;min-height:36px}
 .mini:hover{border-color:var(--cyan);color:var(--cyan)}
 .proj{display:grid;gap:4px}
-.prow{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;gap:6px;align-items:center;padding:4px 6px;border-radius:2px;
-  background:var(--void);border:1px solid transparent;font-size:13px}
+.prow{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;gap:6px;align-items:center;padding:5px 6px;border-radius:2px;
+  background:var(--void);border:1px solid transparent;font-size:15px}
 .prow.on{border-color:var(--cyan)}
 .prow input{accent-color:var(--cyan);margin:0}
 .prow .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.prow .ct{font-family:var(--mono);font-size:11px;color:var(--ink-faint)}
-.prow button{background:none;border:1px solid var(--line);color:var(--ink-dim);font-family:var(--mono);font-size:11px;padding:2px 6px;border-radius:2px}
+.prow .ct{font-family:var(--mono);font-size:13px;color:var(--ink-faint)}
+.prow button{background:none;border:1px solid var(--line);color:var(--ink-dim);font-family:var(--mono);font-size:13px;padding:3px 7px;border-radius:2px}
 .prow button:hover{border-color:var(--cyan);color:var(--cyan)}
 .pnew{display:flex;gap:4px;margin-top:6px}
-.pnew input{flex:1;min-width:0;background:var(--void);border:1px solid var(--line);border-radius:2px;padding:5px 7px;font-family:var(--mono);font-size:12px}
-.pnew button{background:var(--panel-2);border:1px solid var(--line);color:var(--ink-dim);border-radius:2px;padding:5px 9px;font-family:var(--disp);letter-spacing:.1em;font-size:12px}
-.note{font-size:12px;color:var(--ink-faint);margin:6px 0 0;line-height:1.5}
-.klist{display:grid;gap:2px;font-family:var(--mono);font-size:12px}
-.klist div{display:grid;grid-template-columns:96px 1fr;gap:6px;padding:2px 5px;background:var(--void);border-radius:2px}
+.pnew input{flex:1;min-width:0;background:var(--void);border:1px solid var(--line);border-radius:2px;padding:6px 7px;font-family:var(--mono);font-size:14px}
+.pnew button{background:var(--panel-2);border:1px solid var(--line);color:var(--ink-dim);border-radius:2px;padding:6px 10px;font-family:var(--disp);letter-spacing:.1em;font-size:14px;min-height:32px}
+.note{font-size:14px;color:var(--ink-faint);margin:6px 0 0;line-height:1.5}
+.klist{display:grid;gap:2px;font-family:var(--mono);font-size:14px}
+.klist div{display:grid;grid-template-columns:96px 1fr;gap:6px;padding:3px 5px;background:var(--void);border-radius:2px}
 .klist kbd{color:#ffc766;font-family:inherit}.klist span{color:var(--ink-dim)}
 .copy{padding:14px 10px 18px;text-align:center;border-top:1px solid var(--line);background:linear-gradient(var(--void-2),#0d1119)}
-.copy .c1{font-family:var(--disp);font-weight:700;font-size:17px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink);line-height:1.25}
+.copy .c1{font-family:var(--disp);font-weight:700;font-size:19px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink);line-height:1.25}
 .copy .c1 span{color:var(--orange)}
-.copy .c2{font-size:11.5px;color:var(--ink-faint);margin-top:6px;line-height:1.5}
+.copy .c2{font-size:13px;color:var(--ink-faint);margin-top:6px;line-height:1.5}
 
 /* ================= overlays ================= */
 .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:80;background:var(--panel);border:1px solid var(--line-2);
-  color:var(--ink);padding:8px 16px;border-radius:3px;font-family:var(--mono);font-size:13px;opacity:0;transition:opacity .2s;
+  color:var(--ink);padding:9px 17px;border-radius:3px;font-family:var(--mono);font-size:15px;opacity:0;transition:opacity .2s;
   pointer-events:none;max-width:calc(100% - 32px);text-align:center}
 .toast.on{opacity:1}
 .modal{position:fixed;inset:0;z-index:60;background:rgba(2,5,10,.8);backdrop-filter:blur(4px);display:grid;place-items:center;padding:16px}
 .mcard{width:min(980px,100%);max-height:min(90vh,100%);display:flex;flex-direction:column;min-height:0;
   background:var(--panel);border:1px solid var(--line-2);border-radius:4px;box-shadow:0 30px 80px -20px #000}
 .mcard.dev{border-color:var(--orange)}
-.mhead{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 14px;border-bottom:1px solid var(--line)}
-.mhead .mt{font-family:var(--disp);font-weight:700;letter-spacing:.2em;font-size:15px;text-transform:uppercase}
+.mhead{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:11px 15px;border-bottom:1px solid var(--line)}
+.mhead .mt{font-family:var(--disp);font-weight:700;letter-spacing:.2em;font-size:17px;text-transform:uppercase}
 .mcard.dev .mhead .mt{color:#ffb066}
-.mhead .x{margin-left:auto;font-family:var(--disp);font-weight:600;font-size:13px;letter-spacing:.12em;text-transform:uppercase;
-  background:var(--panel-2);color:var(--ink-dim);border:1px solid var(--line);padding:6px 12px;border-radius:2px}
+.mhead .x{margin-left:auto;font-family:var(--disp);font-weight:600;font-size:15px;letter-spacing:.12em;text-transform:uppercase;
+  background:var(--panel-2);color:var(--ink-dim);border:1px solid var(--line);padding:8px 14px;border-radius:2px;min-height:36px}
 .mhead .x:hover{border-color:var(--cyan);color:var(--cyan)}
-.mhead .x small{opacity:.55;margin-left:4px;font-size:11px}
+.mhead .x small{opacity:.6;margin-left:4px;font-size:13px}
 .mtabs2{display:flex;gap:2px;padding:8px 14px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
-.mtabs2 button{font-family:var(--disp);font-weight:600;font-size:13px;letter-spacing:.14em;text-transform:uppercase;background:none;
-  border:1px solid transparent;border-bottom:0;color:var(--ink-faint);padding:7px 12px;border-radius:3px 3px 0 0}
+.mtabs2 button{font-family:var(--disp);font-weight:600;font-size:15px;letter-spacing:.14em;text-transform:uppercase;background:none;
+  border:1px solid transparent;border-bottom:0;color:var(--ink-faint);padding:9px 14px;border-radius:3px 3px 0 0}
 .mtabs2 button[aria-selected="true"]{background:var(--void-2);border-color:var(--line);color:var(--ink);margin-bottom:-1px}
 .mbody{overflow:auto;min-height:0;padding:16px;background:var(--void-2)}
-.mbody pre{margin:0;font-family:var(--mono);font-size:13px;line-height:1.55;color:var(--ink);white-space:pre}
-.prose{max-width:72ch;font-size:14.5px;line-height:1.6;color:var(--ink)}
-.prose h4{font-family:var(--disp);font-size:17px;letter-spacing:.06em;margin:1.2em 0 .4em;color:#fff}
+.mbody pre{margin:0;font-family:var(--mono);font-size:15px;line-height:1.55;color:var(--ink);white-space:pre}
+.prose{max-width:72ch;font-size:16.5px;line-height:1.6;color:var(--ink)}
+.prose h4{font-family:var(--disp);font-size:19.5px;letter-spacing:.06em;margin:1.2em 0 .4em;color:#fff}
 .prose h4:first-child{margin-top:0}
 .prose p{margin:0 0 .7em}.prose ul,.prose ol{margin:0 0 .8em;padding-left:1.3em}.prose li{margin:.2em 0}
 .prose code{font-family:var(--mono);font-size:.9em;background:var(--crt);color:#abdfff;padding:0 4px;border-radius:2px}
 .prose strong{color:#fff}
 .prose .warnbox{border-left:3px solid var(--amber);background:rgba(255,176,58,.08);padding:8px 12px;margin:0 0 .9em;border-radius:2px}
 .tblw{overflow-x:auto;margin:0 0 1em}
-.tblw table{border-collapse:collapse;font-size:13px;min-width:100%}
-.tblw th,.tblw td{border:1px solid var(--line);padding:5px 8px;text-align:left;vertical-align:top}
+.tblw table{border-collapse:collapse;font-size:15px;min-width:100%}
+.tblw th,.tblw td{border:1px solid var(--line);padding:6px 9px;text-align:left;vertical-align:top}
 .tblw th{background:var(--panel);font-family:var(--disp);letter-spacing:.08em;font-weight:600;color:var(--ink-dim)}
-.tblw td{font-family:var(--mono);font-size:12.5px}
+.tblw td{font-family:var(--mono);font-size:14.5px}
 .lgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
 .lcard{text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:12px;display:flex;flex-direction:column;gap:6px}
 .lcard:hover{border-color:var(--orange)}
-.lcard .n{font-family:var(--mono);font-size:11px;color:var(--ink-faint)}
-.lcard .t{font-family:var(--disp);font-weight:700;font-size:17px;letter-spacing:.04em;color:#fff}
-.lcard .b{font-size:13px;color:var(--ink-dim);line-height:1.5}
+.lcard .n{font-family:var(--mono);font-size:13px;color:var(--ink-faint)}
+.lcard .t{font-family:var(--disp);font-weight:700;font-size:19.5px;letter-spacing:.04em;color:#fff}
+.lcard .b{font-size:15px;color:var(--ink-dim);line-height:1.5}
 .lcard.break{border-left:3px solid var(--red)}
 .lcard.learn{border-left:3px solid var(--mint)}
 .opts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
 .opt{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:14px;display:flex;flex-direction:column;gap:8px}
-.opt .on{font-family:var(--mono);font-size:12px;color:var(--ink-faint)}
-.opt h4{margin:0;font-family:var(--disp);font-size:19px;letter-spacing:.05em;color:#fff}
-.opt p{margin:0;font-size:13px;color:var(--ink-dim);line-height:1.5}
+.opt .on{font-family:var(--mono);font-size:14px;color:var(--ink-faint)}
+.opt h4{margin:0;font-family:var(--disp);font-size:22px;letter-spacing:.05em;color:#fff}
+.opt p{margin:0;font-size:15px;color:var(--ink-dim);line-height:1.5}
 .opt.sel{border-color:var(--cyan)}
 .fgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px 10px}
-.fld{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--ink-faint)}
-.fld span{font-family:var(--mono);font-size:11px;letter-spacing:.04em}
-.fld input,.fld select,.fld textarea{background:var(--void);border:1px solid var(--line);border-radius:2px;padding:6px 8px;
-  font-family:var(--mono);font-size:13px;color:var(--ink);min-width:0}
-.fld textarea{min-height:92px;resize:vertical;font-family:var(--sans);font-size:14px;line-height:1.5}
+.fld{display:flex;flex-direction:column;gap:3px;font-size:14px;color:var(--ink-faint)}
+.fld span{font-family:var(--mono);font-size:13px;letter-spacing:.04em}
+.fld input,.fld select,.fld textarea{background:var(--void);border:1px solid var(--line);border-radius:2px;padding:8px 9px;
+  font-family:var(--mono);font-size:15px;color:var(--ink);min-width:0}
+.fld textarea{min-height:92px;resize:vertical;font-family:var(--sans);font-size:16px;line-height:1.5}
 .fld.wide{grid-column:1/-1}
-.fld.chk{flex-direction:row;align-items:center;gap:8px;color:var(--ink-dim);font-size:13px}
+.fld.chk{flex-direction:row;align-items:center;gap:8px;color:var(--ink-dim);font-size:15px}
 .fld.chk input{accent-color:var(--cyan)}
 .actrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
-.aistat{font-family:var(--mono);font-size:12.5px;line-height:1.6;background:var(--void);border:1px solid var(--line);border-radius:3px;
-  padding:8px 10px;margin-top:10px;white-space:pre-wrap;max-height:220px;overflow:auto}
+.aistat{font-family:var(--mono);font-size:14.5px;line-height:1.6;background:var(--void);border:1px solid var(--line);border-radius:3px;
+  padding:9px 11px;margin-top:10px;white-space:pre-wrap;max-height:220px;overflow:auto}
 .aistat .ok{color:var(--mint)}.aistat .bad{color:#ffc2bd}.aistat .dim{color:var(--ink-faint)}
-.pill{display:inline-block;font-family:var(--mono);font-size:11px;padding:1px 7px;border-radius:9px;border:1px solid var(--line);color:var(--ink-dim)}
+.pill{display:inline-block;font-family:var(--mono);font-size:13px;padding:2px 8px;border-radius:9px;border:1px solid var(--line);color:var(--ink-dim)}
 .pill.ok{border-color:var(--mint);color:var(--mint)}.pill.no{border-color:var(--amber);color:var(--amber)}
 
 .boot{position:fixed;inset:0;z-index:90;background:#020912;display:grid;place-items:center;padding:16px;cursor:pointer}
 .boot-in{width:min(760px,100%);font-family:var(--mono);color:#cfe9ff}
-.boot-in .sys{font-size:13px;line-height:1.8;color:#6f93ad;white-space:pre-wrap}
+.boot-in .sys{font-size:15px;line-height:1.8;color:#8fb3cc;white-space:pre-wrap}
 .boot-in .sys b{color:var(--mint);font-weight:500}
-.boot-in .pi{margin:22px 0 6px;font-size:20px;letter-spacing:.16em;color:var(--amber);animation:blink 1.1s steps(1) infinite}
+.boot-in .pi{margin:22px 0 6px;font-size:22px;letter-spacing:.16em;color:var(--amber);animation:blink 1.1s steps(1) infinite}
 @keyframes blink{50%{opacity:.25}}
-.boot-in .ce{font-size:13px;color:#8fb3cc}
+.boot-in .ce{font-size:15px;color:#a3c3d8}
 .boot-in .ce kbd{border:1px solid #3a5a74;border-radius:2px;padding:0 6px;color:#fff}
 .boot-in .cr{margin-top:34px;padding-top:18px;border-top:1px solid #1b3a52}
 .boot-in .cr .big{font-family:var(--disp);font-weight:700;font-size:clamp(26px,5.2vw,44px);line-height:1.05;letter-spacing:.06em;
   text-transform:uppercase;color:#fff}
 .boot-in .cr .big span{color:var(--orange)}
-.boot-in .cr .sm{font-size:11.5px;color:#6f93ad;margin-top:10px;line-height:1.6}
+.boot-in .cr .sm{font-size:13px;color:#8fb3cc;margin-top:10px;line-height:1.6}
 
 .mtabs{display:none}
+
+/* ================= focus view =================
+ * body.focus is toggled by ui.js (b-focus button / "F" key), which also
+ * calls the renderer resize afterward. CSS-only here: hide the side panels
+ * that aren't RUN/CHECKS/COMPARE/PROJECTS-essential while testing a cut,
+ * plus a few header buttons, so the program listing + 3-D view get the room.
+ * Position/DRO stays, just narrower. */
+body.focus .col-side .card-run,
+body.focus .col-side .card-checks,
+body.focus .col-side .card-compare,
+body.focus .col-side .card-projects,
+body.focus .col-side .klist-card,
+body.focus .col-side .copy{display:none}
+body.focus .hbtn.devbtn,
+body.focus .hbtn.new,
+body.focus .hbtn.prof{display:none}
+body.focus #b-focus{border-color:var(--cyan);color:var(--cyan)}
+@media (min-width:1251px){
+  /* only widen the pgm/gfx columns here -- below 1250px .main switches to
+   * the two-column + bottom-row layout (see responsive, further down) and
+   * must keep setting its own grid-template-columns/rows unopposed */
+  body.focus .main{grid-template-columns:minmax(340px,1fr) minmax(520px,2.4fr) 180px}
+}
+@media (max-width:1250px){
+  body.focus .col-side{max-height:130px}
+}
+@media (max-width:900px){
+  body.focus #mtabs button[data-pane="side"]{display:none}
+}
 
 /* ================= responsive ================= */
 @media (max-width:1250px){
@@ -334,7 +363,7 @@ textarea#raw:focus{outline:none}
   .modes{margin-left:0;width:100%;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;order:9}
   .modes::-webkit-scrollbar{display:none}
   .mode{flex:1 0 auto;padding:9px 12px}.mode .lg,.mode b{display:none}.mode .sm{display:inline}
-  .sks{grid-template-columns:repeat(4,1fr)}.sk{min-height:46px;font-size:11.5px}
+  .sks{grid-template-columns:repeat(4,1fr)}.sk{min-height:50px;font-size:13px}
   .tb small{display:none}.tb{padding:10px 12px}
   .spd{margin-left:0;width:100%}.spd button{flex:1;padding:9px 0}
   .dlg input,textarea#raw,.fld input,.fld textarea,.fld select,.pnew input{font-size:16px}
@@ -347,6 +376,10 @@ textarea#raw:focus{outline:none}
 }
 @media (hover:none) and (pointer:coarse){.klist-card{display:none}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+/* dialog line: the question can be long — the input keeps a usable width, the hint wraps below */
+.dlg{flex-wrap:wrap;row-gap:4px}
+.dlg input{min-width:9em}
+.dlg .hint{flex-basis:100%;white-space:normal}
 </style>
 
 <style>html{color-scheme:dark} img{max-width:100%} [hidden]{display:none!important}</style>
@@ -357,15 +390,16 @@ textarea#raw:focus{outline:none}
    <span class="logo">HDH</span>
    <span class="ttl">TNC 426</span>
    <span class="sub-ttl">CNC SIMULATOR &middot; NC SW 280 476-17</span>
-   <button class="hbtn devbtn" id="b-dev" title="Feature log, version history, release plan">DEV</button>
-   <button class="hbtn new" id="b-new" title="Make a new program">+ New</button>
-   <button class="hbtn" id="b-help" title="Lessons, pitfalls, manual, AI setup (H)">Help</button>
+   <button class="hbtn devbtn" id="b-dev" title="Feature log, version history, release plan" data-i18n="btn.dev">DEV</button>
+   <button class="hbtn new" id="b-new" title="Make a new program" data-i18n="btn.new">+ New</button>
+   <button class="hbtn" id="b-help" title="Lessons, pitfalls, manual, AI setup (H)" data-i18n="btn.help">Help</button>
+   <button class="hbtn" id="b-focus" aria-pressed="false" title="Focus view (F)" data-i18n="btn.focus">Focus</button>
    <button class="hbtn prof" id="b-prof" title="Your profile: name, programs, tool table, export / import">Profile</button>
    <div class="modes" id="modes">
-     <button class="mode" data-m="edit"   aria-pressed="false"><b>F1</b><span class="lg">PROGRAMMING AND EDITING</span><span class="sm">EDIT</span></button>
-     <button class="mode" data-m="test"   aria-pressed="true"><b>F2</b><span class="lg">TEST RUN</span><span class="sm">TEST</span></button>
-     <button class="mode" data-m="single" aria-pressed="false"><b>F3</b><span class="lg">PGM RUN, SINGLE BLOCK</span><span class="sm">SINGLE</span></button>
-     <button class="mode" data-m="full"   aria-pressed="false"><b>F4</b><span class="lg">PGM RUN, FULL SEQ.</span><span class="sm">FULL</span></button>
+     <button class="mode" data-m="edit"   aria-pressed="false"><b>1</b><span class="lg" data-i18n="mode.edit">PROGRAMMING AND EDITING</span><span class="sm">EDIT</span></button>
+     <button class="mode" data-m="test"   aria-pressed="true"><b>2</b><span class="lg" data-i18n="mode.test">TEST RUN</span><span class="sm">TEST</span></button>
+     <button class="mode" data-m="single" aria-pressed="false"><b>3</b><span class="lg" data-i18n="mode.single">PGM RUN, SINGLE BLOCK</span><span class="sm">SINGLE</span></button>
+     <button class="mode" data-m="full"   aria-pressed="false"><b>4</b><span class="lg" data-i18n="mode.full">PGM RUN, FULL SEQ.</span><span class="sm">FULL</span></button>
    </div>
  </header>
 
@@ -373,12 +407,12 @@ textarea#raw:focus{outline:none}
    <!-- PROGRAM -->
    <section class="col col-pgm" aria-label="Program">
      <div class="ch">
-       <span>Program</span>
+       <span data-i18n="panel.program">Program</span>
        <span class="rt" id="pgm-path">TNC:\</span>
        <span class="grow"></span>
        <button class="chb" id="b-view" aria-pressed="false" title="Program as a flowchart">Flow</button>
-       <button class="chb" id="b-mgt" title="Program manager (M)">PGM MGT</button>
-       <button class="chb" id="b-save" title="Save as .H (Ctrl+S)">Save .H</button>
+       <button class="chb" id="b-mgt" title="Program manager (M)" data-i18n="btn.pgmmgt">PGM MGT</button>
+       <button class="chb" id="b-save" title="Save as .H (Ctrl+S)" data-i18n="btn.save">Save .H</button>
      </div>
      <div class="crt" id="crt">
        <div class="plist scan" id="plist"></div>
@@ -396,7 +430,7 @@ textarea#raw:focus{outline:none}
 
    <!-- GRAPHICS -->
    <section class="col col-gfx" aria-label="Test graphics">
-     <div class="ch"><span>Test graphics</span><span class="grow"></span><span class="rt" id="gfx-rt">3-D VIEW</span></div>
+     <div class="ch"><span data-i18n="panel.testgfx">Test graphics</span><span class="grow"></span><span class="rt" id="gfx-rt">3-D VIEW</span></div>
      <div class="gfx" id="gfx">
        <canvas id="gl"></canvas>
        <div class="callouts" id="callouts"></div>
@@ -419,10 +453,10 @@ textarea#raw:focus{outline:none}
      <div class="tp">
        <input type="range" class="scrub" id="scrub" min="0" max="1000" value="0" step="1" aria-label="Run position">
        <div class="tp-row">
-         <button class="tb go" id="b-start">NC Start<small>SPACE</small></button>
-         <button class="tb stop" id="b-stop">NC Stop<small>ESC</small></button>
-         <button class="tb" id="b-step">Step<small>S</small></button>
-         <button class="tb" id="b-reset">Reset<small>R</small></button>
+         <button class="tb go" id="b-start"><span data-i18n="btn.ncstart">NC Start</span><small>SPACE</small></button>
+         <button class="tb stop" id="b-stop"><span data-i18n="btn.ncstop">NC Stop</span><small>ESC</small></button>
+         <button class="tb" id="b-step"><span data-i18n="btn.step">Step</span><small>S</small></button>
+         <button class="tb" id="b-reset"><span data-i18n="btn.reset">Reset</span><small>R</small></button>
          <div class="spd" id="spd">
            <button data-s="1">1&times;</button><button data-s="4">4&times;</button>
            <button data-s="16">16&times;</button><button data-s="64">64&times;</button>
@@ -430,34 +464,34 @@ textarea#raw:focus{outline:none}
          </div>
        </div>
        <div class="tp-row">
-         <button class="tb fx" id="b-fx">Chips &amp; sparks<small>P</small></button>
-         <button class="tb fx" id="b-cool">Coolant<small>K</small></button>
-         <button class="tb fx" id="b-fire">Smoke &amp; fire<small>B</small></button>
-         <button class="tb fx" id="b-labels">Labels<small>L</small></button>
-         <button class="tb fx" id="b-sound">Sound</button>
+         <button class="tb fx" id="b-fx"><span data-i18n="btn.fx">Chips &amp; sparks</span><small>P</small></button>
+         <button class="tb fx" id="b-cool"><span data-i18n="btn.cool">Coolant</span><small>K</small></button>
+         <button class="tb fx" id="b-fire"><span data-i18n="btn.fire">Smoke &amp; fire</span><small>B</small></button>
+         <button class="tb fx" id="b-labels"><span data-i18n="btn.labels">Labels</span><small>L</small></button>
+         <button class="tb fx" id="b-sound" data-i18n="btn.sound">Sound</button>
        </div>
      </div>
    </section>
 
    <!-- SIDE -->
    <aside class="col col-side" aria-label="Status">
-     <div class="card"><h3>Position <span class="tagx" id="dro-t">ACTL MM</span></h3>
+     <div class="card card-dro"><h3><span data-i18n="panel.position">Position</span> <span class="tagx" id="dro-t">ACTL MM</span></h3>
        <div class="in"><div class="dro" id="dro"></div></div></div>
-     <div class="card"><h3>Run <span class="tagx" id="run-state">READY</span></h3>
+     <div class="card card-run"><h3><span data-i18n="panel.run">Run</span> <span class="tagx" id="run-state">READY</span></h3>
        <div class="in"><dl class="kv" id="runkv"></dl></div></div>
-     <div class="card"><h3>Checks <span class="tagx" id="errc">0</span></h3>
+     <div class="card card-checks"><h3><span data-i18n="panel.checks">Checks</span> <span class="tagx" id="errc">0</span></h3>
        <div class="in"><div class="elist" id="elist"></div></div></div>
-     <div class="card"><h3>Compare <span class="tagx" id="cmp-t">no reference</span></h3>
+     <div class="card card-compare"><h3><span data-i18n="panel.compare">Compare</span> <span class="tagx" id="cmp-t">no reference</span></h3>
        <div class="in"><div class="cmp" id="cmp"></div>
-         <button class="mini" id="b-snap">Store finished run as reference A</button>
-         <button class="mini" id="b-restore">Open reference program</button></div></div>
-     <div class="card"><h3>Projects <span class="tagx" id="proj-t"></span></h3>
+         <button class="mini" id="b-snap" data-i18n="btn.snap">Store finished run as reference A</button>
+         <button class="mini" id="b-restore" data-i18n="btn.restore">Open reference program</button></div></div>
+     <div class="card card-projects"><h3><span data-i18n="panel.projects">Projects</span> <span class="tagx" id="proj-t"></span></h3>
        <div class="in"><div class="proj" id="proj"></div>
          <div class="pnew"><input id="proj-name" placeholder="New project name" maxlength="40" aria-label="New project name">
            <button id="b-proj-new">Create</button></div>
-         <button class="mini" id="b-proj-add">Add current program to active project</button>
+         <button class="mini" id="b-proj-add" data-i18n="btn.projadd">Add current program to active project</button>
          <p class="note">New programs you create go into the active project. ZIP downloads every program in it as a .H file.</p></div></div>
-     <div class="card klist-card"><h3>Keys</h3>
+     <div class="card klist-card"><h3 data-i18n="panel.keys">Keys</h3>
        <div class="in"><div class="klist" id="klist"></div></div></div>
      <div class="copy">
        <div class="c1">&copy; 2026 TNC 426 Simulator</div>
@@ -479,7 +513,7 @@ textarea#raw:focus{outline:none}
 <!-- ================= NEW PROGRAM ================= -->
 <div class="modal" id="m-new" hidden>
  <div class="mcard" role="dialog" aria-modal="true" aria-labelledby="m-new-t">
-  <div class="mhead"><span class="mt" id="m-new-t">New program</span>
+  <div class="mhead"><span class="mt" id="m-new-t" data-i18n="title.newprogram">New program</span>
     <button class="x" data-close>Close <small>ESC</small></button></div>
   <div class="mbody">
     <div class="opts" id="new-opts">
@@ -532,7 +566,7 @@ textarea#raw:focus{outline:none}
 <!-- ================= HELP ================= -->
 <div class="modal" id="m-help" hidden>
  <div class="mcard" role="dialog" aria-modal="true" aria-labelledby="m-help-t">
-  <div class="mhead"><span class="mt" id="m-help-t">Help</span>
+  <div class="mhead"><span class="mt" id="m-help-t" data-i18n="title.help">Help</span>
     <button class="x" data-close>Close <small>ESC</small></button></div>
   <div class="mtabs2" role="tablist" id="help-tabs">
     <button role="tab" data-tab="learn" aria-selected="true">Learn</button>
@@ -547,7 +581,7 @@ textarea#raw:focus{outline:none}
 <!-- ================= DEV ================= -->
 <div class="modal" id="m-prof" hidden>
  <div class="mcard" role="dialog" aria-modal="true" aria-labelledby="m-prof-t">
-  <div class="mhead"><span class="mt" id="m-prof-t">Profile</span>
+  <div class="mhead"><span class="mt" id="m-prof-t" data-i18n="title.profile">Profile</span>
     <button class="x" data-close>Close <small>ESC</small></button></div>
   <div class="mbody" id="prof-body"></div>
  </div>
@@ -555,7 +589,7 @@ textarea#raw:focus{outline:none}
 
 <div class="modal" id="m-dev" hidden>
  <div class="mcard dev" role="dialog" aria-modal="true" aria-labelledby="m-dev-t">
-  <div class="mhead"><span class="mt" id="m-dev-t">DEV</span>
+  <div class="mhead"><span class="mt" id="m-dev-t" data-i18n="title.dev">DEV</span>
     <button class="x" data-close>Close <small>ESC</small></button></div>
   <div class="mtabs2" role="tablist" id="dev-tabs">
     <button role="tab" data-tab="features" aria-selected="true">Features</button>
@@ -6264,7 +6298,7 @@ var TNC = (function () {
   var IMPLEMENTED_CYCLES = { 1: 1, 2: 1, 4: 1, 17: 1, 18: 1, 200: 1, 201: 1, 202: 1, 203: 1, 204: 1, 205: 1, 206: 1, 207: 1, 208: 1, 209: 1, 210: 1, 211: 1, 212: 1, 213: 1, 214: 1, 215: 1, 230: 1, 231: 1 };
   var PATTERN_CYCLES = { 220: 1, 221: 1 };
   // definition-only cycles with no tool motion in this simulator (9 dwell, 32 tolerance)
-  var NOMOTION_CYCLES = { 7: 1, 8: 1, 9: 1, 10: 1, 11: 1, 32: 1, 247: 1 };
+  var NOMOTION_CYCLES = { 7: 1, 8: 1, 9: 1, 10: 1, 11: 1, 19: 1, 32: 1, 247: 1 };
 
   /* ---------------------------------------------------------------- 2. helpers */
 
@@ -6425,6 +6459,9 @@ var TNC = (function () {
         var lv = numOrQ(m[2]);
         if (lv !== null) { args[m[1].toLowerCase()] = lv; continue; }
         unknown.push(t); continue;
+      }
+      if ((m = /^(I)?([ABC])([+-]?(?:\d+\.?\d*|\.\d+|Q\d+))$/.exec(t))) {   // rotary axes (TNC 430)
+        args[(m[1] ? 'i' : '') + 'ax' + m[2].toLowerCase()] = numOrQ(m[3]); continue;   // axa axb axc (not rc: that is RL/RR)
       }
       unknown.push(t);
     }
@@ -6759,8 +6796,9 @@ var TNC = (function () {
       blocks: blocks,
       pos: { x: 0, y: 0, z: 0 },          // programmed coordinates (after cycles 7/8/10/11)
       mpos: { x: 0, y: 0, z: 0 },         // machine coordinates: where the tool really is
-      xf: { on: false, dx: 0, dy: 0, dz: 0, mx: false, my: false, mz: false, rot: 0, s: 1, flip: false },
+      xf: { on: false, dx: 0, dy: 0, dz: 0, mx: false, my: false, mz: false, rot: 0, s: 1, flip: false, tilt: null },
       steps: 0,
+      rot: { a: 0, b: 0, c: 0 },          // rotary axis positions, degrees
       feed: DEFAULT_FEED,
       tool: { t: 0, name: '', r: 3, l: 0, dr: 0 },
       spindle: 0,          // effective: sRpm * spinDir
@@ -6796,12 +6834,14 @@ var TNC = (function () {
     var f = st.xf; if (!f.on) return { x: p.x, y: p.y, z: p.z };
     var x = f.mx ? -p.x : p.x, y = f.my ? -p.y : p.y, z = f.mz ? -p.z : p.z;
     x *= f.s; y *= f.s; z *= f.s;
-    var c = Math.cos(f.rot * Math.PI / 180), sn = Math.sin(f.rot * Math.PI / 180);
-    return { x: x * c - y * sn + f.dx, y: x * sn + y * c + f.dy, z: z + f.dz };
+    var c = Math.cos(f.rot * Math.PI / 180), sn = Math.sin(f.rot * Math.PI / 180), X = x * c - y * sn, Y = x * sn + y * c;
+    if (f.tilt) { var T = f.tilt.m; var X2 = T[0] * X + T[1] * Y + T[2] * z, Y2 = T[3] * X + T[4] * Y + T[5] * z, Z2 = T[6] * X + T[7] * Y + T[8] * z; X = X2; Y = Y2; z = Z2; }
+    return { x: X + f.dx, y: Y + f.dy, z: z + f.dz };
   }
   function fromM(st, p) {
     var f = st.xf; if (!f.on) return { x: p.x, y: p.y, z: p.z };
     var x = p.x - f.dx, y = p.y - f.dy, z = p.z - f.dz;
+    if (f.tilt) { var T = f.tilt.m; var x2 = T[0] * x + T[3] * y + T[6] * z, y2 = T[1] * x + T[4] * y + T[7] * z, z2 = T[2] * x + T[5] * y + T[8] * z; x = x2; y = y2; z = z2; }  // inverse = transpose
     var c = Math.cos(f.rot * Math.PI / 180), sn = Math.sin(f.rot * Math.PI / 180);
     var xr = x * c + y * sn, yr = -x * sn + y * c;
     xr /= f.s; yr /= f.s; z /= f.s;
@@ -6823,12 +6863,27 @@ var TNC = (function () {
     } else if (cy.num === 10) {
       if ((m = /(I)?ROT\s*([+-]?(?:Q\d+|\d+\.?\d*|\.\d+))/.exec(all))) { v = resolve(numOrQ(m[2]), st.Q) || 0; f.rot = m[1] ? f.rot + v : v; }
       else fail(st, bi, 'CYCL DEF INCOMPLETE');
+    } else if (cy.num === 19) {
+      /* 19.1 A.. B.. C..: the working plane follows the head. This machine's head: B (outer, about Y, B+ tilts the
+         tip to X+) carries A (inner, about X, A+ tilts the tip to Y+): R = Ry(-B)·Rx(A). All zero cancels the tilt. */
+      var ang = { a: 0, b: 0, c: 0 }, any = false;
+      words(all).forEach(function (w) { var mm = /^([ABC])(\S+)$/.exec(w); if (mm) { var vv = resolve(numOrQ(mm[2]), st.Q); if (vv !== null) { ang[mm[1].toLowerCase()] = vv; any = true; } } });
+      if (!any || (!ang.a && !ang.b && !ang.c)) f.tilt = null;
+      else {
+        var A = ang.a * Math.PI / 180, B = -ang.b * Math.PI / 180, ca = Math.cos(A), sa = Math.sin(A), cb = Math.cos(B), sb = Math.sin(B);
+        f.tilt = { a: ang.a, b: ang.b, c: ang.c, m: [cb, sb * sa, sb * ca, 0, ca, -sa, -sb, cb * sa, cb * ca] };
+      }
+      if (st.mach.c19pos !== false && (st.mach.axes || []).some(function (x) { return x === 'A' || x === 'B'; })) {
+        st.rotTo = { a: ang.a, b: ang.b };                        // MP 7500 bit 2: cycle 19 positions the rotary axes
+        f.on = true; st.pos = fromM(st, st.mpos);
+        emit(st, 'rapid', { x: st.pos.x, y: st.pos.y, z: st.pos.z }, RAPID_RATE, bi, null);
+      }
     } else if (cy.num === 11) {
       if ((m = /SCL\s*([+-]?(?:Q\d+|\d+\.?\d*|\.\d+))/.exec(all))) { v = resolve(numOrQ(m[1]), st.Q); if (v > 0) f.s = v; else fail(st, bi, 'CYCL DEF INCOMPLETE'); }
       else fail(st, bi, 'CYCL DEF INCOMPLETE');
     }
     f.flip = f.mx !== f.my;                                   // one plane axis mirrored: arcs and RL/RR swap
-    f.on = !!(f.dx || f.dy || f.dz || f.mx || f.my || f.mz || f.rot || f.s !== 1);
+    f.on = !!(f.dx || f.dy || f.dz || f.mx || f.my || f.mz || f.rot || f.s !== 1 || f.tilt);
     st.pos = fromM(st, st.mpos);                              // the tool does not move; its programmed position does
     if (st.cc) st.cc = st.cc;                                 // CC stays in programmed coordinates
   }
@@ -6839,6 +6894,13 @@ var TNC = (function () {
 
   function emit(st, kind, to, feed, bi, cycleName, arc) {
     if (st.abort) return;
+    if (kind === 'arc' && st.xf.tilt) {                          // an arc in the tilted plane is a 3D arc: chords
+      var p0 = st.pos, sw0 = arcSweep(p0, to, arc), r0_ = Math.hypot(p0.x - arc.cx, p0.y - arc.cy), a00 = Math.atan2(p0.y - arc.cy, p0.x - arc.cx);
+      var nch = Math.max(8, Math.ceil(Math.abs(sw0) / (Math.PI / 36))), z0_ = p0.z;
+      for (var ci = 1; ci <= nch; ci++) { var an = a00 + sw0 * ci / nch;
+        emit(st, 'feed', ci === nch ? to : { x: arc.cx + r0_ * Math.cos(an), y: arc.cy + r0_ * Math.sin(an), z: z0_ + (to.z - z0_) * ci / nch }, feed, bi, cycleName); }
+      return;
+    }
     var pfrom = { x: st.pos.x, y: st.pos.y, z: st.pos.z };      // programmed
     var from = { x: st.mpos.x, y: st.mpos.y, z: st.mpos.z }, pto = to;
     to = toM(st, pto);
@@ -6849,8 +6911,35 @@ var TNC = (function () {
       len = Math.sqrt(rr * sw * rr * sw + (to.z - from.z) * (to.z - from.z));
     } else len = dist3(from, to);
     var tagRc = cycleName ? null : flipRc(st, st.rc === 'RL' || st.rc === 'RR' ? st.rc : null);
-    // a zero-length activation block still has to mark where RL/RR starts
-    if (!(len > EPS) && !(tagRc && st.rcAct)) { st.pos = { x: pto.x, y: pto.y, z: pto.z }; st.mpos = to; return; }
+    var r0 = { a: st.rot.a, b: st.rot.b, c: st.rot.c }, r1 = r0, dRot = 0;
+    if (st.rotTo) {                                              // rotary axes move with this block
+      r1 = { a: st.rotTo.a !== undefined ? st.rotTo.a : r0.a, b: st.rotTo.b !== undefined ? st.rotTo.b : r0.b, c: st.rotTo.c !== undefined ? st.rotTo.c : r0.c };
+      st.rotTo = null;
+      var lim = st.mach.limits || {};
+      ['a', 'b', 'c'].forEach(function (k) { var L = lim[k.toUpperCase()]; if (!L) return;
+        if (r1[k] > L[1] + 1e-9) { fail(st, bi, 'LIMIT SWITCH ' + k.toUpperCase() + '+'); r1[k] = L[1]; }
+        if (r1[k] < L[0] - 1e-9) { fail(st, bi, 'LIMIT SWITCH ' + k.toUpperCase() + '-'); r1[k] = L[0]; } });
+      dRot = Math.max(Math.abs(r1.a - r0.a), Math.abs(r1.b - r0.b), Math.abs(r1.c - r0.c));
+      st.rot = r1;
+    }
+    // a zero-length activation block still has to mark where RL/RR starts; a rotary-only move still moves
+    if (!(len > EPS) && !(tagRc && st.rcAct) && !(dRot > EPS)) { st.pos = { x: pto.x, y: pto.y, z: pto.z }; st.mpos = to; return; }
+    /* machine dynamics: F capped at MP 1020, rapids per axis (MP 1010), acceleration (MP 1060) */
+    var mc2 = st.mach, dur = null;
+    if (kind !== 'rapid' && mc2.fMax && feed > mc2.fMax) feed = mc2.fMax;
+    if (mc2.rapid || mc2.accel) {
+      var R = mc2.rapid || {}, tmin;
+      if (kind === 'rapid') {
+        tmin = Math.max(Math.abs(to.x - from.x) / (R.x || RAPID_RATE), Math.abs(to.y - from.y) / (R.y || RAPID_RATE), Math.abs(to.z - from.z) / (R.z || RAPID_RATE),
+                        Math.abs(r1.a - r0.a) / (R.a || 3600), Math.abs(r1.b - r0.b) / (R.b || 3600), Math.abs(r1.c - r0.c) / (R.c || 3600));
+      } else tmin = Math.max(len / Math.max(feed, 1), Math.abs(r1.a - r0.a) / 800, Math.abs(r1.b - r0.b) / 720);
+      var sec = tmin * 60;
+      if (mc2.accel && len > EPS) {                              // trapezoid: v/a extra, or a triangle on short moves
+        var v = len / Math.max(sec, 1e-9), acc = mc2.accel * 1000;
+        sec = (len >= v * v / acc) ? len / v + v / acc : 2 * Math.sqrt(len / acc);
+      }
+      dur = sec;
+    }
     st.moves.push({
       kind: kind,
       from: from,
@@ -6870,6 +6959,9 @@ var TNC = (function () {
       cycle: cycleName || null,
       rc: tagRc,
       rcAct: !!(tagRc && st.rcAct),
+      rot0: dRot > EPS || r0.a || r0.b || r0.c ? r0 : null,
+      rot1: dRot > EPS || r1.a || r1.b || r1.c ? r1 : null,
+      dur: dur,
       len: len
     });
     if (tagRc) st.rcAct = false;
@@ -7065,7 +7157,7 @@ var TNC = (function () {
     var cxp = st.pos.x, cyp = st.pos.y;
     var surf = st.pos.z - clr;                 // tool sits at set-up clearance above the surface
     var bottom = surf + dep;
-    var stepOver = 0.7 * R; if (!(stepOver > EPS)) stepOver = 1;
+    var stepOver = (st.mach.pocketK || 0.7) * R; if (!(stepOver > EPS)) stepOver = 1;   // MP 7430 overlap factor
 
     // concentric rectangles, built outside-in then reversed => spiral out
     var rects = [], rx = hx, ry = hy, g = 0;
@@ -7184,7 +7276,9 @@ var TNC = (function () {
     if (dep <= EPS) { fail(st, bi, 'CYCL DEF INCOMPLETE'); return; }
     if (kind === 206) f = qp(cy, 206, st.feed) || st.feed;
     else { var pitch = qp(cy, 239, 0); f = Math.abs(pitch) * st.sRpm; if (!(f > 0)) { fail(st, bi, 'CYCL DEF INCOMPLETE'); return; } }
-    if (!keep) { fail(st, bi, 'SPINDLE ?'); }
+    /* 206 (floating tap holder) needs the spindle running. 207/209 are rigid: the control drives the spindle itself,
+       so a repeated M99 after the spindle stopped at the end of the previous hole is legal (CAM posts rely on it). */
+    if (!keep && kind === 206) { fail(st, bi, 'SPINDLE ?'); }
     var dir = keep || 1;
     emit(st, 'rapid', { x: x, y: y, z: surf + clr }, RAPID_RATE, bi, lab);
     if (kind === 209) {                                         // infeed Q257, reverse, retract Q256 (0: to set-up clearance)
@@ -7465,6 +7559,11 @@ var TNC = (function () {
 
   function targetOf(args, st) {
     var p = { x: st.pos.x, y: st.pos.y, z: st.pos.z };
+    ['a', 'b', 'c'].forEach(function (k) {                      // rotary axes: machine angles, no transformation
+      var v2;
+      if (args['ax' + k] !== undefined)  { v2 = resolve(args['ax' + k], st.Q);  if (v2 !== null) st.rotTo = st.rotTo || {}, st.rotTo[k] = v2; }
+      if (args['iax' + k] !== undefined) { v2 = resolve(args['iax' + k], st.Q); if (v2 !== null) st.rotTo = st.rotTo || {}, st.rotTo[k] = (st.rotTo && st.rotTo[k] !== undefined ? st.rotTo[k] : st.rot[k]) + v2; }
+    });
     var ax = ['x', 'y', 'z'], v;
     for (var i = 0; i < 3; i++) {
       var k = ax[i];
@@ -7503,7 +7602,9 @@ var TNC = (function () {
     applyM(st, a.m, 'start');
     feedOf(st, a, bi);
     var moves = (a.x !== undefined || a.y !== undefined || a.z !== undefined ||
-                 a.ix !== undefined || a.iy !== undefined || a.iz !== undefined);
+                 a.ix !== undefined || a.iy !== undefined || a.iz !== undefined ||
+                 a.axa !== undefined || a.axb !== undefined || a.axc !== undefined ||
+                 a.iaxa !== undefined || a.iaxb !== undefined || a.iaxc !== undefined);
     if (moves) {
       var to = targetOf(a, st);
       if (a.fmax) emit(st, 'rapid', to, RAPID_RATE, bi, null);
@@ -7541,7 +7642,7 @@ var TNC = (function () {
     var a0 = Math.atan2(from[v] - cv, from[u] - cu), w0 = from[w];
     if (sweep === null) {                                   // C: from the end point and direction
       var a1 = Math.atan2(endUV[1] - cv, endUV[0] - cu), r2 = Math.sqrt((endUV[0] - cu) * (endUV[0] - cu) + (endUV[1] - cv) * (endUV[1] - cv));
-      if (Math.abs(r2 - r) > ARC_TOL) { fail(st, bi, 'ARC END POS. INCORRECT'); return; }
+      if (Math.abs(r2 - r) > st.arcTol) { fail(st, bi, 'ARC END POS. INCORRECT'); return; }
       sweep = endUV[2] ? dirAngle(a0, a1, 1) || 2 * Math.PI : (dirAngle(a0, a1, -1) || -2 * Math.PI);
     }
     var n = Math.max(4, Math.ceil(Math.abs(sweep) / (Math.PI / 36)));
@@ -7567,7 +7668,7 @@ var TNC = (function () {
     var from = st.pos;
     var r1 = Math.sqrt(Math.pow(from.x - st.cc.x, 2) + Math.pow(from.y - st.cc.y, 2));
     var r2 = Math.sqrt(Math.pow(to.x - st.cc.x, 2) + Math.pow(to.y - st.cc.y, 2));
-    if (r1 < EPS || Math.abs(r1 - r2) > ARC_TOL) { fail(st, bi, 'ARC END POS. INCORRECT'); return; }
+    if (r1 < EPS || Math.abs(r1 - r2) > st.arcTol) { fail(st, bi, 'ARC END POS. INCORRECT'); return; }
     if (!(st.feed > 0)) { fail(st, bi, 'FEED RATE MISSING'); return; }
     emit(st, 'arc', to, st.feed, bi, null, { cx: st.cc.x, cy: st.cc.y, ccw: a.dr !== '-' });
     applyM(st, a.m, 'end');
@@ -7585,7 +7686,7 @@ var TNC = (function () {
     var L = Math.sqrt(dx * dx + dy * dy);
     if (L < EPS) { fail(st, bi, 'ARC END POS. INCORRECT'); return; }
     var h2 = R * R - L * L / 4;
-    if (h2 < -ARC_TOL) { fail(st, bi, 'ARC END POS. INCORRECT'); return; }
+    if (h2 < -st.arcTol) { fail(st, bi, 'ARC END POS. INCORRECT'); return; }
     var h = Math.sqrt(Math.max(h2, 0));
     var mx = (from.x + to.x) / 2, my = (from.y + to.y) / 2;
     var ux = dx / L, uy = dy / L;
@@ -7869,7 +7970,7 @@ var TNC = (function () {
           st.cycle = gatherCycle(st, i);
           if (!IMPLEMENTED_CYCLES[st.cycle.num] && !NOMOTION_CYCLES[st.cycle.num])
             fail(st, i, 'CYCLE ' + st.cycle.num + ' NOT IMPLEMENTED IN SIMULATOR');
-          if (st.cycle.num === 7 || st.cycle.num === 8 || st.cycle.num === 10 || st.cycle.num === 11) {
+          if (st.cycle.num === 7 || st.cycle.num === 8 || st.cycle.num === 10 || st.cycle.num === 11 || st.cycle.num === 19) {
             applyTransform(st, st.cycle, i); st.cycle = null;   // takes effect here; not called
           }
           break;
@@ -8039,7 +8140,8 @@ var TNC = (function () {
   function moveFrom(p, tpl, extra) {
     var mv = { kind: tpl.kind === 'arc' ? 'feed' : tpl.kind, from: pStart(p), to: pEnd(p), cx: null, cy: null, ccw: false, sweep: null,
       feed: tpl.feed, tool: tpl.tool, toolR: tpl.toolR, toolDR: tpl.toolDR || 0, toolName: tpl.toolName, spindle: tpl.spindle,
-      coolant: tpl.coolant, block: tpl.block, cycle: tpl.cycle || null, rc: null, rcAct: false, len: 0 };
+      coolant: tpl.coolant, block: tpl.block, cycle: tpl.cycle || null, rc: null, rcAct: false, len: 0,
+      rot0: tpl.rot1 || tpl.rot0 || null, rot1: tpl.rot1 || null, dur: null };
     if (p.type === 'arc') {
       mv.kind = 'arc'; mv.cx = p.cx; mv.cy = p.cy; mv.ccw = p.sw > 0; mv.sweep = p.sw;
       if (tpl.kind === 'rapid') mv.feed = RAPID_RATE;
@@ -8296,6 +8398,11 @@ var TNC = (function () {
 
     var st = newState(blocks);
     st.toolTable = (opts && opts.tools) || TOOLS;
+    /* opts.machine: the machine parameters that change interpreter results (see MACHINE_430 in ui.js)
+       arcTol (MP 7431), pocketK (MP 7430), fMax (MP 1020), rapid {x,y,z,a,b} (MP 1010), accel (MP 1060),
+       axes, limits {A:[min,max], ...} (MP 910/920), sMax (MP 3515) */
+    st.mach = (opts && opts.machine) || {};
+    st.arcTol = st.mach.arcTol || ARC_TOL;
     st.autoTools = !!(opts && opts.autoTools);
 
     // label table
@@ -8334,7 +8441,7 @@ var TNC = (function () {
     for (i = 0; i < st.moves.length; i++) {
       var mv = st.moves[i];
       var f = (mv.kind === 'rapid') ? RAPID_RATE : mv.feed;
-      var t = (f > 0) ? (mv.len / f) * 60 : 0;
+      var t = (mv.dur != null) ? mv.dur : ((f > 0) ? (mv.len / f) * 60 : 0);
       cycleTime += t;
       if (mv.kind === 'rapid') pathRapid += mv.len; else pathFeed += mv.len;
       minZ = Math.min(minZ, mv.from.z, mv.to.z);
@@ -8374,7 +8481,8 @@ var TNC = (function () {
         toolsUsed: toolsUsed,
         removedVolume: removed
       },
-      errors: st.errors
+      errors: st.errors,
+      machine: st.mach
     };
   }
 
@@ -8386,6 +8494,7 @@ var TNC = (function () {
       moves: c.moves,
       stock: c.stock,
       stats: c.stats,
+      machine: c.machine,
       errors: p.errors.concat(c.errors)
     };
   }
@@ -8444,12 +8553,23 @@ var TNC_SIM = (function () {
       var pairs = [];
       if (mv.kind === 'arc' && mv.cx != null) tessArc(mv, pairs);
       else pairs.push([mv.from, mv.to]);
+      /* rotary axes ride along: angles interpolated over the move (DRO + head pose) */
+      var r0 = mv.rot0, r1 = mv.rot1 || mv.rot0, total = 0;
+      pairs.forEach(function (pr) { total += Math.hypot(pr[1].x - pr[0].x, pr[1].y - pr[0].y, pr[1].z - pr[0].z); });
+      var done = 0, rotOnly = total < 1e-9 && r0 && r1 && (r0.a !== r1.a || r0.b !== r1.b || r0.c !== r1.c);
+      if (rotOnly) pairs = [[mv.from, mv.to]];
       pairs.forEach(function (pr) {
         var a = pr[0], b = pr[1];
         var len = Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
-        if (len < 1e-9) return;
+        if (len < 1e-9 && !rotOnly) return;
+        if (r0) {
+          var u0 = total > 1e-9 ? done / total : 0, u1 = total > 1e-9 ? (done + len) / total : 1;
+          a = { x: a.x, y: a.y, z: a.z, a: r0.a + (r1.a - r0.a) * u0, b: r0.b + (r1.b - r0.b) * u0, c: r0.c + (r1.c - r0.c) * u0 };
+          b = { x: b.x, y: b.y, z: b.z, a: r0.a + (r1.a - r0.a) * u1, b: r0.b + (r1.b - r0.b) * u1, c: r0.c + (r1.c - r0.c) * u1 };
+        }
+        done += len;
         var f = mv.kind === 'rapid' ? rapid : Math.max(1, mv.feed || 500);
-        var dt = len / f * 60;
+        var dt = mv.dur != null ? mv.dur * (total > 1e-9 ? len / total : 1) : len / f * 60;   // machine time when the core knows it
         segs.push({ a: a, b: b, len: len, f: f, kind: mv.kind === 'rapid' ? 'rapid' : 'feed',
                     block: mv.block, tool: mv.tool, toolR: mv.toolR || 3, cone: isCone(mv.tool) || /CHAMFER|SPOT|CENTER|CENTRE/i.test(mv.toolName || ''),
                     spindle: mv.spindle || 0, coolant: !!mv.coolant, cycle: mv.cycle || null,
@@ -8498,7 +8618,8 @@ var TNC_SIM = (function () {
     SPINDLE_OFF:       'CRASH: CUTTING WITH SPINDLE STOPPED',
     BELOW_BLANK:       'CRASH: TOOL MORE THAN 3 MM BELOW BLANK — INTO THE PARALLELS / TABLE',
     THROUGH_CUT:       'NOTE: TOOL BREAKS THROUGH THE BLANK BOTTOM — ASSUMES PARALLELS UNDER THE PART',
-    CHIP_LOAD:         'WARNING: CHIP LOAD HIGH FOR THIS CUTTER'
+    CHIP_LOAD:         'WARNING: CHIP LOAD HIGH FOR THIS CUTTER',
+    SPINDLE_MAX:       'WARNING: SPINDLE SPEED ABOVE THE MACHINE MAXIMUM'
   };
 
   function analyse(res, ex, g) {
@@ -8546,6 +8667,9 @@ var TNC_SIM = (function () {
         }
       }
     });
+    var sMax = res.machine && res.machine.sMax;                // MP 3515: the control limits S to the gear range maximum
+    if (sMax) for (var k = 0; k < ex.segs.length; k++) { var sg = ex.segs[k];
+      if (Math.abs(sg.spindle || 0) > sMax + 1e-9) add('SPINDLE_MAX', 'warn', sg, k, sg.t0, sg.a, ' — S' + Math.abs(sg.spindle) + ' > ' + sMax + ' RPM (MP 3515), THE CONTROL LIMITS IT'); }
     return ev;
   }
 
@@ -8566,9 +8690,9 @@ var TNC_PROGRAMS = {
 '; NAMEPLATE - GARAGE PLATE 300 X 200 X 20',
 '; LETTERS 20 HIGH, 15 WIDE, 2 DEEP, GAP 2',
 '; TEXT FIELD X+83 TO X+217, CENTRED ON Y+100',
-'; T9 = END MILL 3 MM   S3000   F1000',
+'; T9 = END MILL 3 MM   S2500   F300 (MAX 2500 RPM)',
 '; ------------------------------------------------',
-'TOOL CALL 9 Z S3000',
+'TOOL CALL 9 Z S2500',
 'L Z+50 R0 FMAX M3',
 'FN 0: Q1 = -1                ; INFEED PER PASS',
 'FN 0: Q2 = +0                ; CURRENT DEPTH',
@@ -8576,19 +8700,19 @@ var TNC_PROGRAMS = {
 'FN 1: Q2 = +Q2 + +Q1',
 '; ---------- F  X+83 TO X+98 ----------',
 'L X+84.5 Y+91.5 R0 FMAX',
-'L Z+Q2 F400',
-'L Y+108.5 R0 F1000',
+'L Z+Q2 F150',
+'L Y+108.5 R0 F300',
 'L X+94 R0',
 'L X+96.5 Y+106 R0',
 'L Z+2 R0 FMAX',
 'L X+84.5 Y+100.5 R0 FMAX',
-'L Z+Q2 F400',
-'L X+94 R0 F1000',
+'L Z+Q2 F150',
+'L X+94 R0 F300',
 'L Z+2 R0 FMAX',
 '; ---------- U  X+100 TO X+115 ----------',
 'L X+101.5 Y+108.5 R0 FMAX',
-'L Z+Q2 F400',
-'L Y+94 R0 F1000',
+'L Z+Q2 F150',
+'L Y+94 R0 F300',
 'L X+104 Y+91.5 R0',
 'L X+111 R0',
 'L X+113.5 Y+94 R0',
@@ -8596,15 +8720,15 @@ var TNC_PROGRAMS = {
 'L Z+2 R0 FMAX',
 '; ---------- N  X+117 TO X+132 ----------',
 'L X+118.5 Y+91.5 R0 FMAX',
-'L Z+Q2 F400',
-'L Y+108.5 R0 F1000',
+'L Z+Q2 F150',
+'L Y+108.5 R0 F300',
 'L X+130.5 Y+91.5 R0',
 'L Y+108.5 R0',
 'L Z+2 R0 FMAX',
 '; ---------- C  X+134 TO X+149 ----------',
 'L X+147.5 Y+106 R0 FMAX',
-'L Z+Q2 F400',
-'L X+145 Y+108.5 R0 F1000',
+'L Z+Q2 F150',
+'L X+145 Y+108.5 R0 F300',
 'L X+138 R0',
 'L X+135.5 Y+106 R0',
 'L Y+94 R0',
@@ -8614,22 +8738,22 @@ var TNC_PROGRAMS = {
 'L Z+2 R0 FMAX',
 '; ---------- T  X+151 TO X+166 ----------',
 'L X+152.5 Y+108.5 R0 FMAX',
-'L Z+Q2 F400',
-'L X+164.5 R0 F1000',
+'L Z+Q2 F150',
+'L X+164.5 R0 F300',
 'L Z+2 R0 FMAX',
 'L X+158.5 Y+108.5 R0 FMAX',
-'L Z+Q2 F400',
-'L Y+91.5 R0 F1000',
+'L Z+Q2 F150',
+'L Y+91.5 R0 F300',
 'L Z+2 R0 FMAX',
 '; ---------- I  X+168 TO X+183 ----------',
 'L X+175.5 Y+108.5 R0 FMAX',
-'L Z+Q2 F400',
-'L Y+91.5 R0 F1000',
+'L Z+Q2 F150',
+'L Y+91.5 R0 F300',
 'L Z+2 R0 FMAX',
 '; ---------- O  X+185 TO X+200 ----------',
 'L X+189 Y+91.5 R0 FMAX',
-'L Z+Q2 F400',
-'L X+196 R0 F1000',
+'L Z+Q2 F150',
+'L X+196 R0 F300',
 'L X+198.5 Y+94 R0',
 'L Y+106 R0',
 'L X+196 Y+108.5 R0',
@@ -8640,40 +8764,40 @@ var TNC_PROGRAMS = {
 'L Z+2 R0 FMAX',
 '; ---------- N  X+202 TO X+217 ----------',
 'L X+203.5 Y+91.5 R0 FMAX',
-'L Z+Q2 F400',
-'L Y+108.5 R0 F1000',
+'L Z+Q2 F150',
+'L Y+108.5 R0 F300',
 'L X+215.5 Y+91.5 R0',
 'L Y+108.5 R0',
 'L Z+2 R0 FMAX',
 '; ---------- RULES ABOVE AND BELOW ----------',
 'L X+60 Y+122 R0 FMAX',
-'L Z+Q2 F400',
-'L X+240 R0 F1000',
+'L Z+Q2 F150',
+'L X+240 R0 F300',
 'L Z+2 R0 FMAX',
 'L X+60 Y+78 R0 FMAX',
-'L Z+Q2 F400',
-'L X+240 R0 F1000',
+'L Z+Q2 F150',
+'L X+240 R0 F300',
 'L Z+2 R0 FMAX',
 'L X+60 Y+122 R0 FMAX',
-'L Z+Q2 F400',
-'L Y+128 R0 F1000',
+'L Z+Q2 F150',
+'L Y+128 R0 F300',
 'L Z+2 R0 FMAX',
 'L X+240 Y+122 R0 FMAX',
-'L Z+Q2 F400',
-'L Y+128 R0 F1000',
+'L Z+Q2 F150',
+'L Y+128 R0 F300',
 'L Z+2 R0 FMAX',
 'L X+60 Y+78 R0 FMAX',
-'L Z+Q2 F400',
-'L Y+72 R0 F1000',
+'L Z+Q2 F150',
+'L Y+72 R0 F300',
 'L Z+2 R0 FMAX',
 'L X+240 Y+78 R0 FMAX',
-'L Z+Q2 F400',
-'L Y+72 R0 F1000',
+'L Z+Q2 F150',
+'L Y+72 R0 F300',
 'L Z+2 R0 FMAX',
 '; ---------- INNER FRAME ----------',
 'L X+47 Y+40 R0 FMAX',
-'L Z+Q2 F400',
-'L X+253 R0 F1000',
+'L Z+Q2 F150',
+'L X+253 R0 F300',
 'L X+260 Y+47 R0',
 'L Y+153 R0',
 'L X+253 Y+160 R0',
@@ -8684,8 +8808,8 @@ var TNC_PROGRAMS = {
 'L Z+2 R0 FMAX',
 '; ---------- OUTER FRAME ----------',
 'L X+44 Y+34 R0 FMAX',
-'L Z+Q2 F400',
-'L X+256 R0 F1000',
+'L Z+Q2 F150',
+'L X+256 R0 F300',
 'L X+266 Y+44 R0',
 'L Y+156 R0',
 'L X+256 Y+166 R0',
@@ -8728,7 +8852,7 @@ var TNC_PROGRAMS = {
 'END PGM NAMEPLATE MM'
 ].join('\n'),
 
-'NAMEPLATE_V2.H': "BEGIN PGM NAMEPLATE_V2 MM\nBLK FORM 0.1 Z X+0 Y+0 Z-10\nBLK FORM 0.2 X+220 Y+60 Z+0\n; ------------------------------------------------\n; NAMEPLATE V2 - ENGRAVING WITH TRUE ARCS\n; BLANK 220 X 60 X 10 ALU, DATUM LOWER LEFT, TOP Z+0\n; LETTERS 20 HIGH, 15 WIDE, 2 DEEP\n; CELLS 15 X 20, GAP 3, PITCH 18\n; TEXT FIELD X+39.5 TO X+180.5, Y+20 TO Y+40\n; CENTRE LINES INSET 1.5 = TOOL RADIUS, R0\n; O C U AND R BOWL: CC + C / CR ARCS\n; T9 ENDMILL 3 CARBIDE 3 FL  S7500\n; F600 (FZ 0.027)  PLUNGE F150\n; 4 PASSES X 0.5 = 2.0 DEEP (Q1 INFEED)\n; LBL 1 ... CALL LBL 1 REP 3/3 = 4 PASSES\n; ------------------------------------------------\nTOOL CALL 9 Z S7500\nL Z+50 R0 FMAX M3\nFN 0: Q1 = -0.5              ; INFEED PER PASS\nFN 0: Q2 = +0                ; CURRENT DEPTH\nFN 0: Q3 = +600              ; CUTTING FEED\nFN 0: Q4 = +150              ; PLUNGE FEED\nL X+23 Y+38.5 R0 FMAX M8\nL Z+2 R0 FMAX\nLBL 1\nFN 1: Q2 = +Q2 + +Q1\n; ---------- F  X+39.5 TO X+54.5 ----------\nL X+41 Y+21.5 R0 FMAX\nL Z+Q2 FQ4\nL X+41 Y+38.5 R0 FQ3\nL X+53 Y+38.5 R0\nL Z+2 R0 FMAX\nL X+41 Y+30.5 R0 FMAX\nL Z+Q2 FQ4\nL X+50.5 Y+30.5 R0 FQ3\nL Z+2 R0 FMAX\n; ---------- U  X+57.5 TO X+72.5 ----------\nL X+59 Y+38.5 R0 FMAX\nL Z+Q2 FQ4\nL X+59 Y+27.5 R0 FQ3\nCC X+65 Y+27.5\nC X+71 Y+27.5 DR+\nL X+71 Y+38.5 R0\nL Z+2 R0 FMAX\n; ---------- N  X+75.5 TO X+90.5 ----------\nL X+77 Y+21.5 R0 FMAX\nL Z+Q2 FQ4\nL X+77 Y+38.5 R0 FQ3\nL X+89 Y+21.5 R0\nL X+89 Y+38.5 R0\nL Z+2 R0 FMAX\n; ---------- C  X+93.5 TO X+108.5 ----------\nL X+106.196 Y+35.5 R0 FMAX\nL Z+Q2 FQ4\nCC X+101 Y+32.5\nC X+95 Y+32.5 DR+ FQ3\nL X+95 Y+27.5 R0\nCC X+101 Y+27.5\nC X+106.196 Y+24.5 DR+\nL Z+2 R0 FMAX\n; ---------- T  X+111.5 TO X+126.5 ----------\nL X+113 Y+38.5 R0 FMAX\nL Z+Q2 FQ4\nL X+125 Y+38.5 R0 FQ3\nL Z+2 R0 FMAX\nL X+119 Y+38.5 R0 FMAX\nL Z+Q2 FQ4\nL X+119 Y+21.5 R0 FQ3\nL Z+2 R0 FMAX\n; ---------- I  X+129.5 TO X+144.5 ----------\nL X+137 Y+38.5 R0 FMAX\nL Z+Q2 FQ4\nL X+137 Y+21.5 R0 FQ3\nL Z+2 R0 FMAX\n; ---------- O  X+147.5 TO X+162.5 ----------\nL X+149 Y+32.5 R0 FMAX\nL Z+Q2 FQ4\nL X+149 Y+27.5 R0 FQ3\nCC X+155 Y+27.5\nC X+161 Y+27.5 DR+\nL X+161 Y+32.5 R0\nCC X+155 Y+32.5\nC X+149 Y+32.5 DR+\nL Z+2 R0 FMAX\n; ---------- N  X+165.5 TO X+180.5 ----------\nL X+167 Y+21.5 R0 FMAX\nL Z+Q2 FQ4\nL X+167 Y+38.5 R0 FQ3\nL X+179 Y+21.5 R0\nL X+179 Y+38.5 R0\nL Z+2 R0 FMAX\nCALL LBL 1 REP 3/3\nL Z+50 R0 FMAX M5 M9\nTOOL CALL 0 Z\nL Z+100 R0 FMAX M2\nEND PGM NAMEPLATE_V2 MM",
+'NAMEPLATE_V2.H': "BEGIN PGM NAMEPLATE_V2 MM\nBLK FORM 0.1 Z X+0 Y+0 Z-10\nBLK FORM 0.2 X+220 Y+60 Z+0\n; ------------------------------------------------\n; NAMEPLATE V2 - ENGRAVING WITH TRUE ARCS\n; BLANK 220 X 60 X 10 ALU, DATUM LOWER LEFT, TOP Z+0\n; LETTERS 20 HIGH, 15 WIDE, 2 DEEP\n; CELLS 15 X 20, GAP 3, PITCH 18\n; TEXT FIELD X+39.5 TO X+180.5, Y+20 TO Y+40\n; CENTRE LINES INSET 1.5 = TOOL RADIUS, R0\n; O C U AND R BOWL: CC + C / CR ARCS\n; T9 ENDMILL 3 CARBIDE 3 FL  S2500 (MAX 2500 RPM)\n; F300 (FZ 0.040)  PLUNGE F150\n; 4 PASSES X 0.5 = 2.0 DEEP (Q1 INFEED)\n; LBL 1 ... CALL LBL 1 REP 3/3 = 4 PASSES\n; ------------------------------------------------\nTOOL CALL 9 Z S2500\nL Z+50 R0 FMAX M3\nFN 0: Q1 = -0.5              ; INFEED PER PASS\nFN 0: Q2 = +0                ; CURRENT DEPTH\nFN 0: Q3 = +300              ; CUTTING FEED\nFN 0: Q4 = +150              ; PLUNGE FEED\nL X+23 Y+38.5 R0 FMAX M8\nL Z+2 R0 FMAX\nLBL 1\nFN 1: Q2 = +Q2 + +Q1\n; ---------- F  X+39.5 TO X+54.5 ----------\nL X+41 Y+21.5 R0 FMAX\nL Z+Q2 FQ4\nL X+41 Y+38.5 R0 FQ3\nL X+53 Y+38.5 R0\nL Z+2 R0 FMAX\nL X+41 Y+30.5 R0 FMAX\nL Z+Q2 FQ4\nL X+50.5 Y+30.5 R0 FQ3\nL Z+2 R0 FMAX\n; ---------- U  X+57.5 TO X+72.5 ----------\nL X+59 Y+38.5 R0 FMAX\nL Z+Q2 FQ4\nL X+59 Y+27.5 R0 FQ3\nCC X+65 Y+27.5\nC X+71 Y+27.5 DR+\nL X+71 Y+38.5 R0\nL Z+2 R0 FMAX\n; ---------- N  X+75.5 TO X+90.5 ----------\nL X+77 Y+21.5 R0 FMAX\nL Z+Q2 FQ4\nL X+77 Y+38.5 R0 FQ3\nL X+89 Y+21.5 R0\nL X+89 Y+38.5 R0\nL Z+2 R0 FMAX\n; ---------- C  X+93.5 TO X+108.5 ----------\nL X+106.196 Y+35.5 R0 FMAX\nL Z+Q2 FQ4\nCC X+101 Y+32.5\nC X+95 Y+32.5 DR+ FQ3\nL X+95 Y+27.5 R0\nCC X+101 Y+27.5\nC X+106.196 Y+24.5 DR+\nL Z+2 R0 FMAX\n; ---------- T  X+111.5 TO X+126.5 ----------\nL X+113 Y+38.5 R0 FMAX\nL Z+Q2 FQ4\nL X+125 Y+38.5 R0 FQ3\nL Z+2 R0 FMAX\nL X+119 Y+38.5 R0 FMAX\nL Z+Q2 FQ4\nL X+119 Y+21.5 R0 FQ3\nL Z+2 R0 FMAX\n; ---------- I  X+129.5 TO X+144.5 ----------\nL X+137 Y+38.5 R0 FMAX\nL Z+Q2 FQ4\nL X+137 Y+21.5 R0 FQ3\nL Z+2 R0 FMAX\n; ---------- O  X+147.5 TO X+162.5 ----------\nL X+149 Y+32.5 R0 FMAX\nL Z+Q2 FQ4\nL X+149 Y+27.5 R0 FQ3\nCC X+155 Y+27.5\nC X+161 Y+27.5 DR+\nL X+161 Y+32.5 R0\nCC X+155 Y+32.5\nC X+149 Y+32.5 DR+\nL Z+2 R0 FMAX\n; ---------- N  X+165.5 TO X+180.5 ----------\nL X+167 Y+21.5 R0 FMAX\nL Z+Q2 FQ4\nL X+167 Y+38.5 R0 FQ3\nL X+179 Y+21.5 R0\nL X+179 Y+38.5 R0\nL Z+2 R0 FMAX\nCALL LBL 1 REP 3/3\nL Z+50 R0 FMAX M5 M9\nTOOL CALL 0 Z\nL Z+100 R0 FMAX M2\nEND PGM NAMEPLATE_V2 MM",
 
 'BRACKET.H': [
 'BEGIN PGM BRACKET MM',
@@ -8746,7 +8870,7 @@ var TNC_PROGRAMS = {
 'L X+150 R0 F900',
 'L Z+50 R0 FMAX',
 '; ---------- RECTANGULAR POCKET, 4 PASSES ----------',
-'TOOL CALL 5 Z S3200',
+'TOOL CALL 5 Z S2500',
 'FN 0: Q1 = -3',
 'FN 0: Q2 = +0',
 'L Z+50 R0 FMAX M3',
@@ -12344,6 +12468,10 @@ var TNC_MATERIALS = (function () {
     m.color.setHex(preset.color);
     if ('metalness' in m) m.metalness = preset.metalness;
     if ('roughness' in m) m.roughness = preset.roughness;
+    // Tame the r186 environment map's contribution per-material too (on top
+    // of look.js's scene.environmentIntensity/exposure knobs) so the stock
+    // doesn't blow out to flat white and cut faces keep visible shading.
+    if ('envMapIntensity' in m) m.envMapIntensity = 0.6;
     // vertexColors stays on for gStock: the material color above multiplies
     // with the per-vertex cut-depth tint already painted by ui.js, rather
     // than replacing it.
@@ -12439,7 +12567,10 @@ var TNC_LOOK = (function () {
         else if (THREE.sRGBEncoding !== undefined) renderer.outputEncoding = THREE.sRGBEncoding;
         if (THREE.ACESFilmicToneMapping !== undefined) {
           renderer.toneMapping = THREE.ACESFilmicToneMapping;
-          renderer.toneMappingExposure = 1.05;
+          // r186's env/lighting defaults render the stock almost pure white and
+          // flat; pull exposure down so faces actually shade differently and
+          // cut depth reads. Speed over polish -- tuned by eye, not measured.
+          renderer.toneMappingExposure = 0.8;
         }
       } catch (e) {}
 
@@ -12450,6 +12581,7 @@ var TNC_LOOK = (function () {
           pmrem.compileEquirectangularShader && pmrem.compileEquirectangularShader();
           var envRT = pmrem.fromScene(new THREE.RoomEnvironment(), 0.035);
           scene.environment = envRT.texture;
+          if ('environmentIntensity' in scene) scene.environmentIntensity = 0.6;   // r160+
           pmrem.dispose();
         }
       } catch (e) { /* no PMREM support: materials just stay unlit-by-env, no crash */ }
@@ -12880,6 +13012,387 @@ toolLine(tools),
 if (typeof module !== 'undefined') module.exports = TNC_AI;
 
 </script>
+<script>/* ===== Programming dialogs: path functions, CYCL DEF, TOOL CALL ===== */
+/* ============================================================
+   TNC_DIALOGS — the programming dialogs of the TNC 426/430 keyboard:
+   path functions, TOOL DEF / TOOL CALL, CYCL DEF (grouped soft keys, one
+   question per parameter), CYCL CALL, labels, STOP, Q parameters.
+   Pure data + block builders; the dialog engine lives in ui.js.
+
+   A spec: { id, key, title, steps:[step], build(values) -> text }
+   A step: { k, ask, type, opts?, dflt?, opt? }
+     type 'coords'  "X+10 Y-5" (axis soft keys; bare numbers go to X Y Z in turn)
+          'num'     one number (Q allowed); dflt used on ENT
+          'choice'  soft keys opts; ENT = dflt
+          'feed'    number, FMAX / F AUTO soft keys; ENT = keep modal feed
+          'm'       M function; ENT = none
+          'text'    free text (formula)
+   Parameter names and defaults follow the TNC 426/430 user manual, NC SW 280 476.
+   ============================================================ */
+var TNC_DIALOGS = (function () {
+  'use strict';
+  var sg = function (v) { v = String(v).trim(); if (/^Q/i.test(v)) return '+' + v.toUpperCase(); var n = parseFloat(v); return (n < 0 || /^-/.test(v) ? '-' : '+') + String(Math.abs(n)); };
+  var join = function (a) { return a.filter(function (x) { return x !== '' && x != null; }).join(' '); };
+  var RC = { k: 'rc', ask: 'RADIUS COMP.: RL/RR/NO COMP. ?', type: 'choice', opts: ['RL', 'RR', 'R0'], dflt: 'R0' };
+  var F = { k: 'f', ask: 'FEED RATE F=?', type: 'feed' };
+  var M = { k: 'm', ask: 'MISCELLANEOUS FUNCTION M ?', type: 'm', opt: true };
+  var XY = { k: 'xyz', ask: 'COORDINATES ?', type: 'coords' };
+  var DR = { k: 'dr', ask: 'DIRECTION OF ROTATION DR ?', type: 'choice', opts: ['DR+', 'DR-'], dflt: 'DR+' };
+  var feedTxt = function (v) { return !v ? '' : (v === 'FMAX' || v === 'FAUTO' ? v : 'F' + String(v).replace(/^\+/, '')); };
+  var mTxt = function (v) { return v ? String(v).split(/[\s,]+/).filter(Boolean).map(function (m) { return 'M' + m.replace(/^M/i, ''); }).join(' ') : ''; };
+
+  var PATH = {
+    L:   { key: 'L', title: 'STRAIGHT LINE L', steps: [XY, RC, F, M], build: function (v) { return join(['L', v.xyz, v.rc, feedTxt(v.f), mTxt(v.m)]); } },
+    CC:  { key: 'CC', title: 'CIRCLE CENTER CC', steps: [{ k: 'xyz', ask: 'COORDINATES ? (ENT = LAST POSITION)', type: 'coords', opt: true }], build: function (v) { return join(['CC', v.xyz]); } },
+    C:   { key: 'C', title: 'CIRCULAR ARC C', steps: [XY, DR, RC, F, M], build: function (v) { return join(['C', v.xyz, v.dr, v.rc, feedTxt(v.f), mTxt(v.m)]); } },
+    CR:  { key: 'CR', title: 'CIRCULAR ARC CR', steps: [XY, { k: 'r', ask: 'CIRCLE RADIUS R ? (- = MORE THAN 180°)', type: 'num' }, DR, RC, F, M],
+           build: function (v) { return join(['CR', v.xyz, 'R' + sg(v.r), v.dr, v.rc, feedTxt(v.f), mTxt(v.m)]); } },
+    CT:  { key: 'CT', title: 'TANGENTIAL ARC CT', steps: [XY, RC, F, M], build: function (v) { return join(['CT', v.xyz, v.rc, feedTxt(v.f), mTxt(v.m)]); } },
+    RND: { key: 'RND', title: 'CORNER ROUNDING RND', steps: [{ k: 'r', ask: 'ROUNDING-OFF RADIUS ?', type: 'num' }, { k: 'f', ask: 'FEED RATE F=? (THIS BLOCK ONLY)', type: 'feed' }],
+           build: function (v) { return join(['RND', 'R' + String(v.r).replace(/^\+/, ''), feedTxt(v.f)]); } },
+    CHF: { key: 'CHF', title: 'CHAMFER CHF', steps: [{ k: 'l', ask: 'CHAMFER SIDE LENGTH ?', type: 'num' }, { k: 'f', ask: 'FEED RATE F=? (THIS BLOCK ONLY)', type: 'feed' }],
+           build: function (v) { return join(['CHF', String(v.l).replace(/^\+/, ''), feedTxt(v.f)]); } },
+    LP:  { key: 'LP', title: 'POLAR LINE LP', steps: [{ k: 'pr', ask: 'POLAR COORDINATES RADIUS PR ?', type: 'num', opt: true }, { k: 'pa', ask: 'POLAR COORDINATES ANGLE PA ?', type: 'num', opt: true }, RC, F, M],
+           build: function (v) { return join(['LP', v.pr ? 'PR' + sg(v.pr) : '', v.pa ? 'PA' + sg(v.pa) : '', v.rc, feedTxt(v.f), mTxt(v.m)]); } },
+    CP:  { key: 'CP', title: 'POLAR ARC CP', steps: [{ k: 'pa', ask: 'POLAR COORDINATES ANGLE PA ? (I = INCREMENTAL)', type: 'text' }, { k: 'iz', ask: 'HELIX: INCREMENTAL Z ? (ENT = NONE)', type: 'num', opt: true }, DR, RC, F, M],
+           build: function (v) { var pa = String(v.pa || '').toUpperCase().replace(/\s+/g, ''); pa = /^I/.test(pa) ? 'IPA' + sg(pa.replace(/^IP?A?/, '')) : 'PA' + sg(pa.replace(/^P?A?/, ''));
+             return join(['CP', pa, v.iz ? 'IZ' + sg(v.iz) : '', v.dr, v.rc, feedTxt(v.f), mTxt(v.m)]); } },
+    APPR: { key: 'APPR\nDEP', title: 'CONTOUR APPROACH APPR', steps: [
+             { k: 'form', ask: 'APPROACH: LT / LN / CT / LCT ?', type: 'choice', opts: ['LT', 'LN', 'CT', 'LCT'], dflt: 'LCT' },
+             { k: 'xyz', ask: 'COORDINATES OF THE FIRST CONTOUR POINT ?', type: 'coords' },
+             { k: 'len', ask: 'LEN (LT/LN) ? ENT = NONE', type: 'num', opt: true },
+             { k: 'r', ask: 'RADIUS R (CT/LCT) ? ENT = NONE', type: 'num', opt: true },
+             { k: 'cca', ask: 'CENTER ANGLE CCA (CT) ? ENT = NONE', type: 'num', opt: true },
+             { k: 'rc', ask: 'RADIUS COMP.: RL/RR ?', type: 'choice', opts: ['RL', 'RR', 'R0'], dflt: 'RL' }, F, M],
+           build: function (v) { return join(['APPR ' + v.form, v.xyz, v.len ? 'LEN' + String(v.len).replace(/^\+/, '') : '', v.cca ? 'CCA' + String(v.cca).replace(/^\+/, '') : '', v.r ? 'R' + sg(v.r) : '', v.rc, feedTxt(v.f), mTxt(v.m)]); } },
+    DEP: { key: 'DEP', title: 'CONTOUR DEPARTURE DEP', steps: [
+             { k: 'form', ask: 'DEPARTURE: LT / LN / CT / LCT ?', type: 'choice', opts: ['LT', 'LN', 'CT', 'LCT'], dflt: 'LCT' },
+             { k: 'xyz', ask: 'END POINT (LCT) ? ENT = NONE', type: 'coords', opt: true },
+             { k: 'len', ask: 'LEN (LT/LN) ? ENT = NONE', type: 'num', opt: true },
+             { k: 'r', ask: 'RADIUS R (CT/LCT) ? ENT = NONE', type: 'num', opt: true },
+             { k: 'cca', ask: 'CENTER ANGLE CCA (CT) ? ENT = NONE', type: 'num', opt: true }, F, M],
+           build: function (v) { return join(['DEP ' + v.form, v.xyz, v.len ? 'LEN' + String(v.len).replace(/^\+/, '') : '', v.cca ? 'CCA' + String(v.cca).replace(/^\+/, '') : '', v.r ? 'R' + sg(v.r) : '', feedTxt(v.f), mTxt(v.m)]); } },
+    TOOLDEF: { key: 'TOOL\nDEF', title: 'TOOL DEF', steps: [{ k: 't', ask: 'TOOL NUMBER ?', type: 'num' }, { k: 'l', ask: 'TOOL LENGTH L ?', type: 'num', dflt: '0' }, { k: 'r', ask: 'TOOL RADIUS R ?', type: 'num' }],
+           build: function (v) { return 'TOOL DEF ' + String(v.t).replace(/^\+/, '') + ' L' + sg(v.l || 0) + ' R' + sg(v.r); } },
+    TOOLCALL: { key: 'TOOL\nCALL', title: 'TOOL CALL', steps: [
+             { k: 't', ask: 'TOOL NUMBER ? (SOFT KEYS: THE TOOL TABLE)', type: 'tool' },
+             { k: 'ax', ask: 'WORKING SPINDLE AXIS X/Y/Z ?', type: 'choice', opts: ['Z', 'X', 'Y'], dflt: 'Z' },
+             { k: 's', ask: 'SPINDLE SPEED S RPM ?', type: 'num', opt: true },
+             { k: 'dl', ask: 'TOOL LENGTH OVERSIZE DL ? ENT = NONE', type: 'num', opt: true },
+             { k: 'dr', ask: 'TOOL RADIUS OVERSIZE DR ? ENT = NONE', type: 'num', opt: true }],
+           build: function (v) { return join(['TOOL CALL', String(v.t).replace(/^\+/, ''), v.ax, v.s ? 'S' + String(v.s).replace(/^\+/, '') : '', v.dl ? 'DL' + sg(v.dl) : '', v.dr ? 'DR' + sg(v.dr) : '']); } },
+    CYCLCALL: { key: 'CYCL\nCALL', title: 'CYCL CALL', steps: [M], build: function (v) { return join(['CYCL CALL', mTxt(v.m)]); } },
+    LBLSET: { key: 'LBL\nSET', title: 'LABEL SET', steps: [{ k: 'n', ask: 'LABEL NUMBER ? (0 = END OF SUBPROGRAM)', type: 'num' }], build: function (v) { return 'LBL ' + String(v.n).replace(/^\+/, ''); } },
+    LBLCALL: { key: 'LBL\nCALL', title: 'LABEL CALL', steps: [{ k: 'n', ask: 'LABEL NUMBER ?', type: 'num' }, { k: 'rep', ask: 'REPEAT REP ? ENT = SUBPROGRAM CALL', type: 'num', opt: true }],
+           build: function (v) { return 'CALL LBL ' + String(v.n).replace(/^\+/, '') + (v.rep ? ' REP ' + String(v.rep).replace(/^\+/, '') + '/' + String(v.rep).replace(/^\+/, '') : ''); } },
+    Q: { key: 'Q', title: 'Q PARAMETER', steps: [{ k: 'q', ask: 'PARAMETER NUMBER FOR RESULT ?', type: 'num' }, { k: 'e', ask: 'FORMULA ? e.g. Q1 * COS Q2 + 5', type: 'text' }],
+           build: function (v) { return 'Q' + String(v.q).replace(/^\+/, '') + ' = ' + v.e; } },
+    STOP: { key: 'STOP', title: 'PROGRAM STOP', steps: [M], build: function (v) { return join(['STOP', mTxt(v.m)]); } }
+  };
+
+  /* ---- cycles: [num, name, group, [[Q, text, default], ...]] ---- */
+  var C200 = [[200, 'SET-UP CLEARANCE', 2], [201, 'DEPTH', -20], [206, 'FEED RATE FOR PLNGNG', 150], [202, 'PLUNGING DEPTH', 5],
+              [210, 'DWELL TIME AT TOP', 0], [203, 'SURFACE COORDINATE', 0], [204, '2ND SET-UP CLEARANCE', 50], [211, 'DWELL TIME AT DEPTH', 0]];
+  var FIN = function (round) { return [[200, 'SET-UP CLEARANCE', 2], [201, 'DEPTH', -20], [206, 'FEED RATE FOR PLNGNG', 150], [202, 'PLUNGING DEPTH', 5],
+    [207, 'FEED RATE FOR MILLNG', 500], [203, 'SURFACE COORDINATE', 0], [204, '2ND SET-UP CLEARANCE', 50], [216, 'CENTER IN 1ST AXIS', 50], [217, 'CENTER IN 2ND AXIS', 50]]
+    .concat(round ? [[222, 'WORKPIECE BLANK DIA.', 79], [223, 'FINISHED PART DIA.', 80]] : [[218, 'FIRST SIDE LENGTH', 80], [219, 'SECOND SIDE LENGTH', 60], [220, 'CORNER RADIUS', 5], [221, 'ALLOWANCE IN 1ST AXS', 0]]); };
+  var CYCLES = [
+    [200, 'DRILLING', 'DRILL', C200],
+    [201, 'REAMING', 'DRILL', [[200, 'SET-UP CLEARANCE', 2], [201, 'DEPTH', -15], [206, 'FEED RATE FOR PLNGNG', 100], [211, 'DWELL TIME AT DEPTH', 0.5], [208, 'RETRACTION FEED RATE', 250], [203, 'SURFACE COORDINATE', 0], [204, '2ND SET-UP CLEARANCE', 50]]],
+    [202, 'BORING', 'DRILL', [[200, 'SET-UP CLEARANCE', 2], [201, 'DEPTH', -15], [206, 'FEED RATE FOR PLNGNG', 100], [211, 'DWELL TIME AT DEPTH', 0.5], [208, 'RETRACTION FEED RATE', 250], [203, 'SURFACE COORDINATE', 0], [204, '2ND SET-UP CLEARANCE', 50], [214, 'DISENGAGING DIRECTN', 1], [336, 'ANGLE OF SPINDLE', 0]]],
+    [203, 'UNIVERSAL DRILLING', 'DRILL', [[200, 'SET-UP CLEARANCE', 2], [201, 'DEPTH', -20], [206, 'FEED RATE FOR PLNGNG', 150], [202, 'PLUNGING DEPTH', 5], [210, 'DWELL TIME AT TOP', 0], [203, 'SURFACE COORDINATE', 0], [204, '2ND SET-UP CLEARANCE', 50], [212, 'DECREMENT', 0.2], [213, 'BREAKS', 3], [205, 'MIN. PLUNGING DEPTH', 3], [211, 'DWELL TIME AT DEPTH', 0.25], [208, 'RETRACTION FEED RATE', 500], [256, 'DIST. FOR CHIP BRKNG', 0.2]]],
+    [204, 'BACK BORING', 'DRILL', [[200, 'SET-UP CLEARANCE', 2], [249, 'DEPTH OF COUNTERBORE', 5], [250, 'MATERIAL THICKNESS', 20], [251, 'OFF-CENTER DISTANCE', 3.5], [252, 'TOOL EDGE HEIGHT', 15], [253, 'F PRE-POSITIONING', 750], [254, 'F COUNTERBORING', 200], [255, 'DWELL TIME', 0], [203, 'SURFACE COORDINATE', 0], [204, '2ND SET-UP CLEARANCE', 50], [214, 'DISENGAGING DIRECTN', 1]]],
+    [205, 'UNIVERSAL PECKING', 'DRILL', [[200, 'SET-UP CLEARANCE', 2], [201, 'DEPTH', -80], [206, 'FEED RATE FOR PLNGNG', 150], [202, 'PLUNGING DEPTH', 15], [203, 'SURFACE COORDINATE', 0], [204, '2ND SET-UP CLEARANCE', 50], [212, 'DECREMENT', 0.5], [205, 'MIN. PLUNGING DEPTH', 3], [258, 'UPPER ADV STOP DIST', 0.5], [259, 'LOWER ADV STOP DIST', 1], [257, 'DEPTH FOR CHIP BRKNG', 5], [256, 'DIST FOR CHIP BRKNG', 0.2], [211, 'DWELL TIME AT DEPTH', 0.25]]],
+    [208, 'BORE MILLING', 'DRILL', [[200, 'SET-UP CLEARANCE', 2], [201, 'DEPTH', -80], [206, 'FEED RATE FOR PLNGNG', 150], [334, 'PLUNGING DEPTH', 1.5], [203, 'SURFACE COORDINATE', 0], [204, '2ND SET-UP CLEARANCE', 50], [335, 'NOMINAL DIAMETER', 25], [342, 'ROUGHING DIAMETER', 0]]],
+    [206, 'TAPPING NEW', 'TAP', [[200, 'SET-UP CLEARANCE', 2], [201, 'DEPTH', -20], [206, 'FEED RATE FOR PLNGNG', 150], [211, 'DWELL TIME AT DEPTH', 0.25], [203, 'SURFACE COORDINATE', 0], [204, '2ND SET-UP CLEARANCE', 50]]],
+    [207, 'RIGID TAPPING NEW', 'TAP', [[200, 'SET-UP CLEARANCE', 2], [201, 'DEPTH', -20], [239, 'PITCH', 1], [203, 'SURFACE COORDINATE', 0], [204, '2ND SET-UP CLEARANCE', 50]]],
+    [209, 'TAPPING W/ CHIP BRKG', 'TAP', [[200, 'SET-UP CLEARANCE', 2], [201, 'DEPTH', -20], [239, 'PITCH', 1], [203, 'SURFACE COORDINATE', 0], [204, '2ND SET-UP CLEARANCE', 50], [257, 'DEPTH FOR CHIP BRKNG', 5], [256, 'DIST FOR CHIP BRKNG', 0.2], [336, 'ANGLE OF SPINDLE', 0]]],
+    [212, 'POCKET FINISHING', 'POCKET', FIN(false)],
+    [213, 'STUD FINISHING', 'POCKET', FIN(false)],
+    [214, 'C. POCKET FINISHING', 'POCKET', FIN(true)],
+    [215, 'C. STUD FINISHING', 'POCKET', FIN(true)],
+    [210, 'SLOT RECIP. PLNG', 'POCKET', [[200, 'SET-UP CLEARANCE', 2], [201, 'DEPTH', -20], [207, 'FEED RATE FOR MILLNG', 500], [202, 'PLUNGING DEPTH', 5], [215, 'MACHINING OPERATION', 0], [203, 'SURFACE COORDINATE', 0], [204, '2ND SET-UP CLEARANCE', 50], [216, 'CENTER IN 1ST AXIS', 50], [217, 'CENTER IN 2ND AXIS', 50], [218, 'FIRST SIDE LENGTH', 80], [219, 'SECOND SIDE LENGTH', 12], [224, 'ANGLE OF ROTATION', 0], [338, 'INFEED FOR FINISHING', 5]]],
+    [211, 'CIRCULAR SLOT', 'POCKET', [[200, 'SET-UP CLEARANCE', 2], [201, 'DEPTH', -20], [207, 'FEED RATE FOR MILLNG', 500], [202, 'PLUNGING DEPTH', 5], [215, 'MACHINING OPERATION', 0], [203, 'SURFACE COORDINATE', 0], [204, '2ND SET-UP CLEARANCE', 50], [216, 'CENTER IN 1ST AXIS', 50], [217, 'CENTER IN 2ND AXIS', 50], [244, 'PITCH CIRCLE DIAMETR', 80], [219, 'SECOND SIDE LENGTH', 12], [245, 'STARTING ANGLE', 45], [248, 'ANGULAR LENGTH', 90], [338, 'INFEED FOR FINISHING', 5]]],
+    [220, 'POLAR PATTERN', 'PATTERN', [[216, 'CENTER IN 1ST AXIS', 50], [217, 'CENTER IN 2ND AXIS', 50], [244, 'PITCH CIRCLE DIAMETR', 80], [245, 'STARTING ANGLE', 0], [246, 'STOPPING ANGLE', 360], [247, 'STEPPING ANGLE', 0], [241, 'NR OF REPETITIONS', 8], [200, 'SET-UP CLEARANCE', 2], [203, 'SURFACE COORDINATE', 0], [204, '2ND SET-UP CLEARANCE', 50], [301, 'MOVE TO CLEARANCE', 1]]],
+    [221, 'CARTESIAN PATTERN', 'PATTERN', [[225, 'STARTNG PNT 1ST AXIS', 15], [226, 'STARTNG PNT 2ND AXIS', 15], [237, 'SPACING IN 1ST AXIS', 10], [238, 'SPACING IN 2ND AXIS', 8], [242, 'NUMBER OF COLUMNS', 6], [243, 'NUMBER OF LINES', 4], [224, 'ANGLE OF ROTATION', 0], [200, 'SET-UP CLEARANCE', 2], [203, 'SURFACE COORDINATE', 0], [204, '2ND SET-UP CLEARANCE', 50], [301, 'MOVE TO CLEARANCE', 1]]],
+    [230, 'MULTIPASS MILLING', 'SURFACE', [[225, 'STARTNG PNT 1ST AXIS', 0], [226, 'STARTNG PNT 2ND AXIS', 0], [227, 'STARTNG PNT 3RD AXIS', 0], [218, 'FIRST SIDE LENGTH', 100], [219, 'SECOND SIDE LENGTH', 80], [240, 'NUMBER OF CUTS', 10], [206, 'FEED RATE FOR PLNGNG', 150], [207, 'FEED RATE FOR MILLNG', 500], [209, 'STEPOVER FEED RATE', 200], [200, 'SET-UP CLEARANCE', 2]]],
+    [231, 'RULED SURFACE', 'SURFACE', [[225, 'STARTNG PNT 1ST AXIS', 0], [226, 'STARTNG PNT 2ND AXIS', 0], [227, 'STARTNG PNT 3RD AXIS', 0], [228, '2ND POINT 1ST AXIS', 100], [229, '2ND POINT 2ND AXIS', 0], [230, '2ND POINT 3RD AXIS', 0], [231, '3RD POINT 1ST AXIS', 100], [232, '3RD POINT 2ND AXIS', 80], [233, '3RD POINT 3RD AXIS', 0], [234, '4TH POINT 1ST AXIS', 0], [235, '4TH POINT 2ND AXIS', 80], [236, '4TH POINT 3RD AXIS', 0], [240, 'NUMBER OF CUTS', 20], [207, 'FEED RATE FOR MILLNG', 500]]],
+    [247, 'DATUM SETTING', 'TRANSF', [[339, 'DATUM NUMBER', 1]]]
+  ];
+  /* dotted (old-style) cycles: sub-blocks [text, default, kind] */
+  var DOTTED = [
+    [1, 'PECKING', 'DRILL', [['SET UP', 2], ['DEPTH', -20], ['PECKG', 5], ['DWELL', 0], ['F', 100]]],
+    [2, 'TAPPING', 'TAP', [['SET UP', 2], ['DEPTH', -20], ['DWELL', 0], ['F', 100]]],
+    [17, 'RIGID TAPPING', 'TAP', [['SET UP', 2], ['DEPTH', -20], ['PITCH', 1]]],
+    [18, 'THREAD CUTTING', 'TAP', [['DEPTH', -20], ['PITCH', 1]]],
+    [4, 'POCKET MILLING', 'POCKET', [['SET UP', 2], ['DEPTH', -10], ['PECKG', 4, 'F', 80], ['X', 80], ['Y', 60], ['F', 275, 'DR', '+', 'RADIUS', 0]]],
+    [7, 'DATUM SHIFT', 'TRANSF', [['X', 0, 'axis'], ['Y', 0, 'axis'], ['Z', 0, 'axis']]],
+    [8, 'MIRROR IMAGE', 'TRANSF', [['AXES (X Y Z, ENT = CANCEL)', '', 'axes']]],
+    [10, 'ROTATION', 'TRANSF', [['ROT', 0]]],
+    [11, 'SCALING', 'TRANSF', [['SCL', 1]]],
+    [19, 'WORKING PLANE', 'TRANSF', [['A', 0, 'rot'], ['B', 0, 'rot'], ['C', 0, 'rot']]],
+    [9, 'DWELL TIME', 'SPECIAL', [['DWELL', 1]]],
+    [32, 'TOLERANCE', 'SPECIAL', [['T', 0.05]]]
+  ];
+  var GROUPS = [['DRILL', 'DRILLING/\nTHREAD'], ['TAP', 'TAPPING'], ['POCKET', 'POCKETS/\nSTUDS/SLOTS'], ['PATTERN', 'POINT\nPATTERNS'],
+                ['SURFACE', 'MULTIPASS\nMILLING'], ['TRANSF', 'COORD.\nTRANSF.'], ['SPECIAL', 'SPECIAL\nCYCLES']];
+
+  function cycleList(group) {
+    return CYCLES.filter(function (c) { return c[2] === group; }).map(function (c) { return { num: c[0], name: c[1] }; })
+      .concat(DOTTED.filter(function (c) { return c[2] === group; }).map(function (c) { return { num: c[0], name: c[1] }; }));
+  }
+  function fmtQ(v) { v = String(v).trim(); if (/^[+-]?Q/i.test(v)) return v.toUpperCase(); var n = parseFloat(v); return isNaN(n) ? v : (n < 0 ? '-' : '+') + Math.abs(n); }
+
+  /* a spec for one cycle: one question per Q parameter (Q style) or per sub-block (dotted) */
+  function cycleSpec(num) {
+    var q = CYCLES.filter(function (c) { return c[0] === num; })[0];
+    if (q) return { title: 'CYCL DEF ' + q[0] + ' ' + q[1], cycle: q[0],
+      steps: q[3].map(function (p) { return { k: 'q' + p[0], ask: 'Q' + p[0] + '  ' + p[1] + ' ?', type: 'num', dflt: String(p[2]) }; }),
+      build: function (v) {
+        var w = 0; q[3].forEach(function (p) { w = Math.max(w, ('Q' + p[0] + '=' + fmtQ(v['q' + p[0]])).length); });
+        return ['CYCL DEF ' + q[0] + ' ' + q[1]].concat(q[3].map(function (p) {
+          var s = 'Q' + p[0] + '=' + fmtQ(v['q' + p[0]]); return '  ' + s + new Array(Math.max(1, w - s.length + 2)).join(' ') + ';' + p[1]; })).join('\n'); } };
+    var d = DOTTED.filter(function (c) { return c[0] === num; })[0];
+    if (!d) return null;
+    return { title: 'CYCL DEF ' + d[0] + ' ' + d[1], cycle: d[0],
+      steps: d[3].map(function (s, i) {
+        if (s[2] === 'axes') return { k: 's' + i, ask: 'MIRROR IMAGE AXES ? (ENT = CANCEL MIRRORING)', type: 'text', opt: true };
+        if (s[2] === 'axis') return { k: 's' + i, ask: 'DATUM SHIFT ' + s[0] + ' ? (I = INCREMENTAL)', type: 'text', dflt: String(s[1]) };
+        if (s[2] === 'rot') return { k: 's' + i, ask: 'ROT. ANGLE ' + s[0] + ' ? (0 = NONE; ALL 0 = RESET)', type: 'num', dflt: String(s[1]) };
+        return { k: 's' + i, ask: s[0] + ' ?', type: 'num', dflt: String(s[1]) }; })
+        .concat(num === 4 ? [{ k: 'p2', ask: 'PLUNGING FEED F ?', type: 'num', dflt: '80' }, { k: 'dr', ask: 'DIRECTION DR ?', type: 'choice', opts: ['DR+', 'DR-'], dflt: 'DR+' }] : []),
+      build: function (v) {
+        var out = ['CYCL DEF ' + d[0] + '.0 ' + d[1]], sub = 1;
+        if (num === 19) { out.push('CYCL DEF 19.1 ' + ['A', 'B', 'C'].map(function (a, i) { return a + fmtQ(v['s' + i] || 0); }).join(' ')); return out.join('\n'); }
+        d[3].forEach(function (s, i) {
+          var val = v['s' + i];
+          if (s[2] === 'axes') { out.push('CYCL DEF ' + d[0] + '.' + (sub++) + ' ' + (String(val || '').toUpperCase().replace(/[^XYZ]/g, '').split('').join(' ') || 'NO ENT')); return; }
+          if (s[2] === 'axis') { var t = String(val == null ? s[1] : val).toUpperCase().replace(/\s+/g, ''), inc = /^I/.test(t); out.push('CYCL DEF ' + d[0] + '.' + (sub++) + ' ' + (inc ? 'I' : '') + s[0] + fmtQ(t.replace(/^I?[XYZ]?/, '') || 0)); return; }
+          if (num === 4 && s[0] === 'PECKG') { out.push('CYCL DEF 4.' + (sub++) + ' PECKG ' + String(val).replace(/^\+/, '') + ' F' + String(v.p2 || 80).replace(/^\+/, '')); return; }
+          if (num === 4 && s[0] === 'F') { out.push('CYCL DEF 4.' + (sub++) + ' F' + String(val).replace(/^\+/, '') + ' ' + (v.dr || 'DR+') + ' RADIUS 0'); return; }
+          var n = String(val).replace(/^\+/, '');
+          out.push('CYCL DEF ' + d[0] + '.' + (sub++) + ' ' + s[0] + (s[0] === 'F' || s[0] === 'X' || s[0] === 'Y' || s[0] === 'T' ? '' : ' ') + (/^(ROT|DEPTH|PITCH)$/.test(s[0]) ? fmtQ(n) : n));
+        });
+        return out.join('\n'); } };
+  }
+
+  return { PATH: PATH, GROUPS: GROUPS, cycleList: cycleList, cycleSpec: cycleSpec };
+})();
+if (typeof module !== 'undefined') module.exports = TNC_DIALOGS;
+
+</script>
+<script>/* ===== i18n: language strings (en/sv) ===== */
+/* ==========================================================================
+ * TNC 426 simulator  --  i18n.js
+ * Minimal i18n: (a) static shell text, applied to any element carrying a
+ * data-i18n="key" attribute in sim-shell.html, and (b) tr(text), which
+ * translates the interpreter's UPPERCASE error / soft-key / mode strings.
+ *
+ * Swedish (sv) is here because the real TNC 426/430 control can be set to
+ * Swedish dialogs (machine parameter MP7230=7). HEIDENHAIN's actual Swedish
+ * dialog wording is NOT public, so every Swedish string below is unofficial
+ * -- natural Swedish machine-shop terminology written for this simulator,
+ * not a transcription of the real control.
+ *
+ * Plain browser JS, no modules. Exposes one global: TNC_I18N.
+ * ========================================================================== */
+var TNC_I18N = (function () {
+  'use strict';
+
+  var LS_KEY = 'tnc.lang';
+
+  /* ---- (a) static shell dictionary: data-i18n="key" on sim-shell.html ---- */
+  var SHELL = {
+    en: {
+      'btn.dev': 'DEV',
+      'btn.new': '+ New',
+      'btn.help': 'Help',
+      'btn.focus': 'Focus',
+      'mode.edit': 'PROGRAMMING AND EDITING',
+      'mode.test': 'TEST RUN',
+      'mode.single': 'PGM RUN, SINGLE BLOCK',
+      'mode.full': 'PGM RUN, FULL SEQ.',
+      'panel.program': 'Program',
+      'panel.testgfx': 'Test graphics',
+      'panel.position': 'Position',
+      'panel.run': 'Run',
+      'panel.checks': 'Checks',
+      'panel.compare': 'Compare',
+      'panel.projects': 'Projects',
+      'panel.keys': 'Keys',
+      'btn.pgmmgt': 'PGM MGT',
+      'btn.save': 'Save .H',
+      'btn.ncstart': 'NC Start',
+      'btn.ncstop': 'NC Stop',
+      'btn.step': 'Step',
+      'btn.reset': 'Reset',
+      'btn.fx': 'Chips & sparks',
+      'btn.cool': 'Coolant',
+      'btn.fire': 'Smoke & fire',
+      'btn.labels': 'Labels',
+      'btn.sound': 'Sound',
+      'btn.snap': 'Store finished run as reference A',
+      'btn.restore': 'Open reference program',
+      'btn.projadd': 'Add current program to active project',
+      'title.newprogram': 'New program',
+      'title.help': 'Help',
+      'title.profile': 'Profile',
+      'title.dev': 'DEV'
+    },
+    sv: {
+      /* unofficial Swedish -- see file header */
+      'btn.dev': 'UTV',
+      'btn.new': '+ Nytt',
+      'btn.help': 'Hjälp',
+      'btn.focus': 'Fokus',
+      'mode.edit': 'PROGRAMMERING OCH REDIGERING',
+      'mode.test': 'TESTKÖRNING',
+      'mode.single': 'PROGRAMKÖRNING, ENSTAKA BLOCK',
+      'mode.full': 'PROGRAMKÖRNING, HELA SEKVENSEN',
+      'panel.program': 'Program',
+      'panel.testgfx': 'Testgrafik',
+      'panel.position': 'Position',
+      'panel.run': 'Körning',
+      'panel.checks': 'Kontroller',
+      'panel.compare': 'Jämförelse',
+      'panel.projects': 'Projekt',
+      'panel.keys': 'Tangenter',
+      'btn.pgmmgt': 'PGM-HANT',
+      'btn.save': 'Spara .H',
+      'btn.ncstart': 'NC Start',
+      'btn.ncstop': 'NC Stopp',
+      'btn.step': 'Steg',
+      'btn.reset': 'Återställ',
+      'btn.fx': 'Spån & gnistor',
+      'btn.cool': 'Kylmedel',
+      'btn.fire': 'Rök & eld',
+      'btn.labels': 'Etiketter',
+      'btn.sound': 'Ljud',
+      'btn.snap': 'Spara avslutad körning som referens A',
+      'btn.restore': 'Öppna referensprogram',
+      'btn.projadd': 'Lägg till aktuellt program i aktivt projekt',
+      'title.newprogram': 'Nytt program',
+      'title.help': 'Hjälp',
+      'title.profile': 'Profil',
+      'title.dev': 'UTV'
+    }
+  };
+
+  /* ---- (b) interpreter UPPERCASE strings: errors, soft keys, mode names ----
+   * en needs no map (tr() is a no-op there); tr() also falls back to the
+   * input unchanged for anything not listed here, in any language. */
+  var TR_SV = {
+    'BLOCK FORMAT INCORRECT': 'FELAKTIGT BLOCKFORMAT',
+    'ARITHMETICAL ERROR': 'ARITMETISKT FEL',
+    'TOOL RADIUS TOO LARGE': 'VERKTYGSRADIE FÖR STOR',
+    'RADIUS COMP. UNDEFINED': 'RADIEKOMPENSERING EJ DEFINIERAD',
+    'CIRCLE CENTER UNDEFINED': 'CIRKELCENTRUM EJ DEFINIERAT',
+    'ARC END POS. INCORRECT': 'CIRKELNS SLUTPOSITION FEL',
+    'FEED RATE MISSING': 'MATNING SAKNAS',
+    'TOOL AXIS MISSING': 'VERKTYGSAXEL SAKNAS',
+    'ENTRY INCOMPLETE': 'OFULLSTÄNDIG INMATNING',
+    'CYCL DEF INCOMPLETE': 'OFULLSTÄNDIG CYKELDEFINITION',
+    'LABEL NUMBER NOT FOUND': 'LABEL-NUMMER SAKNAS',
+    'DIVISION BY ZERO': 'DIVISION MED NOLL',
+    'TANGENTIAL CONNECTION NOT POSSIBLE': 'TANGENTIELL ANSLUTNING EJ MÖJLIG',
+    'ROUNDING-OFF RADIUS TOO LARGE': 'AVRUNDNINGSRADIE FÖR STOR',
+    'CHAMFER NOT PERMITTED': 'FAS EJ TILLÅTEN',
+    'PROGRAM START UNDEFINED': 'PROGRAMSTART EJ DEFINIERAD',
+    'SPINDLE ?': 'SPINDEL ?',
+    'START': 'START',
+    'STOP': 'STOPP',
+    'RESET': 'ÅTERSTÄLL',
+    'INSERT': 'INFOGA',
+    'DELETE': 'RADERA',
+    'EDIT': 'REDIGERA',
+    'COPY': 'KOPIERA',
+    'UNDO': 'ÅNGRA',
+    'REDO': 'GÖR OM',
+    'CHECK': 'KONTROLLERA',
+    'PGM MGT': 'PGM-HANT',
+    'TOOL TABLE': 'VERKTYGSTABELL',
+    'CYCL DEF': 'CYKELDEF',
+    'CYCL CALL': 'CYKELANROP',
+    'TOOL CALL': 'VERKTYGSANROP',
+    'TOOL DEF': 'VERKTYGSDEF',
+    'END': 'SLUT',
+    'NEW': 'NYTT',
+    'OPEN': 'ÖPPNA',
+    'SAVE': 'SPARA',
+    'PROGRAMMING AND EDITING': 'PROGRAMMERING OCH REDIGERING',
+    'TEST RUN': 'TESTKÖRNING',
+    'PGM RUN SINGLE BLOCK': 'PROGRAMKÖRNING, ENSTAKA BLOCK',
+    'PGM RUN FULL SEQUENCE': 'PROGRAMKÖRNING, HELA SEKVENSEN'
+  };
+
+  /* messages carrying numbers / variable text, e.g. "TOOL 5 NOT DEFINED",
+   * "LIMIT SWITCH X", "LABEL 12 NOT FOUND" */
+  var TR_PATTERNS = [
+    [/^TOOL (\S+) NOT DEFINED$/, function (m) { return 'VERKTYG ' + m[1] + ' EJ DEFINIERAT'; }],
+    [/^LIMIT SWITCH\b(.*)$/, function (m) { return 'ÄNDLÄGE' + (m[1] || ''); }],
+    [/^LABEL (\S+) NOT FOUND$/, function (m) { return 'LABEL ' + m[1] + ' SAKNAS'; }],
+    [/^UNKNOWN LABEL (\S+)$/, function (m) { return 'OKÄND LABEL ' + m[1]; }]
+  ];
+
+  var lang = 'en';
+  try {
+    var saved = (typeof localStorage !== 'undefined') && localStorage.getItem(LS_KEY);
+    if (saved === 'en' || saved === 'sv') lang = saved;
+  } catch (e) {}
+
+  function applyDom() {
+    if (typeof document === 'undefined' || !document.querySelectorAll) return;
+    var dict = SHELL[lang] || SHELL.en;
+    var nodes = document.querySelectorAll('[data-i18n]');
+    for (var i = 0; i < nodes.length; i++) {
+      var n = nodes[i], key = n.getAttribute('data-i18n');
+      var val = dict[key] != null ? dict[key] : (SHELL.en[key] != null ? SHELL.en[key] : null);
+      if (val == null) continue;
+      var attr = n.getAttribute('data-i18n-attr');   // e.g. data-i18n-attr="title" for a tooltip
+      if (attr) n.setAttribute(attr, val); else n.textContent = val;
+    }
+  }
+
+  function set(l) {
+    if (l !== 'en' && l !== 'sv') return;
+    lang = l;
+    api.lang = l;
+    try { if (typeof localStorage !== 'undefined') localStorage.setItem(LS_KEY, l); } catch (e) {}
+    applyDom();
+  }
+
+  function t(key, fallback) {
+    var dict = SHELL[lang] || SHELL.en;
+    if (dict[key] != null) return dict[key];
+    if (SHELL.en[key] != null) return SHELL.en[key];
+    return fallback !== undefined ? fallback : key;
+  }
+
+  function tr(text) {
+    if (typeof text !== 'string' || lang !== 'sv') return text;
+    if (TR_SV.hasOwnProperty(text)) return TR_SV[text];
+    for (var i = 0; i < TR_PATTERNS.length; i++) {
+      var m = text.match(TR_PATTERNS[i][0]);
+      if (m) return TR_PATTERNS[i][1](m);
+    }
+    return text;
+  }
+
+  var api = { lang: lang, set: set, t: t, tr: tr };
+
+  if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', applyDom);
+    } else {
+      applyDom();
+    }
+  }
+
+  return api;
+})();
+if (typeof module !== 'undefined') module.exports = TNC_I18N;
+
+</script>
 <script>/* ===== Simulator UI ===== */
 /* ============================================================
    TNC 426 / 430 SIMULATOR — UI
@@ -12937,13 +13450,13 @@ function readPrefs(){
 function writePrefs(){
   try{
     const v=encodeURIComponent(JSON.stringify({speed:S.speed, ovr:S.ovr, view:S.view, mode:S.mode, fx:S.fx,
-      cool:S.fxCool, fire:S.fxFire, labels:S.labels, sound:S.sound, machine:S.machine, flow:S.flowView}));
+      cool:S.fxCool, fire:S.fxFire, labels:S.labels, sound:S.sound, machine:S.machine, flow:S.flowView, focus:S.focusView}));
     const path=location.pathname.replace(/[^/]*$/,'')||'/';
     document.cookie=`${PREF}=${v}; Max-Age=31536000; Path=${path}; SameSite=Lax${location.protocol==='https:'?'; Secure':''}`;
   }catch(e){}
   if(PROF) persist();
 }
-const prefsNow=()=>({speed:S.speed, ovr:S.ovr, view:S.view, mode:S.mode, fx:S.fx, cool:S.fxCool, fire:S.fxFire, labels:S.labels, sound:S.sound, machine:S.machine, flow:S.flowView});
+const prefsNow=()=>({speed:S.speed, ovr:S.ovr, view:S.view, mode:S.mode, fx:S.fx, cool:S.fxCool, fire:S.fxFire, labels:S.labels, sound:S.sound, machine:S.machine, flow:S.flowView, focus:S.focusView});
 
 /* ================= machines ================= */
 const MACHINES={
@@ -12952,6 +13465,17 @@ const MACHINES={
     analyse:(r,ex)=>TNC_SIM.analyse(r,ex,TNC_SIM.grid(r.stock,ex.segs)),
     programs:window.TNC_PROGRAMS||{}, lessons:window.TNC_LESSONS||null }
 };
+/* TNC 430: the operator's machine, from its machine-parameter list (vertical, A/B swivel head).
+   Head: B (outer, near the body) carries A (inner, holds the spindle); at A0 B0 the tool points to Z-;
+   A+ tilts the tip to Y+, B+ to X+; A-90 B0 = horizontal. Pivots ~250 mm (operator's estimate). */
+const MACHINE_430={ arcTol:0.006, pocketK:1.1, fMax:1500, accel:0.4, sMax:2500,
+  rapid:{x:9000,y:10000,z:5000,a:4000,b:1000}, axes:['X','Y','Z','B','A'],
+  limits:{X:[2,1250.2],Y:[-850.2,0.2],Z:[-500.2,0.2],B:[-180.1,0.1],A:[-195,15]},
+  head:{inner:'A',outer:'B',pivotA:250,pivotB:250} };
+MACHINES['430']={ id:'430', label:'TNC 430', axes:['X','Y','Z','B','A'], tools:TNC.TOOLS, machine:MACHINE_430,
+  run:t=>TNC.run(t,{tools:mtools('430'),machine:MACHINE_430}), expand:r=>TNC_SIM.expand(r),
+  analyse:(r,ex)=>TNC_SIM.analyse(r,ex,TNC_SIM.grid(r.stock,ex.segs)),
+  programs:window.TNC_PROGRAMS||{}, lessons:window.TNC_LESSONS||null };
 Object.keys(window.TNC_MACHINES||{}).forEach(k=>{ MACHINES[k]=window.TNC_MACHINES[k]; });
 const M=()=>MACHINES[S.machine];
 
@@ -12968,7 +13492,7 @@ const S={
   cursor:0, editing:false, raw:false, mgt:false, mgtSel:0, flowView:!!P.flow,
   fx:P.fx!==undefined?!!P.fx:!REDUCED, fxCool:P.cool!==undefined?!!P.cool:true, fxFire:!!P.fire,
   labels:P.labels!==undefined?!!P.labels:true, sound:P.sound!==undefined?!!P.sound:true,
-  ref:null, pos:null, seg:null, shake:0, lesson:null, focus:null, execB:-1
+  ref:null, pos:null, seg:null, shake:0, lesson:null, focus:null, focusView:!!P.focus, execB:-1, wiz:null, pick:null, tt:false
 };
 const TEMP='LESSON.H';
 const pg=()=>S.pgms[S.machine]||(S.pgms[S.machine]={});
@@ -13374,7 +13898,7 @@ const alarmEl=$('alarm'); let alarmT=0;
 function raise(ev){
   const at=ev.at?` · T${ev.tool} X${ev.at.x.toFixed(2)} Y${ev.at.y.toFixed(2)} Z${ev.at.z.toFixed(2)}`:'';
   if(ev.sev==='crash'){
-    showAlarm('crash','CRASH',`BLOCK ${nOf(ev.block)} · ${ev.msg.replace(/^CRASH:\s*/,'')}${at}`);
+    showAlarm('crash','CRASH',`BLOCK ${nOf(ev.block)} · ${(window.TNC_I18N?TNC_I18N.tr(ev.msg):ev.msg).replace(/^CRASH:\s*/,'')}${at}`);
     S.shake=REDUCED?0:1; beep('crash');
     if(FXO&&ev.at) try{ FXO.crash(toWorld(ev.at)); }catch(e){}
     emit('crash',ev);
@@ -13445,7 +13969,8 @@ function renderChecks(){
                ...ev.map(e=>({cls:e.sev==='crash'?'':e.sev,t:e.t,block:e.block,msg:e.msg}))];
   const nCrash=ev.filter(e=>e.sev==='crash').length, nWarn=ev.filter(e=>e.sev==='warn').length;
   $('errc').textContent=errs.length+nCrash+nWarn?`${errs.length} err · ${nCrash} crash · ${nWarn} warn`:'all clear';
-  $('elist').innerHTML=items.length?items.map((x,i)=>`<div class="${x.cls}" data-k="${i}">BLOCK ${nOf(x.block)} &nbsp;${esc(x.msg)}</div>`).join('')
+  const tr=m=>window.TNC_I18N?TNC_I18N.tr(m):m;
+  $('elist').innerHTML=items.length?items.map((x,i)=>`<div class="${x.cls}" data-k="${i}">BLOCK ${nOf(x.block)} &nbsp;${esc(tr(x.msg))}</div>`).join('')
     :'<div class="ok">PROGRAM CHECKED · NO ERRORS · NO CRASHES</div>';
   $('elist').onclick=e=>{ const d=e.target.closest('[data-k]'); if(!d) return; const x=items[+d.dataset.k];
     moveCursor(x.block); if(x.t!=null){ S.running=false; seek(Math.max(0,x.t-1e-3),false); } };
@@ -13478,7 +14003,10 @@ function renderDro(now){
   S.seg=s; S.pos={x,y,z};
   if(s&&s.tool!==curToolT) setTool(s.tool);
   if(rig&&M().kinematics.poseAt){ try{ rig.set(M().kinematics.poseAt(S.ex,S.t)); }catch(e){} }
-  else if(gTool) gTool.position.set(x,y,z);
+  else if(gTool){ gTool.position.set(x,y,z);
+    if(s&&s.a&&s.a.a!=null){ const A=s.a.a+((s.b.a||0)-s.a.a)*u, B=s.a.b+((s.b.b||0)-s.a.b)*u;   // tool axis = Ry(-B)·Rx(A)·(0,0,-1)
+      gTool.rotation.set(A*Math.PI/180,-B*Math.PI/180,0,'YXZ'); }
+    else gTool.rotation.set(0,0,0); }
   if(now-droT<66) return; droT=now;
   const extra=(M().axes||[]).filter(a=>/[ABC]/.test(a)).map(a=>{ const k=a.toLowerCase(); let v=0;
     if(s&&s.a&&s.a[k]!=null) v=s.a[k]+((s.b[k]||0)-s.a[k])*u; return ['s',a,(+v).toFixed(3)]; });
@@ -13491,16 +14019,35 @@ function renderDro(now){
 /* ================= soft keys ================= */
 const sks=$('sks');
 const SK={
-  edit:  [['INSERT','ins'],['DELETE','del'],['EDIT','ed'],['COPY','cp'],['UNDO','undo'],['REDO','redo'],['RAW\nTEXT','rawt'],['CHECK','chk']],
-  test:  [['START','start'],['START\nSINGLE','step'],['RESET\n+ START','rs'],['STOP','stop'],['3-D\nVIEW','v3'],['PLAN\nVIEW','vt'],['FRONT','vf'],['SIDE','vs']],
+  /* EDIT: the path-function keys, the program keys (CYCL DEF, TOOL CALL …) and the editing keys — three rows */
+  edit:  [['L','w:L'],['CC','w:CC'],['C','w:C'],['CR','w:CR'],['CT','w:CT'],['CP\nPOLAR','w:CP'],['RND','w:RND'],['CHF','w:CHF'],
+          ['APPR\nDEP','apprdep'],['TOOL\nDEF','w:TOOLDEF'],['TOOL\nCALL','w:TOOLCALL'],['CYCL\nDEF','cycldef'],['CYCL\nCALL','w:CYCLCALL'],['LBL\nSET','w:LBLSET'],['LBL\nCALL','w:LBLCALL'],['Q','w:Q'],
+          ['EDIT','ed'],['INSERT','ins'],['DELETE','del'],['UNDO','undo'],['REDO','redo'],['TOOL\nTABLE','tt'],['RAW\nTEXT','rawt'],['CHECK','chk']],
+  test:  [['START','start'],['START\nSINGLE','step'],['RESET\n+ START','rs'],['STOP','stop'],['3-D\nVIEW','v3'],['PLAN\nVIEW','vt'],['TOOL\nTABLE','tt'],['FOCUS','focus']],
   single:[['NC\nSTART','step'],['NC\nSTOP','stop'],['RESET','reset'],['OVR\n−','ovrd'],['OVR\n+','ovru'],['TOOL\nTABLE','tt'],['FLOW\nVIEW','flow'],['PGM\nMGT','mgt']],
   full:  [['NC\nSTART','start'],['NC\nSTOP','stop'],['RESET','reset'],['OVR\n−','ovrd'],['OVR\n+','ovru'],['3-D\nVIEW','v3'],['FLOW\nVIEW','flow'],['PGM\nMGT','mgt']],
+  tt:    [['ADD\nMISSING','ttmiss'],['IMPORT\nTOOL.T','load'],['EXPORT\nTOOL.T','ttexp'],['',''],['',''],['',''],['',''],['END','ttend']],
   mgt:   [['NEW','new'],['OPEN','open'],['LOAD\nFROM PC','load'],['SAVE\n.H','save'],['RESTORE\nORIGINAL','restore'],['DELETE','mdel'],['ADD TO\nPROJECT','padd'],['END','end']]
 };
-function renderSK(){ sks.innerHTML=(SK[S.mgt?'mgt':S.mode]||SK.test).map(([l,a])=>`<button class="sk" data-a="${a}">${esc(l).replace(/\n/g,'<br>')}</button>`).join(''); }
-sks.addEventListener('click',e=>{ const b=e.target.closest('.sk'); if(b) act(b.dataset.a); });
+function skRows(){ if(S.wiz) return wizSK(); if(S.pick) return S.pick; if(S.mgt) return SK.mgt; if(S.tt) return SK.tt; return SK[S.mode]||SK.test; }
+function renderSK(){ const tr=window.TNC_I18N?(x=>TNC_I18N.tr(x)):(x=>x);
+  sks.innerHTML=skRows().map(([l,a])=>`<button class="sk" data-a="${esc(a)}">${esc(tr(l.replace(/\n/g,' '))===l.replace(/\n/g,' ')?l:tr(l.replace(/\n/g,' '))).replace(/\n/g,'<br>')}</button>`).join(''); }
+sks.addEventListener('click',e=>{ const b=e.target.closest('.sk'); if(b&&b.dataset.a) act(b.dataset.a); if(S.wiz) dlgIn.focus(); });
 function act(a){
+  if(a.startsWith('w:')){ startWiz(DLG&&DLG.PATH[a.slice(2)]); return; }
+  if(a.startsWith('cg:')){ const L=DLG.cycleList(a.slice(3));
+    S.pick=L.map(c=>[c.num+'\n'+c.name.split(' ').slice(0,2).join(' '),'cy:'+c.num]).concat([['BACK','cycldef'],['END','pickend']]); renderSK(); return; }
+  if(a.startsWith('cy:')){ S.pick=null; startWiz(DLG.cycleSpec(+a.slice(3))); return; }
+  if(a.startsWith('wv:')){ wizAccept(a.slice(3)); return; }
+  if(a.startsWith('wa:')){ dlgIn.value=(dlgIn.value.trim()+' '+a.slice(3)).trim(); dlgIn.focus(); return; }
   switch(a){
+    case 'cycldef': if(!DLG) return; if(S.mode!=='edit') setMode('edit'); S.pick=DLG.GROUPS.map(g=>[g[1],'cg:'+g[0]]).concat([['END','pickend']]); renderSK(); say('CYCL DEF — CHOOSE A CYCLE GROUP'); break;
+    case 'apprdep': if(S.mode!=='edit') setMode('edit'); S.pick=[['APPR','w:APPR'],['DEP','w:DEP'],['',''],['',''],['',''],['',''],['',''],['END','pickend']]; renderSK(); break;
+    case 'pickend': S.pick=null; renderSK(); break;
+    case 'wskip': wizAccept('',true); break; case 'wend': wizEnd(); break; case 'wcancel': wizCancel(); break;
+    case 'ttmiss': addMissingTools(); break;
+    case 'ttexp': if(window.TNC_PROFILE) download('TOOL_TNC'+S.machine+'.T',new Blob([TNC_PROFILE.toolT(mtools())],{type:'text/plain'})); break;
+    case 'ttend': closeTT(); break; case 'focus': toggleFocus(); break;
     case 'start': start(); break; case 'stop': stop(); break; case 'step': stepBlock(); break;
     case 'reset': reset(); break; case 'rs': reset(); start(); break;
     case 'v3': setView('3D'); break; case 'vt': setView('TOP'); break; case 'vf': setView('FRONT'); break; case 'vs': setView('SIDE'); break;
@@ -13509,7 +14056,7 @@ function act(a){
     case 'ed': beginEdit(); break; case 'ins': insertBlock(); break; case 'del': deleteBlock(); break; case 'cp': copyBlock(); break;
     case 'undo': undo(); break; case 'redo': redo(); break; case 'rawt': toggleRaw(); break;
     case 'chk': compile(); say(S.res.errors.length?`CHECK: ${S.res.errors.length} ERROR(S)`:(S.events.some(e=>e.sev==='crash')?'CHECK: WILL CRASH — SEE CHECKS':'PROGRAM CHECKED OK')); break;
-    case 'tt': showTools(); break; case 'flow': toggleFlow(); break; case 'mgt': openMgt(); break;
+    case 'tt': S.tt?closeTT():openTT(); break; case 'flow': toggleFlow(); break; case 'mgt': openMgt(); break;
     case 'new': closeMgt(); openNew(); break; case 'open': openPgm(mgtNames()[S.mgtSel]); break;
     case 'load': loadFromDisk(); break; case 'save': saveH(); break;
     case 'restore': restoreOriginal(mgtNames()[S.mgtSel]); break; case 'mdel': deletePgm(mgtNames()[S.mgtSel]); break;
@@ -13543,7 +14090,8 @@ function insertBlock(){ const ls=lines(), i=srcLine(S.cursor); ls.splice(i+1,0,'
 function deleteBlock(){ const ls=lines(); if(ls.length<=1) return; const i=srcLine(S.cursor), n=nOf(S.cursor);
   ls.splice(i,1); edit(ls.join('\n'),S.cursor,'BLOCK '+n+' DELETED — CTRL+Z TO UNDO'); }
 function copyBlock(){ const ls=lines(), i=srcLine(S.cursor); ls.splice(i+1,0,ls[i]); edit(ls.join('\n'),S.cursor+1,'BLOCK COPIED'); }
-dlgIn.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); endEdit(true); }
+dlgIn.addEventListener('keydown',e=>{ if(S.wiz){ if(e.key==='Enter'){ e.preventDefault(); wizAccept(dlgIn.value); } else if(e.key==='Escape'){ e.preventDefault(); wizCancel(); } e.stopPropagation(); return; }
+  if(e.key==='Enter'){ e.preventDefault(); endEdit(true); }
   else if(e.key==='Escape'){ e.preventDefault(); endEdit(false); } e.stopPropagation(); });
 function toggleRaw(){
   S.raw=!S.raw; raw.hidden=!S.raw; crt.hidden=S.raw;
@@ -13635,7 +14183,7 @@ $('b-save').onclick=saveH;
 /* ================= PGM MGT ================= */
 const mgtEl=$('mgt');
 const mgtNames=()=>Object.keys(pg()).filter(n=>n!==TEMP);
-function openMgt(){ if(S.editing) endEdit(false); if(S.raw) toggleRaw(); S.running=false; S.mgt=true;
+function openMgt(){ if(S.tt) closeTT(); if(S.wiz) wizCancel(); if(S.editing) endEdit(false); if(S.raw) toggleRaw(); S.running=false; S.mgt=true;
   S.mgtSel=Math.max(0,mgtNames().indexOf(S.pgm)); plist.hidden=true; $('flow').hidden=true; mgtEl.hidden=false;
   renderMgt(); renderSK(); $('pgm-path').textContent='TNC:\\  PGM MGT'; setState('PGM MGT'); showPane('pgm'); }
 function closeMgt(){ if(!S.mgt) return; S.mgt=false; mgtEl.hidden=true; plist.hidden=S.flowView&&!!FLOW; $('flow').hidden=!(S.flowView&&FLOW);
@@ -13878,7 +14426,8 @@ async function aiGenerate(){
   if(!AI){ log('<span class="bad">The AI module is not in this build.</span>'); return; }
   if(!key){ log('<span class="bad">No key yet.</span> Open <b>AI setup</b> first — it takes five minutes.'); return; }
   if(prompt.length<8){ log('<span class="bad">Describe the part in a sentence or two.</span>'); return; }
-  const sys=AI.system?AI.system(mtools()):AI.FALLBACK_SYSTEM;   // ai.js owns the prompt; it lists this operator's tool table
+  const mc=M().machine, sys=(AI.system?AI.system(mtools()):AI.FALLBACK_SYSTEM)+(mc?`\n\nTHIS MACHINE (${M().label}): spindle max S${mc.sMax}, feed max F${mc.fMax}, rotary axes B ${mc.limits.B.join('..')} deg and A ${mc.limits.A.join('..')} deg (swivel head; B+ tilts the tip to X+, A+ to Y+).
+For tilted machining use CYCL DEF 19.0 WORKING PLANE / CYCL DEF 19.1 A+.. B+.. C+0 (it also positions the head); reset with 19.1 A+0 B+0 C+0. Never use M128.`:'');   // ai.js owns the prompt; it lists this operator's tool table
   const btn=$('ai-go'); btn.disabled=true; btn.textContent='Working…'; aiAbort=new AbortController();
   log(`<span class="dim">Model ${esc(getModel())} · machine ${esc(M().label)}</span>`);
   try{
@@ -13949,40 +14498,52 @@ function renderProfile(){
 </div>
 <p class="note" id="prof-saved" style="margin:8px 0 0">${t?'Autosaved '+t.toLocaleTimeString()+' — in this browser':'Not saved yet'}</p>
 <p class="note" style="margin:4px 0 0">${c.programs} program(s) of yours · ${c.projects} project(s) · ${c.tools} tool(s) of yours · machines: ${Object.values(MACHINES).map(m=>esc(m.label)).join(', ')}</p>
+<div class="fgrid" style="max-width:760px;margin-top:8px"><label class="fld"><span>CONTROL LANGUAGE</span><select id="prof-lang"><option value="en">English</option><option value="sv">Svenska (MP 7230 = 7)</option></select></label></div>
 <div class="actrow"><button class="cbtn pri" id="prof-export">Export profile (.zip)</button><button class="cbtn" id="prof-import">Import…</button>
  <button class="cbtn" id="prof-new">Start a new profile…</button></div>
 <div id="prof-ask"></div>
 <h4 class="sech">TOOL TABLE — ${esc(M().label)} <small>(TOOL.T · * = yours)</small></h4>
-<div class="tblw"><table class="ttab"><thead><tr><th>T</th><th>NAME</th><th>L</th><th>R</th><th></th></tr></thead><tbody>${
-  tools.map(x=>`<tr data-t="${x.t}"${x.mine?' class="mine"':''}><td>${x.t}${x.mine?' *':''}</td><td><input data-k="name" value="${esc(x.name)}" maxlength="16" aria-label="T${x.t} name"></td>
-   <td><input data-k="l" inputmode="decimal" value="${(+x.l).toFixed(3)}" aria-label="T${x.t} length"></td><td><input data-k="r" inputmode="decimal" value="${(+x.r).toFixed(3)}" aria-label="T${x.t} radius"></td>
-   <td>${x.mine?`<button data-del="${x.t}" title="Remove your entry" aria-label="Remove T${x.t}">×</button>`:''}</td></tr>`).join('')}</tbody></table></div>
-<div class="actrow"><label class="fld" style="flex-direction:row;align-items:center;gap:6px"><span>T</span><input id="tt-new" inputmode="numeric" style="width:70px" aria-label="New tool number"></label>
- <button class="cbtn" id="tt-add">Add tool</button><button class="cbtn" id="tt-missing">Add tools this program calls</button><button class="cbtn" id="tt-export">Export TOOL.T</button></div>`;
+${toolTableHTML()}`;
   const nm=$('prof-name');
   nm.addEventListener('input',()=>{ PROF.name=nm.value.trim().slice(0,40); profChip(); persist(); });
   nm.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); nm.blur(); } });
   $('prof-export').onclick=exportProfile;
+  const pl=$('prof-lang'); if(pl){ pl.value=(window.TNC_I18N&&TNC_I18N.lang)||'en'; pl.disabled=!window.TNC_I18N;
+    pl.onchange=()=>{ try{ TNC_I18N.set(pl.value); }catch(e){} renderSK(); renderChecks(); setMode(S.mode); say(pl.value==='sv'?'SPRÅK: SVENSKA':'LANGUAGE: ENGLISH'); }; }
   $('prof-import').onclick=loadFromDisk;
   $('prof-new').onclick=newProfile;
-  $('tt-add').onclick=()=>{ const t=parseInt($('tt-new').value,10); if(!(t>=0&&t<=32767)){ say('TOOL NUMBER 0–32767'); return; }
-    mergeTools([{t,name:'T'+t,l:50,r:3}],true); };
-  $('tt-missing').onclick=addMissingTools;
-  $('tt-export').onclick=()=>{ if(!window.TNC_PROFILE) return; download('TOOL_TNC'+S.machine+'.T',new Blob([TNC_PROFILE.toolT(mtools())],{type:'text/plain'})); };
-  const tb=$('prof-body').querySelector('.ttab');
+  wireToolTable($('prof-body'),renderProfile);
+  if(!(PROF&&PROF.name)) setTimeout(()=>nm.focus(),30);
+}
+function toolTableHTML(){
+  return `<div class="tblw"><table class="ttab"><thead><tr><th>T</th><th>NAME</th><th>L</th><th>R</th><th></th></tr></thead><tbody>${
+  mtools().map(x=>`<tr data-t="${x.t}"${x.mine?' class="mine"':''}${x.t===curToolT?' data-cur="1"':''}><td>${x.t}${x.mine?' *':''}</td><td><input data-k="name" value="${esc(x.name)}" maxlength="16" aria-label="T${x.t} name"></td>
+   <td><input data-k="l" inputmode="decimal" value="${(+x.l).toFixed(3)}" aria-label="T${x.t} length"></td><td><input data-k="r" inputmode="decimal" value="${(+x.r).toFixed(3)}" aria-label="T${x.t} radius"></td>
+   <td>${x.mine?`<button data-del="${x.t}" title="Remove your entry" aria-label="Remove T${x.t}">×</button>`:''}</td></tr>`).join('')}</tbody></table></div>
+<div class="actrow"><label class="fld" style="flex-direction:row;align-items:center;gap:6px"><span>T</span><input data-tt="new" inputmode="numeric" style="width:70px" aria-label="New tool number"></label>
+ <button class="cbtn" data-tt="add">Add tool</button><button class="cbtn" data-tt="missing">Add tools this program calls</button>
+ <button class="cbtn" data-tt="import">Import TOOL.T</button><button class="cbtn" data-tt="export">Export TOOL.T</button></div>`;
+}
+function wireToolTable(root,rerender){
+  root.querySelectorAll('[data-tt]').forEach(b=>{ const k=b.dataset.tt; if(k==='new') return; b.onclick=()=>{
+    if(k==='add'){ const t=parseInt(root.querySelector('[data-tt=new]').value,10); if(!(t>=0&&t<=32767)){ say('TOOL NUMBER 0–32767'); return; } mergeTools([{t,name:'T'+t,l:50,r:3}],true); }
+    else if(k==='missing') addMissingTools();
+    else if(k==='import') loadFromDisk();
+    else if(k==='export'&&window.TNC_PROFILE) download('TOOL_TNC'+S.machine+'.T',new Blob([TNC_PROFILE.toolT(mtools())],{type:'text/plain'})); }; });
+  const tb=root.querySelector('.ttab'); if(!tb) return;
+  tb.addEventListener('keydown',e=>{ e.stopPropagation(); if(e.key==='Enter') e.target.blur(); });
   tb.addEventListener('change',e=>{ const inp=e.target.closest('input'); if(!inp) return; const tr=inp.closest('tr'), t=+tr.dataset.t;
     const cur=mtools().find(x=>x.t===t); if(!cur) return; const v=inp.dataset.k==='name'?inp.value.trim().toUpperCase().slice(0,16)||('T'+t):parseFloat(String(inp.value).replace(',','.'));
-    if(inp.dataset.k!=='name'&&!isFinite(v)){ say('NOT A NUMBER'); renderProfile(); return; }
-    if(inp.dataset.k==='r'&&v<0){ say('RADIUS MUST BE ≥ 0'); renderProfile(); return; }
+    if(inp.dataset.k!=='name'&&!isFinite(v)){ say('NOT A NUMBER'); rerender(); return; }
+    if(inp.dataset.k==='r'&&v<0){ say('RADIUS MUST BE ≥ 0'); rerender(); return; }
     const e2={t,name:cur.name,l:+cur.l,r:+cur.r}; e2[inp.dataset.k]=v; mergeTools([e2],true); });
   tb.addEventListener('click',e=>{ const d=e.target.closest('[data-del]'); if(!d) return; const t=+d.dataset.del;
-    S.tools[S.machine]=(S.tools[S.machine]||[]).filter(x=>x.t!==t); persist(); curToolT=null; compile(); renderProfile(); say('T'+t+' REMOVED FROM YOUR TABLE'); });
-  if(!(PROF&&PROF.name)) setTimeout(()=>nm.focus(),30);
+    S.tools[S.machine]=(S.tools[S.machine]||[]).filter(x=>x.t!==t); persist(); curToolT=null; compile(); rerender(); say('T'+t+' REMOVED FROM YOUR TABLE'); });
 }
 function mergeTools(list,quiet){
   const mine=(S.tools[S.machine]=S.tools[S.machine]||[]);
   list.forEach(n=>{ const i=mine.findIndex(x=>x.t===n.t); const e={t:n.t,name:String(n.name||'T'+n.t).toUpperCase().slice(0,16),l:+n.l||0,r:+n.r||0}; if(i>=0) mine[i]=e; else mine.push(e); });
-  persist(); curToolT=null; compile(); if(openModalEl===$('m-prof')) renderProfile(); if(!quiet) say(list.length+' TOOL(S) IN YOUR TABLE');
+  persist(); curToolT=null; compile(); if(openModalEl===$('m-prof')) renderProfile(); if(S.tt) renderTT(); if(!quiet) say(list.length+' TOOL(S) IN YOUR TABLE');
 }
 /* uploaded programs: every TOOL CALL number missing from the table gets an entry (radius from ";T5 D=+8" or TOOL DEF, else R3) */
 function toolsFor(texts){
@@ -14029,6 +14590,92 @@ async function newProfile(){
 }
 if($('b-prof')) $('b-prof').onclick=openProfile;
 
+
+/* ================= programming dialogs (dialogs.js): one question per step, soft keys for the choices ================= */
+const DLG=window.TNC_DIALOGS||null;
+function startWiz(spec){
+  if(!spec) return;
+  if(S.mode!=='edit') setMode('edit');
+  if(S.editing) endEdit(false); if(S.raw) toggleRaw(); if(S.mgt) closeMgt(); if(S.tt) closeTT();
+  S.pick=null; S.running=false; S.wiz={spec, i:0, v:{}};
+  dlgIn.disabled=false; wizShow();
+}
+function wizStep(){ return S.wiz.spec.steps[S.wiz.i]; }
+function wizShow(){
+  const st=wizStep(), d=st.dflt!=null&&st.dflt!==''?st.dflt:null;
+  dlgPr.textContent=st.ask;
+  dlgHint.textContent=S.wiz.spec.title+' · '+(S.wiz.i+1)+'/'+S.wiz.spec.steps.length+' · ENT '+(d!=null?'= '+d:(st.opt||st.type==='feed'||st.type==='m'?'= NONE':'')) +' · END · ESC';
+  dlgIn.value=''; dlgIn.placeholder=d!=null?d:''; renderSK(); dlgIn.focus();
+}
+function wizSK(){
+  const st=wizStep(), tail=[['NO\nENT','wskip'],['END','wend'],['CANCEL','wcancel']];
+  let k=[];
+  if(st.type==='choice') k=st.opts.map(o=>[o,'wv:'+o]);
+  else if(st.type==='coords') k=(M().axes||['X','Y','Z']).flatMap(a=>[[a,'wa:'+a]]).concat((M().axes||['X','Y','Z']).slice(0,3).map(a=>['I'+a,'wa:I'+a]));
+  else if(st.type==='feed') k=[['F MAX','wv:FMAX'],['F AUTO','wv:FAUTO']];
+  else if(st.type==='tool') k=mtools().slice(0,13).map(t=>['T'+t.t+'\n'+String(t.name).slice(0,10),'wv:'+t.t]);
+  return k.concat(tail);
+}
+const NUMRE=/^[+-]?(?:\d+\.?\d*|\.\d+|Q\d+)$/i;
+function wizAccept(raw,skip){
+  if(!S.wiz) return;
+  const st=wizStep(); let v=String(raw==null?'':raw).trim().replace(/,/g,'.'), d=st.dflt!=null&&st.dflt!==''?st.dflt:null;
+  if(v===''){
+    if(d!=null&&!skip) v=d;
+    else if(!(st.opt||st.type==='feed'||st.type==='m'||st.type==='choice'||(skip&&d!=null))){ say('ENTRY REQUIRED — '+st.ask); dlgIn.focus(); return; }
+    else if(skip&&d!=null&&!st.opt) v=d;
+  }
+  if(v!==''){
+    if(st.type==='num'||st.type==='tool'){ if(!NUMRE.test(v)){ say('ENTER A NUMBER (OR Q PARAMETER)'); dlgIn.select(); return; } }
+    else if(st.type==='choice'){ const u=v.toUpperCase(); v=st.opts.find(o=>o===u||o.replace(/[^A-Z0-9]/g,'')===u.replace(/[^A-Z0-9]/g,''))||(d!=null?d:st.opts[0]); }
+    else if(st.type==='feed'){ const u=v.toUpperCase().replace(/\s+/g,''); v=/^F?MAX$/.test(u)?'FMAX':/^F?AUTO$/.test(u)?'FAUTO':u.replace(/^F/,''); if(!/^(FMAX|FAUTO)$/.test(v)&&!NUMRE.test(v)){ say('FEED RATE: A NUMBER, F MAX OR F AUTO'); dlgIn.select(); return; } }
+    else if(st.type==='m'){ v=v.toUpperCase().replace(/M/g,' ').trim(); if(!/^\d+(\s+\d+)*$/.test(v)){ say('M FUNCTION: A NUMBER, e.g. 3 OR 3 8'); dlgIn.select(); return; } }
+    else if(st.type==='coords'){ const c=wizCoords(v); if(!c){ say('COORDINATES: e.g. X+10 Y-5 or 10 -5'); dlgIn.select(); return; } v=c; }
+  }
+  S.wiz.v[st.k]=v; S.wiz.i++;
+  if(S.wiz.i>=S.wiz.spec.steps.length) wizFinish(); else wizShow();
+}
+/* "X10 Y-5", "x+10y-5", "10 -5" (bare numbers fill X, Y, Z in turn), "IX5", Q parameters */
+function wizCoords(v){
+  const axes=(M().axes||['X','Y','Z']), out=[], used=new Set(); let m, rest=v.toUpperCase();
+  const re=/(I?)([XYZABC])\s*([+-]?(?:\d+\.?\d*|\.\d+|Q\d+))/g;
+  while((m=re.exec(rest))){ const a=m[2]; if(!axes.includes(a)&&!'XYZ'.includes(a)) return null; used.add(a); out.push(m[1]+a+(/^[+-]/.test(m[3])?m[3]:'+'+m[3])); }
+  rest=rest.replace(re,' ').trim();
+  if(rest){ const nums=rest.split(/\s+/); let ai=0;
+    for(const n of nums){ if(!NUMRE.test(n)) return null; while(ai<3&&used.has('XYZ'[ai])) ai++; if(ai>=3) return null; out.push('XYZ'[ai]+(/^[+-]/.test(n)?n:'+'+n)); used.add('XYZ'[ai]); ai++; } }
+  return out.length?out.join(' '):null;
+}
+function wizEnd(){
+  if(!S.wiz) return;
+  while(S.wiz&&S.wiz.i<S.wiz.spec.steps.length){
+    const st=wizStep(), d=st.dflt!=null&&st.dflt!==''?st.dflt:null;
+    if(d==null&&!(st.opt||st.type==='feed'||st.type==='m'||st.type==='choice')){ wizShow(); say('ENTRY REQUIRED — '+st.ask); return; }
+    S.wiz.v[st.k]=d!=null?d:(st.type==='choice'?st.opts[0]:''); S.wiz.i++;
+  }
+  if(S.wiz) wizFinish();
+}
+function wizDone(){ S.wiz=null; dlgIn.value=''; dlgIn.placeholder=''; dlgIn.disabled=true; dlgPr.textContent='BLOCK'; dlgHint.textContent='E edit · I insert · D delete'; renderSK(); }
+function wizCancel(){ if(!S.wiz) return; wizDone(); say('DIALOG CANCELLED'); }
+function wizFinish(){
+  const txt=S.wiz.spec.build(S.wiz.v), add=txt.split('\n'), ls=lines();
+  let i=srcLine(S.cursor); if(/^\s*(\d+\s+)?END\s+PGM/i.test(ls[i]||'')) i--;                 // never after END PGM
+  ls.splice(i+1,0,...add); wizDone();
+  edit(ls.join('\n'),Math.min(i+1,Math.max(0,S.res.blocks.length)),'BLOCK STORED — '+add[0]);
+  markRows(true);
+}
+
+/* ================= tool table in the machine view (T) ================= */
+function openTT(){ if(S.wiz) wizCancel(); if(S.editing) endEdit(false); if(S.mgt) closeMgt(); S.tt=true;
+  plist.hidden=true; $('flow').hidden=true; mgtEl.hidden=false; renderTT(); renderSK(); $('pgm-path').textContent='TNC:\\TOOL.T'; showPane('pgm'); }
+function renderTT(){ mgtEl.innerHTML=`<div class="ttview"><div class="mhd" style="display:block">TOOL TABLE · ${esc(M().label)} · TNC:\\TOOL.T · * = YOURS · ENT STORES A VALUE · T / END CLOSES</div>${toolTableHTML()}</div>`;
+  wireToolTable(mgtEl,renderTT); const cur=mgtEl.querySelector('tr[data-cur]'); if(cur){ cur.style.outline='2px solid var(--cyan)'; cur.scrollIntoView({block:'nearest'}); } }
+function closeTT(){ if(!S.tt) return; S.tt=false; mgtEl.hidden=true; plist.hidden=S.flowView&&!!FLOW; $('flow').hidden=!(S.flowView&&FLOW); renderSK(); $('pgm-path').textContent='TNC:\\'+S.pgm; }
+
+/* ================= focus view: listing + graphics only ================= */
+function toggleFocus(){ S.focusView=!S.focusView; document.body.classList.toggle('focus',S.focusView); if($('b-focus')) $('b-focus').setAttribute('aria-pressed',S.focusView);
+  writePrefs(); requestAnimationFrame(()=>{ resize(); requestAnimationFrame(resize); }); say(S.focusView?'FOCUS VIEW — F TO RETURN':'FULL VIEW'); }
+if($('b-focus')) $('b-focus').onclick=toggleFocus;
+
 /* ================= machine selector ================= */
 function setMachine(id){
   if(!MACHINES[id]||id===S.machine) return;
@@ -14046,7 +14693,7 @@ if(Object.keys(MACHINES).length>1){
 }
 
 /* ================= modes, toggles, keyboard ================= */
-function setMode(m){ S.mode=m; [...document.querySelectorAll('.mode')].forEach(b=>b.setAttribute('aria-pressed',b.dataset.m===m));
+function setMode(m){ if(m!=='edit'){ if(S.wiz) wizCancel(); S.pick=null; } S.mode=m; [...document.querySelectorAll('.mode')].forEach(b=>b.setAttribute('aria-pressed',b.dataset.m===m));
   if(!S.mgt) renderSK(); if(m==='edit'){ S.running=false; setState('EDITING'); } else setState('READY'); writePrefs(); }
 $('modes').addEventListener('click',e=>{ const b=e.target.closest('.mode'); if(b) setMode(b.dataset.m); });
 function setSpeed(v,quiet){ S.speed=v; [...$('spd').children].forEach(b=>b.dataset.on=(+b.dataset.s===v)?'1':'0'); writePrefs();
@@ -14065,7 +14712,7 @@ scrub.addEventListener('input',()=>{ S.running=false; seek(+scrub.value/1000*S.t
 const KEYS=[['↑ ↓','Block cursor'],['← →','Scrub the run (Shift ×5)'],['ENTER','Step one block · edit in EDIT mode'],['ESC','Stop · cancel · close'],
   ['SPACE','NC START / NC STOP'],['S · R','Single block · reset'],['E I D C','Edit · insert · delete · copy'],['CTRL+Z','Undo  (CTRL+SHIFT+Z / CTRL+Y redo)'],
   ['CTRL+S','Save as .H'],['CTRL+O','Load .H from your computer'],['TAB','Raw text editor'],['M','Program manager'],['H','Help, lessons, manual'],
-  ['V','Flowchart view'],['G','3D / TOP / FRONT / SIDE'],['1 – 5','Speed 1× 4× 16× 64× MAX'],['F1 – F4','Operating mode'],['+ / −','Feed override'],
+  ['V','Flowchart view'],['G','3D / TOP / FRONT / SIDE'],['1 – 4','Operating mode'],['5 – 9','Speed 1× 4× 16× 64× MAX'],['T','Tool table'],['F','Focus view (listing + graphics)'],['EDIT MODE','Soft keys: L CC C CR CT CP RND CHF · APPR/DEP · TOOL DEF/CALL · CYCL DEF/CALL · LBL · Q'],['+ / −','Feed override'],
   ['P K B','Chips · coolant · smoke & fire'],['L','Labels'],['N','Next lesson step'],['HOME/END','First / last block'],['PGUP/PGDN','Page']];
 $('klist').innerHTML=KEYS.map(([k,d])=>`<div><kbd>${k}</kbd><span>${d}</span></div>`).join('');
 
@@ -14076,6 +14723,9 @@ addEventListener('keydown',e=>{
   if(openModalEl){ if(k==='Escape'){ e.preventDefault(); closeModal(); } return; }
   if(mod&&k.toLowerCase()==='s'){ e.preventDefault(); saveH(); return; }
   if(mod&&k.toLowerCase()==='o'){ e.preventDefault(); loadFromDisk(); return; }
+  if(S.wiz){ if(k==='Escape'){ e.preventDefault(); wizCancel(); } else if(k==='Enter'){ e.preventDefault(); wizAccept(dlgIn.value); } else if(e.target!==dlgIn) dlgIn.focus(); return; }
+  if(S.pick&&k==='Escape'){ e.preventDefault(); S.pick=null; renderSK(); return; }
+  if(S.tt&&k==='Escape'){ e.preventDefault(); closeTT(); return; }
   if(S.editing||S.raw) return;
   const tg=e.target.tagName; if(tg==='INPUT'||tg==='TEXTAREA'||tg==='SELECT') return;
   if(mod&&(k==='y'||(k.toLowerCase()==='z'&&e.shiftKey))){ e.preventDefault(); redo(); return; }
@@ -14101,8 +14751,10 @@ addEventListener('keydown',e=>{
     case '-': case '_': act('ovrd'); break;
     default:{
       const K=k.toLowerCase();
-      if(/^[1-5]$/.test(k)) setSpeed([1,4,16,64,0][+k-1]);
+      if(/^[1-4]$/.test(k)) setMode(['edit','test','single','full'][+k-1]);
+      else if(/^[5-9]$/.test(k)) setSpeed([1,4,16,64,0][+k-5]);
       else if(/^F[1-4]$/.test(k)){ e.preventDefault(); setMode(['edit','test','single','full'][+k[1]-1]); }
+      else if(K==='t') act('tt'); else if(K==='f') toggleFocus();
       else if(K==='s') stepBlock(); else if(K==='r') reset();
       else if(K==='e'){ e.preventDefault(); beginEdit(); } else if(K==='i'){ e.preventDefault(); insertBlock(); }
       else if(K==='d'){ e.preventDefault(); deleteBlock(); } else if(K==='c'){ e.preventDefault(); copyBlock(); }
@@ -14178,6 +14830,8 @@ document.querySelector('.ttl').textContent=M().label;
 if($('mach-sel')) $('mach-sel').value=S.machine;
 [...$('spd').children].forEach(b=>b.dataset.on=(+b.dataset.s===S.speed)?'1':'0');
 [...document.querySelectorAll('.mode')].forEach(b=>b.setAttribute('aria-pressed',b.dataset.m===S.mode));
+document.body.classList.toggle('focus',S.focusView); if($('b-focus')) $('b-focus').setAttribute('aria-pressed',S.focusView);
+if(window.TNC_I18N) try{ TNC_I18N.set(TNC_I18N.lang||'en'); }catch(e){}
 compile(); renderSK(); renderProjects(); syncToggles(); keyPill(); resize(); profChip();
 if(S.flowView&&window.TNC_FLOW){ S.flowView=false; toggleFlow(); }
 const flash=sess.get('tnc.flash'); if(flash){ sess.del('tnc.flash'); setTimeout(()=>say(flash),400); }

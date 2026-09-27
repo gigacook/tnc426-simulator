@@ -45,12 +45,23 @@ var TNC_SIM = (function () {
       var pairs = [];
       if (mv.kind === 'arc' && mv.cx != null) tessArc(mv, pairs);
       else pairs.push([mv.from, mv.to]);
+      /* rotary axes ride along: angles interpolated over the move (DRO + head pose) */
+      var r0 = mv.rot0, r1 = mv.rot1 || mv.rot0, total = 0;
+      pairs.forEach(function (pr) { total += Math.hypot(pr[1].x - pr[0].x, pr[1].y - pr[0].y, pr[1].z - pr[0].z); });
+      var done = 0, rotOnly = total < 1e-9 && r0 && r1 && (r0.a !== r1.a || r0.b !== r1.b || r0.c !== r1.c);
+      if (rotOnly) pairs = [[mv.from, mv.to]];
       pairs.forEach(function (pr) {
         var a = pr[0], b = pr[1];
         var len = Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
-        if (len < 1e-9) return;
+        if (len < 1e-9 && !rotOnly) return;
+        if (r0) {
+          var u0 = total > 1e-9 ? done / total : 0, u1 = total > 1e-9 ? (done + len) / total : 1;
+          a = { x: a.x, y: a.y, z: a.z, a: r0.a + (r1.a - r0.a) * u0, b: r0.b + (r1.b - r0.b) * u0, c: r0.c + (r1.c - r0.c) * u0 };
+          b = { x: b.x, y: b.y, z: b.z, a: r0.a + (r1.a - r0.a) * u1, b: r0.b + (r1.b - r0.b) * u1, c: r0.c + (r1.c - r0.c) * u1 };
+        }
+        done += len;
         var f = mv.kind === 'rapid' ? rapid : Math.max(1, mv.feed || 500);
-        var dt = len / f * 60;
+        var dt = mv.dur != null ? mv.dur * (total > 1e-9 ? len / total : 1) : len / f * 60;   // machine time when the core knows it
         segs.push({ a: a, b: b, len: len, f: f, kind: mv.kind === 'rapid' ? 'rapid' : 'feed',
                     block: mv.block, tool: mv.tool, toolR: mv.toolR || 3, cone: isCone(mv.tool) || /CHAMFER|SPOT|CENTER|CENTRE/i.test(mv.toolName || ''),
                     spindle: mv.spindle || 0, coolant: !!mv.coolant, cycle: mv.cycle || null,
@@ -99,7 +110,8 @@ var TNC_SIM = (function () {
     SPINDLE_OFF:       'CRASH: CUTTING WITH SPINDLE STOPPED',
     BELOW_BLANK:       'CRASH: TOOL MORE THAN 3 MM BELOW BLANK — INTO THE PARALLELS / TABLE',
     THROUGH_CUT:       'NOTE: TOOL BREAKS THROUGH THE BLANK BOTTOM — ASSUMES PARALLELS UNDER THE PART',
-    CHIP_LOAD:         'WARNING: CHIP LOAD HIGH FOR THIS CUTTER'
+    CHIP_LOAD:         'WARNING: CHIP LOAD HIGH FOR THIS CUTTER',
+    SPINDLE_MAX:       'WARNING: SPINDLE SPEED ABOVE THE MACHINE MAXIMUM'
   };
 
   function analyse(res, ex, g) {
@@ -147,6 +159,9 @@ var TNC_SIM = (function () {
         }
       }
     });
+    var sMax = res.machine && res.machine.sMax;                // MP 3515: the control limits S to the gear range maximum
+    if (sMax) for (var k = 0; k < ex.segs.length; k++) { var sg = ex.segs[k];
+      if (Math.abs(sg.spindle || 0) > sMax + 1e-9) add('SPINDLE_MAX', 'warn', sg, k, sg.t0, sg.a, ' — S' + Math.abs(sg.spindle) + ' > ' + sMax + ' RPM (MP 3515), THE CONTROL LIMITS IT'); }
     return ev;
   }
 

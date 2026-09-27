@@ -25,7 +25,10 @@ var TNC_LOOK = (function () {
         else if (THREE.sRGBEncoding !== undefined) renderer.outputEncoding = THREE.sRGBEncoding;
         if (THREE.ACESFilmicToneMapping !== undefined) {
           renderer.toneMapping = THREE.ACESFilmicToneMapping;
-          renderer.toneMappingExposure = 1.05;
+          // r186's env/lighting defaults render the stock almost pure white and
+          // flat; pull exposure down so faces actually shade differently and
+          // cut depth reads. Speed over polish -- tuned by eye, not measured.
+          renderer.toneMappingExposure = 0.8;
         }
       } catch (e) {}
 
@@ -36,6 +39,7 @@ var TNC_LOOK = (function () {
           pmrem.compileEquirectangularShader && pmrem.compileEquirectangularShader();
           var envRT = pmrem.fromScene(new THREE.RoomEnvironment(), 0.035);
           scene.environment = envRT.texture;
+          if ('environmentIntensity' in scene) scene.environmentIntensity = 0.6;   // r160+
           pmrem.dispose();
         }
       } catch (e) { /* no PMREM support: materials just stay unlit-by-env, no crash */ }

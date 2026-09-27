@@ -35,7 +35,7 @@ var TNC = (function () {
   var IMPLEMENTED_CYCLES = { 1: 1, 2: 1, 4: 1, 17: 1, 18: 1, 200: 1, 201: 1, 202: 1, 203: 1, 204: 1, 205: 1, 206: 1, 207: 1, 208: 1, 209: 1, 210: 1, 211: 1, 212: 1, 213: 1, 214: 1, 215: 1, 230: 1, 231: 1 };
   var PATTERN_CYCLES = { 220: 1, 221: 1 };
   // definition-only cycles with no tool motion in this simulator (9 dwell, 32 tolerance)
-  var NOMOTION_CYCLES = { 7: 1, 8: 1, 9: 1, 10: 1, 11: 1, 32: 1, 247: 1 };
+  var NOMOTION_CYCLES = { 7: 1, 8: 1, 9: 1, 10: 1, 11: 1, 19: 1, 32: 1, 247: 1 };
 
   /* ---------------------------------------------------------------- 2. helpers */
 
@@ -196,6 +196,9 @@ var TNC = (function () {
         var lv = numOrQ(m[2]);
         if (lv !== null) { args[m[1].toLowerCase()] = lv; continue; }
         unknown.push(t); continue;
+      }
+      if ((m = /^(I)?([ABC])([+-]?(?:\d+\.?\d*|\.\d+|Q\d+))$/.exec(t))) {   // rotary axes (TNC 430)
+        args[(m[1] ? 'i' : '') + 'ax' + m[2].toLowerCase()] = numOrQ(m[3]); continue;   // axa axb axc (not rc: that is RL/RR)
       }
       unknown.push(t);
     }
@@ -530,8 +533,9 @@ var TNC = (function () {
       blocks: blocks,
       pos: { x: 0, y: 0, z: 0 },          // programmed coordinates (after cycles 7/8/10/11)
       mpos: { x: 0, y: 0, z: 0 },         // machine coordinates: where the tool really is
-      xf: { on: false, dx: 0, dy: 0, dz: 0, mx: false, my: false, mz: false, rot: 0, s: 1, flip: false },
+      xf: { on: false, dx: 0, dy: 0, dz: 0, mx: false, my: false, mz: false, rot: 0, s: 1, flip: false, tilt: null },
       steps: 0,
+      rot: { a: 0, b: 0, c: 0 },          // rotary axis positions, degrees
       feed: DEFAULT_FEED,
       tool: { t: 0, name: '', r: 3, l: 0, dr: 0 },
       spindle: 0,          // effective: sRpm * spinDir
@@ -567,12 +571,14 @@ var TNC = (function () {
     var f = st.xf; if (!f.on) return { x: p.x, y: p.y, z: p.z };
     var x = f.mx ? -p.x : p.x, y = f.my ? -p.y : p.y, z = f.mz ? -p.z : p.z;
     x *= f.s; y *= f.s; z *= f.s;
-    var c = Math.cos(f.rot * Math.PI / 180), sn = Math.sin(f.rot * Math.PI / 180);
-    return { x: x * c - y * sn + f.dx, y: x * sn + y * c + f.dy, z: z + f.dz };
+    var c = Math.cos(f.rot * Math.PI / 180), sn = Math.sin(f.rot * Math.PI / 180), X = x * c - y * sn, Y = x * sn + y * c;
+    if (f.tilt) { var T = f.tilt.m; var X2 = T[0] * X + T[1] * Y + T[2] * z, Y2 = T[3] * X + T[4] * Y + T[5] * z, Z2 = T[6] * X + T[7] * Y + T[8] * z; X = X2; Y = Y2; z = Z2; }
+    return { x: X + f.dx, y: Y + f.dy, z: z + f.dz };
   }
   function fromM(st, p) {
     var f = st.xf; if (!f.on) return { x: p.x, y: p.y, z: p.z };
     var x = p.x - f.dx, y = p.y - f.dy, z = p.z - f.dz;
+    if (f.tilt) { var T = f.tilt.m; var x2 = T[0] * x + T[3] * y + T[6] * z, y2 = T[1] * x + T[4] * y + T[7] * z, z2 = T[2] * x + T[5] * y + T[8] * z; x = x2; y = y2; z = z2; }  // inverse = transpose
     var c = Math.cos(f.rot * Math.PI / 180), sn = Math.sin(f.rot * Math.PI / 180);
     var xr = x * c + y * sn, yr = -x * sn + y * c;
     xr /= f.s; yr /= f.s; z /= f.s;
@@ -594,12 +600,27 @@ var TNC = (function () {
     } else if (cy.num === 10) {
       if ((m = /(I)?ROT\s*([+-]?(?:Q\d+|\d+\.?\d*|\.\d+))/.exec(all))) { v = resolve(numOrQ(m[2]), st.Q) || 0; f.rot = m[1] ? f.rot + v : v; }
       else fail(st, bi, 'CYCL DEF INCOMPLETE');
+    } else if (cy.num === 19) {
+      /* 19.1 A.. B.. C..: the working plane follows the head. This machine's head: B (outer, about Y, B+ tilts the
+         tip to X+) carries A (inner, about X, A+ tilts the tip to Y+): R = Ry(-B)·Rx(A). All zero cancels the tilt. */
+      var ang = { a: 0, b: 0, c: 0 }, any = false;
+      words(all).forEach(function (w) { var mm = /^([ABC])(\S+)$/.exec(w); if (mm) { var vv = resolve(numOrQ(mm[2]), st.Q); if (vv !== null) { ang[mm[1].toLowerCase()] = vv; any = true; } } });
+      if (!any || (!ang.a && !ang.b && !ang.c)) f.tilt = null;
+      else {
+        var A = ang.a * Math.PI / 180, B = -ang.b * Math.PI / 180, ca = Math.cos(A), sa = Math.sin(A), cb = Math.cos(B), sb = Math.sin(B);
+        f.tilt = { a: ang.a, b: ang.b, c: ang.c, m: [cb, sb * sa, sb * ca, 0, ca, -sa, -sb, cb * sa, cb * ca] };
+      }
+      if (st.mach.c19pos !== false && (st.mach.axes || []).some(function (x) { return x === 'A' || x === 'B'; })) {
+        st.rotTo = { a: ang.a, b: ang.b };                        // MP 7500 bit 2: cycle 19 positions the rotary axes
+        f.on = true; st.pos = fromM(st, st.mpos);
+        emit(st, 'rapid', { x: st.pos.x, y: st.pos.y, z: st.pos.z }, RAPID_RATE, bi, null);
+      }
     } else if (cy.num === 11) {
       if ((m = /SCL\s*([+-]?(?:Q\d+|\d+\.?\d*|\.\d+))/.exec(all))) { v = resolve(numOrQ(m[1]), st.Q); if (v > 0) f.s = v; else fail(st, bi, 'CYCL DEF INCOMPLETE'); }
       else fail(st, bi, 'CYCL DEF INCOMPLETE');
     }
     f.flip = f.mx !== f.my;                                   // one plane axis mirrored: arcs and RL/RR swap
-    f.on = !!(f.dx || f.dy || f.dz || f.mx || f.my || f.mz || f.rot || f.s !== 1);
+    f.on = !!(f.dx || f.dy || f.dz || f.mx || f.my || f.mz || f.rot || f.s !== 1 || f.tilt);
     st.pos = fromM(st, st.mpos);                              // the tool does not move; its programmed position does
     if (st.cc) st.cc = st.cc;                                 // CC stays in programmed coordinates
   }
@@ -610,6 +631,13 @@ var TNC = (function () {
 
   function emit(st, kind, to, feed, bi, cycleName, arc) {
     if (st.abort) return;
+    if (kind === 'arc' && st.xf.tilt) {                          // an arc in the tilted plane is a 3D arc: chords
+      var p0 = st.pos, sw0 = arcSweep(p0, to, arc), r0_ = Math.hypot(p0.x - arc.cx, p0.y - arc.cy), a00 = Math.atan2(p0.y - arc.cy, p0.x - arc.cx);
+      var nch = Math.max(8, Math.ceil(Math.abs(sw0) / (Math.PI / 36))), z0_ = p0.z;
+      for (var ci = 1; ci <= nch; ci++) { var an = a00 + sw0 * ci / nch;
+        emit(st, 'feed', ci === nch ? to : { x: arc.cx + r0_ * Math.cos(an), y: arc.cy + r0_ * Math.sin(an), z: z0_ + (to.z - z0_) * ci / nch }, feed, bi, cycleName); }
+      return;
+    }
     var pfrom = { x: st.pos.x, y: st.pos.y, z: st.pos.z };      // programmed
     var from = { x: st.mpos.x, y: st.mpos.y, z: st.mpos.z }, pto = to;
     to = toM(st, pto);
@@ -620,8 +648,35 @@ var TNC = (function () {
       len = Math.sqrt(rr * sw * rr * sw + (to.z - from.z) * (to.z - from.z));
     } else len = dist3(from, to);
     var tagRc = cycleName ? null : flipRc(st, st.rc === 'RL' || st.rc === 'RR' ? st.rc : null);
-    // a zero-length activation block still has to mark where RL/RR starts
-    if (!(len > EPS) && !(tagRc && st.rcAct)) { st.pos = { x: pto.x, y: pto.y, z: pto.z }; st.mpos = to; return; }
+    var r0 = { a: st.rot.a, b: st.rot.b, c: st.rot.c }, r1 = r0, dRot = 0;
+    if (st.rotTo) {                                              // rotary axes move with this block
+      r1 = { a: st.rotTo.a !== undefined ? st.rotTo.a : r0.a, b: st.rotTo.b !== undefined ? st.rotTo.b : r0.b, c: st.rotTo.c !== undefined ? st.rotTo.c : r0.c };
+      st.rotTo = null;
+      var lim = st.mach.limits || {};
+      ['a', 'b', 'c'].forEach(function (k) { var L = lim[k.toUpperCase()]; if (!L) return;
+        if (r1[k] > L[1] + 1e-9) { fail(st, bi, 'LIMIT SWITCH ' + k.toUpperCase() + '+'); r1[k] = L[1]; }
+        if (r1[k] < L[0] - 1e-9) { fail(st, bi, 'LIMIT SWITCH ' + k.toUpperCase() + '-'); r1[k] = L[0]; } });
+      dRot = Math.max(Math.abs(r1.a - r0.a), Math.abs(r1.b - r0.b), Math.abs(r1.c - r0.c));
+      st.rot = r1;
+    }
+    // a zero-length activation block still has to mark where RL/RR starts; a rotary-only move still moves
+    if (!(len > EPS) && !(tagRc && st.rcAct) && !(dRot > EPS)) { st.pos = { x: pto.x, y: pto.y, z: pto.z }; st.mpos = to; return; }
+    /* machine dynamics: F capped at MP 1020, rapids per axis (MP 1010), acceleration (MP 1060) */
+    var mc2 = st.mach, dur = null;
+    if (kind !== 'rapid' && mc2.fMax && feed > mc2.fMax) feed = mc2.fMax;
+    if (mc2.rapid || mc2.accel) {
+      var R = mc2.rapid || {}, tmin;
+      if (kind === 'rapid') {
+        tmin = Math.max(Math.abs(to.x - from.x) / (R.x || RAPID_RATE), Math.abs(to.y - from.y) / (R.y || RAPID_RATE), Math.abs(to.z - from.z) / (R.z || RAPID_RATE),
+                        Math.abs(r1.a - r0.a) / (R.a || 3600), Math.abs(r1.b - r0.b) / (R.b || 3600), Math.abs(r1.c - r0.c) / (R.c || 3600));
+      } else tmin = Math.max(len / Math.max(feed, 1), Math.abs(r1.a - r0.a) / 800, Math.abs(r1.b - r0.b) / 720);
+      var sec = tmin * 60;
+      if (mc2.accel && len > EPS) {                              // trapezoid: v/a extra, or a triangle on short moves
+        var v = len / Math.max(sec, 1e-9), acc = mc2.accel * 1000;
+        sec = (len >= v * v / acc) ? len / v + v / acc : 2 * Math.sqrt(len / acc);
+      }
+      dur = sec;
+    }
     st.moves.push({
       kind: kind,
       from: from,
@@ -641,6 +696,9 @@ var TNC = (function () {
       cycle: cycleName || null,
       rc: tagRc,
       rcAct: !!(tagRc && st.rcAct),
+      rot0: dRot > EPS || r0.a || r0.b || r0.c ? r0 : null,
+      rot1: dRot > EPS || r1.a || r1.b || r1.c ? r1 : null,
+      dur: dur,
       len: len
     });
     if (tagRc) st.rcAct = false;
@@ -836,7 +894,7 @@ var TNC = (function () {
     var cxp = st.pos.x, cyp = st.pos.y;
     var surf = st.pos.z - clr;                 // tool sits at set-up clearance above the surface
     var bottom = surf + dep;
-    var stepOver = 0.7 * R; if (!(stepOver > EPS)) stepOver = 1;
+    var stepOver = (st.mach.pocketK || 0.7) * R; if (!(stepOver > EPS)) stepOver = 1;   // MP 7430 overlap factor
 
     // concentric rectangles, built outside-in then reversed => spiral out
     var rects = [], rx = hx, ry = hy, g = 0;
@@ -955,7 +1013,9 @@ var TNC = (function () {
     if (dep <= EPS) { fail(st, bi, 'CYCL DEF INCOMPLETE'); return; }
     if (kind === 206) f = qp(cy, 206, st.feed) || st.feed;
     else { var pitch = qp(cy, 239, 0); f = Math.abs(pitch) * st.sRpm; if (!(f > 0)) { fail(st, bi, 'CYCL DEF INCOMPLETE'); return; } }
-    if (!keep) { fail(st, bi, 'SPINDLE ?'); }
+    /* 206 (floating tap holder) needs the spindle running. 207/209 are rigid: the control drives the spindle itself,
+       so a repeated M99 after the spindle stopped at the end of the previous hole is legal (CAM posts rely on it). */
+    if (!keep && kind === 206) { fail(st, bi, 'SPINDLE ?'); }
     var dir = keep || 1;
     emit(st, 'rapid', { x: x, y: y, z: surf + clr }, RAPID_RATE, bi, lab);
     if (kind === 209) {                                         // infeed Q257, reverse, retract Q256 (0: to set-up clearance)
@@ -1236,6 +1296,11 @@ var TNC = (function () {
 
   function targetOf(args, st) {
     var p = { x: st.pos.x, y: st.pos.y, z: st.pos.z };
+    ['a', 'b', 'c'].forEach(function (k) {                      // rotary axes: machine angles, no transformation
+      var v2;
+      if (args['ax' + k] !== undefined)  { v2 = resolve(args['ax' + k], st.Q);  if (v2 !== null) st.rotTo = st.rotTo || {}, st.rotTo[k] = v2; }
+      if (args['iax' + k] !== undefined) { v2 = resolve(args['iax' + k], st.Q); if (v2 !== null) st.rotTo = st.rotTo || {}, st.rotTo[k] = (st.rotTo && st.rotTo[k] !== undefined ? st.rotTo[k] : st.rot[k]) + v2; }
+    });
     var ax = ['x', 'y', 'z'], v;
     for (var i = 0; i < 3; i++) {
       var k = ax[i];
@@ -1274,7 +1339,9 @@ var TNC = (function () {
     applyM(st, a.m, 'start');
     feedOf(st, a, bi);
     var moves = (a.x !== undefined || a.y !== undefined || a.z !== undefined ||
-                 a.ix !== undefined || a.iy !== undefined || a.iz !== undefined);
+                 a.ix !== undefined || a.iy !== undefined || a.iz !== undefined ||
+                 a.axa !== undefined || a.axb !== undefined || a.axc !== undefined ||
+                 a.iaxa !== undefined || a.iaxb !== undefined || a.iaxc !== undefined);
     if (moves) {
       var to = targetOf(a, st);
       if (a.fmax) emit(st, 'rapid', to, RAPID_RATE, bi, null);
@@ -1312,7 +1379,7 @@ var TNC = (function () {
     var a0 = Math.atan2(from[v] - cv, from[u] - cu), w0 = from[w];
     if (sweep === null) {                                   // C: from the end point and direction
       var a1 = Math.atan2(endUV[1] - cv, endUV[0] - cu), r2 = Math.sqrt((endUV[0] - cu) * (endUV[0] - cu) + (endUV[1] - cv) * (endUV[1] - cv));
-      if (Math.abs(r2 - r) > ARC_TOL) { fail(st, bi, 'ARC END POS. INCORRECT'); return; }
+      if (Math.abs(r2 - r) > st.arcTol) { fail(st, bi, 'ARC END POS. INCORRECT'); return; }
       sweep = endUV[2] ? dirAngle(a0, a1, 1) || 2 * Math.PI : (dirAngle(a0, a1, -1) || -2 * Math.PI);
     }
     var n = Math.max(4, Math.ceil(Math.abs(sweep) / (Math.PI / 36)));
@@ -1338,7 +1405,7 @@ var TNC = (function () {
     var from = st.pos;
     var r1 = Math.sqrt(Math.pow(from.x - st.cc.x, 2) + Math.pow(from.y - st.cc.y, 2));
     var r2 = Math.sqrt(Math.pow(to.x - st.cc.x, 2) + Math.pow(to.y - st.cc.y, 2));
-    if (r1 < EPS || Math.abs(r1 - r2) > ARC_TOL) { fail(st, bi, 'ARC END POS. INCORRECT'); return; }
+    if (r1 < EPS || Math.abs(r1 - r2) > st.arcTol) { fail(st, bi, 'ARC END POS. INCORRECT'); return; }
     if (!(st.feed > 0)) { fail(st, bi, 'FEED RATE MISSING'); return; }
     emit(st, 'arc', to, st.feed, bi, null, { cx: st.cc.x, cy: st.cc.y, ccw: a.dr !== '-' });
     applyM(st, a.m, 'end');
@@ -1356,7 +1423,7 @@ var TNC = (function () {
     var L = Math.sqrt(dx * dx + dy * dy);
     if (L < EPS) { fail(st, bi, 'ARC END POS. INCORRECT'); return; }
     var h2 = R * R - L * L / 4;
-    if (h2 < -ARC_TOL) { fail(st, bi, 'ARC END POS. INCORRECT'); return; }
+    if (h2 < -st.arcTol) { fail(st, bi, 'ARC END POS. INCORRECT'); return; }
     var h = Math.sqrt(Math.max(h2, 0));
     var mx = (from.x + to.x) / 2, my = (from.y + to.y) / 2;
     var ux = dx / L, uy = dy / L;
@@ -1640,7 +1707,7 @@ var TNC = (function () {
           st.cycle = gatherCycle(st, i);
           if (!IMPLEMENTED_CYCLES[st.cycle.num] && !NOMOTION_CYCLES[st.cycle.num])
             fail(st, i, 'CYCLE ' + st.cycle.num + ' NOT IMPLEMENTED IN SIMULATOR');
-          if (st.cycle.num === 7 || st.cycle.num === 8 || st.cycle.num === 10 || st.cycle.num === 11) {
+          if (st.cycle.num === 7 || st.cycle.num === 8 || st.cycle.num === 10 || st.cycle.num === 11 || st.cycle.num === 19) {
             applyTransform(st, st.cycle, i); st.cycle = null;   // takes effect here; not called
           }
           break;
@@ -1810,7 +1877,8 @@ var TNC = (function () {
   function moveFrom(p, tpl, extra) {
     var mv = { kind: tpl.kind === 'arc' ? 'feed' : tpl.kind, from: pStart(p), to: pEnd(p), cx: null, cy: null, ccw: false, sweep: null,
       feed: tpl.feed, tool: tpl.tool, toolR: tpl.toolR, toolDR: tpl.toolDR || 0, toolName: tpl.toolName, spindle: tpl.spindle,
-      coolant: tpl.coolant, block: tpl.block, cycle: tpl.cycle || null, rc: null, rcAct: false, len: 0 };
+      coolant: tpl.coolant, block: tpl.block, cycle: tpl.cycle || null, rc: null, rcAct: false, len: 0,
+      rot0: tpl.rot1 || tpl.rot0 || null, rot1: tpl.rot1 || null, dur: null };
     if (p.type === 'arc') {
       mv.kind = 'arc'; mv.cx = p.cx; mv.cy = p.cy; mv.ccw = p.sw > 0; mv.sweep = p.sw;
       if (tpl.kind === 'rapid') mv.feed = RAPID_RATE;
@@ -2067,6 +2135,11 @@ var TNC = (function () {
 
     var st = newState(blocks);
     st.toolTable = (opts && opts.tools) || TOOLS;
+    /* opts.machine: the machine parameters that change interpreter results (see MACHINE_430 in ui.js)
+       arcTol (MP 7431), pocketK (MP 7430), fMax (MP 1020), rapid {x,y,z,a,b} (MP 1010), accel (MP 1060),
+       axes, limits {A:[min,max], ...} (MP 910/920), sMax (MP 3515) */
+    st.mach = (opts && opts.machine) || {};
+    st.arcTol = st.mach.arcTol || ARC_TOL;
     st.autoTools = !!(opts && opts.autoTools);
 
     // label table
@@ -2105,7 +2178,7 @@ var TNC = (function () {
     for (i = 0; i < st.moves.length; i++) {
       var mv = st.moves[i];
       var f = (mv.kind === 'rapid') ? RAPID_RATE : mv.feed;
-      var t = (f > 0) ? (mv.len / f) * 60 : 0;
+      var t = (mv.dur != null) ? mv.dur : ((f > 0) ? (mv.len / f) * 60 : 0);
       cycleTime += t;
       if (mv.kind === 'rapid') pathRapid += mv.len; else pathFeed += mv.len;
       minZ = Math.min(minZ, mv.from.z, mv.to.z);
@@ -2145,7 +2218,8 @@ var TNC = (function () {
         toolsUsed: toolsUsed,
         removedVolume: removed
       },
-      errors: st.errors
+      errors: st.errors,
+      machine: st.mach
     };
   }
 
@@ -2157,6 +2231,7 @@ var TNC = (function () {
       moves: c.moves,
       stock: c.stock,
       stats: c.stats,
+      machine: c.machine,
       errors: p.errors.concat(c.errors)
     };
   }

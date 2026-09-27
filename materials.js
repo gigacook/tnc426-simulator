@@ -47,6 +47,10 @@ var TNC_MATERIALS = (function () {
     m.color.setHex(preset.color);
     if ('metalness' in m) m.metalness = preset.metalness;
     if ('roughness' in m) m.roughness = preset.roughness;
+    // Tame the r186 environment map's contribution per-material too (on top
+    // of look.js's scene.environmentIntensity/exposure knobs) so the stock
+    // doesn't blow out to flat white and cut faces keep visible shading.
+    if ('envMapIntensity' in m) m.envMapIntensity = 0.6;
     // vertexColors stays on for gStock: the material color above multiplies
     // with the per-vertex cut-depth tint already painted by ui.js, rather
     // than replacing it.

@@ -405,5 +405,24 @@ console.log('CYCLES — 212/213/214/215 finishing, 210/211 slots, 220/221 patter
   r = R('CYCL DEF 231 RULED SURFACE\n Q225=+0\n Q226=+5\n Q227=-2\n Q228=+100\n Q229=+15\n Q230=+5\n Q231=+15\n Q232=+125\n Q233=+25\n Q234=+15\n Q235=+125\n Q236=+25\n Q240=40\n Q207=500\nCYCL CALL');
   ok(!r.errors.length && r.moves.some(m => m.cycle && near(m.to.z, 25)), '231: reaches the 3rd/4th point height Z+25');
 }
+
+console.log('TNC 430 (operator\'s machine) — limits, arc tolerance 0.006, F cap 1500, cycle 19 tilts the head');
+{ const M430 = { arcTol: 0.006, pocketK: 1.1, fMax: 1500, accel: 0.4, sMax: 2500, rapid: { x: 9000, y: 10000, z: 5000, a: 4000, b: 1000 },
+    axes: ['X', 'Y', 'Z', 'B', 'A'], limits: { B: [-180.1, 0.1], A: [-195, 15] } };
+  const hdr = 'BEGIN PGM M MM\nBLK FORM 0.1 Z X+0 Y+0 Z-20\nBLK FORM 0.2 X+100 Y+100 Z+0\nTOOL CALL 4 Z S2000\nL Z+50 R0 FMAX M3\n';
+  let r = TNC.run(hdr + 'L B+10 FMAX\nEND PGM M MM', { machine: M430 });
+  ok(r.errors.some(e => e.msg === 'LIMIT SWITCH B+'), 'B+10 beyond +0.1 -> LIMIT SWITCH B+');
+  r = TNC.run(hdr + 'L B-45 A+10 FMAX\nEND PGM M MM', { machine: M430 });
+  const rm = r.moves[r.moves.length - 1];
+  ok(!r.errors.length && rm.rot1 && rm.rot1.b === -45 && rm.rot1.a === 10 && rm.dur > 0, 'rotary move B-45 A+10 takes machine time');
+  const arc = 'CC X+50 Y+50\nL X+60 Y+50 Z-1 F200\nC X+50 Y+60.01 DR+\nEND PGM M MM';
+  ok(!TNC.run(hdr + arc).errors.length && TNC.run(hdr + arc, { machine: M430 }).errors.some(e => /ARC END/.test(e.msg)), 'a 0.01 radius mismatch passes on the default (0.05) and fails on the 430 (MP 7431 0.006)');
+  r = TNC.run(hdr + 'L X+50 Y+50 Z-1 F3000\nEND PGM M MM', { machine: M430 });
+  ok(r.moves[r.moves.length - 1].feed === 1500, 'F3000 is capped at MP 1020 1500');
+  r = TNC.run(hdr + 'CYCL DEF 19.0 WORKING PLANE\nCYCL DEF 19.1 A+0 B-90 C+0\nL X+10 Y+0 Z+0 R0 FMAX\nCYCL DEF 19.0 WORKING PLANE\nCYCL DEF 19.1 A+0 B+0 C+0\nEND PGM M MM', { machine: M430 });
+  const tilt = r.moves.find(m => m.rot1 && m.rot1.b === -90), after = r.moves.find(m => m.block === 7);
+  ok(!r.errors.length && tilt, 'cycle 19 B-90 turns the head to B-90 (MP 7500 bit 2)');
+  ok(after && near(Math.hypot(after.to.x, after.to.y, after.to.z), 10), 'a point 10 mm out in the tilted plane stays 10 mm from the datum');
+}
 console.log(fails ? `\n${fails} FAILED` : '\nALL MANUAL EXAMPLES PASS');
 process.exit(fails ? 1 : 0);
