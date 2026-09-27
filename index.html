@@ -8719,7 +8719,6 @@ var TNC_SIM = (function () {
   var MSG = {
     RAPID_IN_MATERIAL: 'CRASH: RAPID TRAVERSE INTO MATERIAL',
     SPINDLE_OFF:       'CRASH: CUTTING WITH SPINDLE STOPPED',
-    BELOW_BLANK:       'CRASH: TOOL MORE THAN 3 MM BELOW BLANK — INTO THE PARALLELS / TABLE',
     THROUGH_CUT:       'NOTE: TOOL BREAKS THROUGH THE BLANK BOTTOM — ASSUMES PARALLELS UNDER THE PART',
     CHIP_LOAD:         'WARNING: CHIP LOAD HIGH FOR THIS CUTTER',
     SPINDLE_MAX:       'WARNING: SPINDLE SPEED ABOVE THE MACHINE MAXIMUM',
@@ -9592,49 +9591,6 @@ var TNC_LESSONS = (function () {
       rule: "Put M5 on the retract block, never on a cutting move."
     },
     {
-      id: 'iz-instead-of-z',
-      title: 'IZ instead of Z',
-      blurb: 'One extra letter, and the depth loop walks down into the table.',
-      broken: prog('WALKDOWN', [
-        'TOOL CALL 4 Z S3000',
-        'L Z+50 R0 FMAX M3',
-        'FN 0: Q1 = -2',
-        'FN 0: Q2 = +0',
-        'L X+20 Y+20 R0 FMAX',
-        'L Z+2 R0 FMAX',
-        'LBL 1',
-        'FN 1: Q2 = +Q2 + +Q1',
-        'L IZ+Q2 R0 F150',
-        'L X+80 R0 F500',
-        'L Y+60 R0',
-        'L X+20 R0',
-        'L Y+20 R0',
-        'CALL LBL 1 REP 4/4',
-        'L Z+50 R0 FMAX M30'
-      ]),
-      expect: 'BELOW_BLANK',
-      story: "The first pass cuts nothing but air, and that should have been the clue. The second pass cuts 4 deep, the third 10, the fourth 18. On the fifth pass the cutter goes through the bottom of the blank, into the parallels and into the vice. There is a noise nobody forgets, and the next thing is a quiet phone call to the maintenance department.",
-      why: "Q2 holds an **absolute** depth: -2, -4, -6, -8, -10. `L IZ+Q2` adds that depth to wherever the tool already is, instead of going to it. From Z+2, the passes land at 0, -4, -10, -18 and -28. The steps get bigger every time, and the last one is 8 mm below the bottom of the 20 mm blank.",
-      fix: prog('WALKDOWN', [
-        'TOOL CALL 4 Z S3000',
-        'L Z+50 R0 FMAX M3',
-        'FN 0: Q1 = -2',
-        'FN 0: Q2 = +0',
-        'L X+20 Y+20 R0 FMAX',
-        'L Z+2 R0 FMAX',
-        'LBL 1',
-        'FN 1: Q2 = +Q2 + +Q1',
-        'L Z+Q2 R0 F150',
-        'L X+80 R0 F500',
-        'L Y+60 R0',
-        'L X+20 R0',
-        'L Y+20 R0',
-        'CALL LBL 1 REP 4/4',
-        'L Z+50 R0 FMAX M30'
-      ]),
-      rule: "If a Q parameter holds a depth, go to it with Z. If it holds a step, add it with IZ. Never mix the two."
-    },
-    {
       id: 'rep-off-by-one',
       title: 'The REP off-by-one',
       blurb: 'Four passes wanted, REP 4/4 written, five passes cut.',
@@ -9822,41 +9778,6 @@ var TNC_LESSONS = (function () {
          'L Z+50 R0 FMAX M30']
       )),
       rule: "Q200 (and Q204) are clearances above the surface: always positive."
-    },
-    {
-      id: 'q203-surface',
-      title: 'Q203 set to the wrong surface',
-      blurb: 'The cycle’s own idea of "the top" does not match the blank.',
-      broken: prog('SURFQ', [].concat(
-        ['TOOL CALL 2 Z S1800', 'L Z+50 R0 FMAX M3'],
-        ['CYCL DEF 200 DRILLING',
-         '  Q200=+2     ;SET-UP CLEARANCE',
-         '  Q201=-15    ;DEPTH',
-         '  Q206=+150   ;FEED RATE FOR PLNGNG',
-         '  Q202=+5     ;PLUNGING DEPTH',
-         '  Q210=+0     ;DWELL TIME AT TOP',
-         '  Q203=-10    ;SURFACE COORDINATE',
-         '  Q204=+50    ;2ND SET-UP CLEARANCE'],
-        ['L X+50 Y+40 R0 FMAX M99',
-         'L Z+50 R0 FMAX M30']
-      )),
-      expect: 'BELOW_BLANK',
-      story: "The last job had the part sitting on a 10 mm riser plate, so `Q203` got set to -10 to match. This job has no riser — the blank's top face is Z0 — but the old cycle definition gets reused without anyone touching that one line. The drill rapids down through 10 mm of solid aluminium before it even reaches its own set-up clearance, and by the time it stops it is 5 mm through the bottom of the blank and into the parallels.",
-      why: "`Q203` is not a spare field; it is the Z of the surface the whole cycle measures from. Every other number in the cycle — the rapid-down target, the depth, the retract — is computed as an offset from `Q203`. Set it 10 mm below the real surface and the cycle's \"safe\" rapid lands inside material, and the programmed -15 mm depth ends up 25 mm below the true top: 5 mm past the bottom of a 20 mm blank.",
-      fix: prog('SURFQ', [].concat(
-        ['TOOL CALL 2 Z S1800', 'L Z+50 R0 FMAX M3'],
-        ['CYCL DEF 200 DRILLING',
-         '  Q200=+2     ;SET-UP CLEARANCE',
-         '  Q201=-15    ;DEPTH',
-         '  Q206=+150   ;FEED RATE FOR PLNGNG',
-         '  Q202=+5     ;PLUNGING DEPTH',
-         '  Q210=+0     ;DWELL TIME AT TOP',
-         '  Q203=+0     ;SURFACE COORDINATE',
-         '  Q204=+50    ;2ND SET-UP CLEARANCE'],
-        ['L X+50 Y+40 R0 FMAX M99',
-         'L Z+50 R0 FMAX M30']
-      )),
-      rule: "Q203 must match the real Z of the part surface for this setup — check it every time you reuse a cycle definition."
     },
     {
       id: 'never-started',
