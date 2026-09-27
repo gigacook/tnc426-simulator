@@ -202,8 +202,19 @@ var TNC_FX = (function () {
     if (n === 0) return;
     for (var i = 0; i < this.attrs.length; i++) {
       var at = this.attrs[i];
-      at.updateRange.offset = 0;
-      at.updateRange.count = n * at.itemSize;
+      // r159+ dropped BufferAttribute.updateRange (a single {offset,count})
+      // in favour of updateRanges (a list) via addUpdateRange(); the old
+      // single-range object no longer exists so setting .offset on it threw
+      // ("Cannot set properties of undefined"), silently caught by ui.js's
+      // per-frame try/catch -- nothing ever got uploaded to the GPU.
+      if (at.updateRange) {
+        at.updateRange.offset = 0;
+        at.updateRange.count = n * at.itemSize;
+      }
+      if (typeof at.clearUpdateRanges === 'function') {
+        at.clearUpdateRanges();
+        at.addUpdateRange(0, n * at.itemSize);
+      }
       at.needsUpdate = true;
     }
   };

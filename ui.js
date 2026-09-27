@@ -54,30 +54,30 @@ function readPrefs(){
 function writePrefs(){
   try{
     const v=encodeURIComponent(JSON.stringify({speed:S.speed, ovr:S.ovr, view:S.view, mode:S.mode, fx:S.fx,
-      cool:S.fxCool, fire:S.fxFire, labels:S.labels, sound:S.sound, machine:S.machine, flow:S.flowView, focus:S.focusView}));
+      cool:S.fxCool, fire:S.fxFire, labels:S.labels, sound:S.sound, machine:S.machine, flow:S.flowView, focus:S.focusView, side:S.sideTab, ref:S.ref}));
     const path=location.pathname.replace(/[^/]*$/,'')||'/';
     document.cookie=`${PREF}=${v}; Max-Age=31536000; Path=${path}; SameSite=Lax${location.protocol==='https:'?'; Secure':''}`;
   }catch(e){}
   if(PROF) persist();
 }
-const prefsNow=()=>({speed:S.speed, ovr:S.ovr, view:S.view, mode:S.mode, fx:S.fx, cool:S.fxCool, fire:S.fxFire, labels:S.labels, sound:S.sound, machine:S.machine, flow:S.flowView, focus:S.focusView});
+const prefsNow=()=>({speed:S.speed, ovr:S.ovr, view:S.view, mode:S.mode, fx:S.fx, cool:S.fxCool, fire:S.fxFire, labels:S.labels, sound:S.sound, machine:S.machine, flow:S.flowView, focus:S.focusView, side:S.sideTab, ref:S.ref});
 
 /* ================= machines ================= */
 const MACHINES={
   '426':{ id:'426', label:'TNC 426', axes:['X','Y','Z'], tools:TNC.TOOLS,
-    run:t=>TNC.run(t,{tools:mtools('426')}), expand:r=>TNC_SIM.expand(r),
+    run:t=>TNC.run(t,{tools:mtools('426'),holder:holderOpt('426')}), expand:r=>TNC_SIM.expand(r),
     analyse:(r,ex)=>TNC_SIM.analyse(r,ex,TNC_SIM.grid(r.stock,ex.segs)),
     programs:window.TNC_PROGRAMS||{}, lessons:window.TNC_LESSONS||null }
 };
 /* TNC 430: the operator's machine, from its machine-parameter list (vertical, A/B swivel head).
    Head: B (outer, near the body) carries A (inner, holds the spindle); at A0 B0 the tool points to Z-;
    A+ tilts the tip to Y+, B+ to X+; A-90 B0 = horizontal. Pivots ~250 mm (operator's estimate). */
-const MACHINE_430={ arcTol:0.006, pocketK:1.1, fMax:1500, accel:0.4, sMax:2500,
+const MACHINE_430={ arcTol:0.006, pocketK:1.1, fMax:1500, accel:0.4, sMax:3000,   // S max: the operator's figure (MP 3515 lists 2500 for gear 2)
   rapid:{x:9000,y:10000,z:5000,a:4000,b:1000}, axes:['X','Y','Z','B','A'],
   limits:{X:[2,1250.2],Y:[-850.2,0.2],Z:[-500.2,0.2],B:[-180.1,0.1],A:[-195,15]},
   head:{inner:'A',outer:'B',pivotA:250,pivotB:250} };
 MACHINES['430']={ id:'430', label:'TNC 430', axes:['X','Y','Z','B','A'], tools:TNC.TOOLS, machine:MACHINE_430,
-  run:t=>TNC.run(t,{tools:mtools('430'),machine:MACHINE_430}), expand:r=>TNC_SIM.expand(r),
+  run:t=>TNC.run(t,{tools:mtools('430'),machine:MACHINE_430,holder:holderOpt('430')}), expand:r=>TNC_SIM.expand(r),
   analyse:(r,ex)=>TNC_SIM.analyse(r,ex,TNC_SIM.grid(r.stock,ex.segs)),
   programs:window.TNC_PROGRAMS||{}, lessons:window.TNC_LESSONS||null };
 Object.keys(window.TNC_MACHINES||{}).forEach(k=>{ MACHINES[k]=window.TNC_MACHINES[k]; });
@@ -87,7 +87,7 @@ const M=()=>MACHINES[S.machine];
 const P=readPrefs();
 const S={
   machine: MACHINES[P.machine]?P.machine:'426',
-  pgms:{}, orig:{}, cur:{}, tools:{}, projects:[], active:null, pgm:null, text:'',
+  pgms:{}, orig:{}, cur:{}, tools:{}, meta:{}, mset:{}, projects:[], active:null, pgm:null, text:'',
   res:null, ex:{segs:[],total:0}, segs:[], total:0, events:[], evIdx:0,
   t:0, stampT:0, running:false,
   speed:[1,4,16,64,0].includes(P.speed)?P.speed:4, ovr:clamp(+P.ovr||100,0,150),
@@ -96,7 +96,7 @@ const S={
   cursor:0, editing:false, raw:false, mgt:false, mgtSel:0, flowView:!!P.flow,
   fx:P.fx!==undefined?!!P.fx:!REDUCED, fxCool:P.cool!==undefined?!!P.cool:true, fxFire:!!P.fire,
   labels:P.labels!==undefined?!!P.labels:true, sound:P.sound!==undefined?!!P.sound:true,
-  ref:null, pos:null, seg:null, shake:0, lesson:null, focus:null, focusView:!!P.focus, execB:-1, wiz:null, pick:null, tt:false
+  ref:null, pos:null, seg:null, shake:0, lesson:null, focus:null, focusView:!!P.focus, sideTab:P.side||'diag', ref:P.ref||'keys', pickPath:null, execB:-1, wiz:null, pick:null, tt:false
 };
 const TEMP='LESSON.H';
 const pg=()=>S.pgms[S.machine]||(S.pgms[S.machine]={});
@@ -106,6 +106,10 @@ const PSTORE=window.TNC_PROFILE||{ load:()=>Promise.resolve(null), save:()=>Prom
   blank:n=>({v:2,name:n||'',created:new Date().toISOString(),prefs:{},machines:{},projects:[],active:null}), legacy:()=>null };
 let PROF=null;
 /* the machine's tool table: built-ins, overridden / extended by the operator's own TOOL.T */
+/* TOOL HOLDER LENGTH: the gauge length used for every tool with L = 0 (length measured on the machine) */
+const mset=id=>(S.mset[id||S.machine]=S.mset[id||S.machine]||{holderLen:150,holderType:'ISO50'});
+function holderOpt(id){ const m=mset(id); if(window.TNC_TOOLS3D&&TNC_TOOLS3D.setHolder) TNC_TOOLS3D.setHolder(m.holderType);
+  return { len:+m.holderLen||150, stack:r=>window.TNC_TOOLS3D&&TNC_TOOLS3D.holderStack?TNC_TOOLS3D.holderStack(r):90 }; }
 function mtools(id){ id=id||S.machine; const base=(MACHINES[id]&&MACHINES[id].tools)||[], mine=S.tools[id]||[];
   const by={}; base.forEach(t=>by[t.t]=Object.assign({},t)); mine.forEach(t=>by[t.t]=Object.assign({},t,{mine:true}));
   return Object.values(by).sort((a,b)=>a.t-b.t); }
@@ -118,6 +122,8 @@ function loadStore(){
     S.pgms[id]=Object.assign({}, S.orig[id], mm.pgms||{});
     S.tools[id]=Array.isArray(mm.tools)?mm.tools:[];
     S.cur[id]=mm.cur||null;
+    S.meta[id]=mm.meta||{};
+    S.mset[id]=Object.assign({holderLen:150,holderType:'ISO50'},mm.settings||{});
   }
   S.projects=Array.isArray(j.projects)?j.projects:[];
   S.active=S.projects.some(p=>p.id===j.active)?j.active:((S.projects[0]||{}).id||null);
@@ -131,14 +137,14 @@ function profileNow(){
   const machines={};
   for(const id in S.pgms){ const pg_={};          // only what differs from the built-ins, so fixes to them still arrive
     for(const n in S.pgms[id]) if(n!==TEMP && S.pgms[id][n]!==S.orig[id][n]) pg_[n]=S.pgms[id][n];
-    machines[id]={pgms:pg_, cur:S.cur[id]||null, tools:S.tools[id]||[]}; }
+    machines[id]={pgms:pg_, cur:S.cur[id]||null, tools:S.tools[id]||[], meta:S.meta[id]||{}, settings:S.mset[id]||{}}; }
   return Object.assign({}, PROF||PSTORE.blank(''), {v:2, machines, projects:S.projects, active:S.active, prefs:prefsNow()});
 }
 let persistT=0;
 function persist(){
   if(!PROF) return;
   clearTimeout(persistT);
-  persistT=setTimeout(()=>{ PROF=profileNow(); PSTORE.save(PROF).then(r=>{ profChip(r); }); },300);
+  persistT=setTimeout(()=>{ PROF=profileNow(); PSTORE.save(PROF).then(r=>{ profChip(r); }); renderUserPrograms(); },300);
 }
 
 /* ================= undo / redo (per program) ================= */
@@ -146,7 +152,9 @@ const UNDO={}, REDO={};
 const ukey=()=>S.machine+':'+S.pgm;
 function snapshot(){ const k=ukey(); (UNDO[k]=UNDO[k]||[]).push({text:S.text,cursor:S.cursor});
   if(UNDO[k].length>200) UNDO[k].shift(); REDO[k]=[]; }
-function setText(t){ S.text=t; pg()[S.pgm]=t; raw.value=t; compile(); persist(); }
+function setText(t){ S.text=t; pg()[S.pgm]=t; raw.value=t; touchMeta(S.pgm); compile(); persist(); }
+function touchMeta(n,created){ if(!n||n===TEMP) return; const mm=(S.meta[S.machine]=S.meta[S.machine]||{}), now=new Date().toISOString();
+  const e=mm[n]||(mm[n]={c:now,m:now,v:0}); if(created){ e.c=now; e.v=0; } e.m=now; e.v++; }
 function edit(t, cur, msg){
   if(t===S.text) return;
   snapshot(); setText(t);
@@ -268,7 +276,8 @@ function toolEntry(t){ return mtools().find(x=>x.t===t)||null; }
 function setTool(t){
   if(t===curToolT && gTool) return;
   if(gTool){ if(window.TNC_TOOLS3D&&TNC_TOOLS3D.dispose) TNC_TOOLS3D.dispose(gTool); disposeTree(gTool); }
-  curToolT=t; const e=toolEntry(t);
+  curToolT=t; const e0=toolEntry(t), hl=+mset().holderLen||150, e=e0&&!(e0.l>0)?Object.assign({},e0,{l:hl}):e0;   // L=0: TOOL HOLDER LENGTH
+  if(window.TNC_TOOLS3D&&TNC_TOOLS3D.setHolder) TNC_TOOLS3D.setHolder(mset().holderType);
   if(window.TNC_TOOLS3D){
     try{ const b=TNC_TOOLS3D.build(THREE,e); gTool=b.group; toolCutter=b.cutter; toolHolder=b.holder; }
     catch(err){ gTool=null; }
@@ -299,7 +308,8 @@ function calloutsFor(){
   try{
     CO.remove('tool'); CO.remove('holder'); CO.remove('part');
     if(e&&toolCutter) CO.add('tool',toolCutter,`T${e.t} ${e.name} Ø${(e.r*2).toFixed(e.r*2%1?1:0)}`,{anchor:[0,0,Math.min(8,e.l*.1)],offset:[70,-50],color:'#6fdcff'});
-    if(e&&toolHolder) CO.add('holder',toolHolder,/FACEMILL/.test(e.name)?'SK40 SHELL-MILL ARBOR':(/PROBE/.test(e.name)?'TS 640 PROBE BODY':'SK40 DIN 69871 · ER COLLET CHUCK'),{anchor:[0,0,0],offset:[80,-20],color:'#a596ff'});
+    const hk=mset().holderType==='SK40'?'SK40':'ISO 50';
+    if(e&&toolHolder) CO.add('holder',toolHolder,/FACEMILL/.test(e.name)?hk+' SHELL-MILL ARBOR':(/PROBE/.test(e.name)?'TS 640 PROBE BODY':(window.TNC_TOOLS3D&&TNC_TOOLS3D.holderLabel?TNC_TOOLS3D.holderLabel():hk+' · ER COLLET CHUCK')),{anchor:[0,0,0],offset:[80,-20],color:'#a596ff'});
     const mesh=stockH?stockH.mesh:gStock;
     if(mesh) CO.add('part',mesh,`BLANK ${fmt(st.x1-st.x0)}×${fmt(st.y1-st.y0)}×${fmt(st.z1-st.z0)} ${alloy}`,{anchor:[st.x1,st.y0,st.z1],offset:[40,40],color:'#63e6b0'});
   }catch(err){}
@@ -488,6 +498,8 @@ function start(){
   if(S.speed===0) runMax();
 }
 function stop(){ if(S.running){ S.running=false; setState('FEED HOLD'); } }
+/* NC START does what the operating mode says: SINGLE-BLOCK = the next block, TEST / FULL-RUN = run, PROGRAM = nothing */
+function ncStart(){ if(S.mode==='single') stepBlock(); else if(S.mode==='edit') say('PROGRAM MODE — NC START WORKS IN 2 TEST, 3 SINGLE-BLOCK, 4 FULL-RUN'); else start(); }
 function runMax(){ S.running=false; seek(S.total,true); if(S.t>=S.total-1e-6) setState('PROGRAM END'); }
 function stepBlock(){
   if(!S.segs.length) return;
@@ -552,6 +564,12 @@ function markRows(scroll){
   if(!S.running) traceFor(S.cursor);
   if(S.flowView) flowHighlight();
 }
+/* TEST / SINGLE-BLOCK / FULL-RUN: moving the block cursor moves the machine to the end of that block */
+function followCursor(){
+  if(S.mode==='edit'||S.running||!S.segs.length) return;
+  let j=-1; for(let k=S.segs.length-1;k>=0;k--) if(S.segs[k].block<=S.cursor){ j=k; break; }
+  const cur=S.cursor; seek(j<0?0:S.segs[j].t1,false); S.cursor=cur; markRows(); traceFor(S.cursor);
+}
 function moveCursor(i){ S.cursor=clamp(i,0,Math.max(0,S.res.blocks.length-1)); markRows(); }
 plist.addEventListener('click',e=>{ const d=e.target.closest('.blk'); if(!d) return;
   moveCursor(+d.dataset.i); const s=S.segs.find(x=>x.block===S.cursor); if(s&&!S.running) seek(s.t0+1e-6,false); });
@@ -615,9 +633,9 @@ function renderDro(now){
   const extra=(M().axes||[]).filter(a=>/[ABC]/.test(a)).map(a=>{ const k=a.toLowerCase(); let v=0;
     if(s&&s.a&&s.a[k]!=null) v=s.a[k]+((s.b[k]||0)-s.a[k])*u; return ['s',a,(+v).toFixed(3)]; });
   const R=[['x','X',x.toFixed(3)],['y','Y',y.toFixed(3)],['z','Z',z.toFixed(3)],...extra,
-           ['s','S',Math.abs(sp)+(sp<0?' M4':sp>0?' M3':' M5')],['f','F',s&&s.kind==='rapid'?'FMAX':f]];
+           ['s','S',Math.abs(sp)+(sp<0?' M4':sp>0?' M3':' M5')],['f','F',s&&s.kind==='rapid'?'FMAX':f],['t','T',String(tl)]];
   $('dro').innerHTML=R.map(([c,a,v])=>`<div class="drow ${c}"><span class="ax">${a}</span><span class="val">${v}</span></div>`).join('');
-  $('dro-t').textContent='T'+tl+' · ACTL MM';
+
 }
 
 /* ================= soft keys ================= */
@@ -626,27 +644,41 @@ const SK={
   /* EDIT: the path-function keys, the program keys (CYCL DEF, TOOL CALL …) and the editing keys — three rows */
   edit:  [['L','w:L'],['CC','w:CC'],['C','w:C'],['CR','w:CR'],['CT','w:CT'],['CP\nPOLAR','w:CP'],['RND','w:RND'],['CHF','w:CHF'],
           ['APPR\nDEP','apprdep'],['TOOL\nDEF','w:TOOLDEF'],['TOOL\nCALL','w:TOOLCALL'],['CYCL\nDEF','cycldef'],['CYCL\nCALL','w:CYCLCALL'],['LBL\nSET','w:LBLSET'],['LBL\nCALL','w:LBLCALL'],['Q','w:Q'],
-          ['EDIT','ed'],['INSERT','ins'],['DELETE','del'],['UNDO','undo'],['REDO','redo'],['TOOL\nTABLE','tt'],['RAW\nTEXT','rawt'],['CHECK','chk']],
-  test:  [['START','start'],['START\nSINGLE','step'],['RESET\n+ START','rs'],['STOP','stop'],['3-D\nVIEW','v3'],['PLAN\nVIEW','vt'],['TOOL\nTABLE','tt'],['FOCUS','focus']],
-  single:[['NC\nSTART','step'],['NC\nSTOP','stop'],['RESET','reset'],['OVR\n−','ovrd'],['OVR\n+','ovru'],['TOOL\nTABLE','tt'],['FLOW\nVIEW','flow'],['PGM\nMGT','mgt']],
-  full:  [['NC\nSTART','start'],['NC\nSTOP','stop'],['RESET','reset'],['OVR\n−','ovrd'],['OVR\n+','ovru'],['3-D\nVIEW','v3'],['FLOW\nVIEW','flow'],['PGM\nMGT','mgt']],
+          ['EDIT','ed'],['INSERT','ins'],['DELETE','del'],['UNDO','undo'],['REDO','redo'],['TOOL\nLIST','tt'],['RAW\nTEXT','rawt'],['CHECK','chk']],
+  test:  [['START','start'],['START\nSINGLE','step'],['STOP','stop'],['RESET','reset'],['3-D\nVIEW','v3'],['PLAN\nVIEW','vt'],['FRONT','vf'],['SIDE','vs']],
+  single:[['NC START\nNEXT BLOCK','step'],['NC\nSTOP','stop'],['RESET','reset'],['OVR\n−','ovrd'],['OVR\n+','ovru'],['3-D\nVIEW','v3'],['TOOL\nLIST','tt'],['PROGRAMS','mgt']],
+  full:  [['NC\nSTART','start'],['NC\nSTOP','stop'],['RESET','reset'],['OVR\n−','ovrd'],['OVR\n+','ovru'],['3-D\nVIEW','v3'],['TOOL\nLIST','tt'],['PROGRAMS','mgt']],
   tt:    [['ADD\nMISSING','ttmiss'],['IMPORT\nTOOL.T','load'],['EXPORT\nTOOL.T','ttexp'],['',''],['',''],['',''],['',''],['END','ttend']],
   mgt:   [['NEW','new'],['OPEN','open'],['LOAD\nFROM PC','load'],['SAVE\n.H','save'],['RESTORE\nORIGINAL','restore'],['DELETE','mdel'],['ADD TO\nPROJECT','padd'],['END','end']]
 };
 function skRows(){ if(S.wiz) return wizSK(); if(S.pick) return S.pick; if(S.mgt) return SK.mgt; if(S.tt) return SK.tt; return SK[S.mode]||SK.test; }
+/* soft keys: the same look and the same behaviour everywhere; NC START green, NC STOP red; a path row when nested */
+function skClass(a){ const on=(a==='rawt'&&S.raw)||(a==='flow'&&S.flowView)||(a==='focus'&&S.focusView)||(a==='tt'&&S.tt)||(a==='mgt'&&S.mgt);
+  return (a==='start'||(a==='step'&&S.mode==='single'))?' go':(a==='stop'?' stop':(on?' on':'')); }
 function renderSK(){ const tr=window.TNC_I18N?(x=>TNC_I18N.tr(x)):(x=>x);
-  sks.innerHTML=skRows().map(([l,a])=>`<button class="sk" data-a="${esc(a)}">${esc(tr(l.replace(/\n/g,' '))===l.replace(/\n/g,' ')?l:tr(l.replace(/\n/g,' '))).replace(/\n/g,'<br>')}</button>`).join(''); }
+  sks.innerHTML=skRows().map(([l,a])=>`<button class="sk${skClass(a)}" data-a="${esc(a)}">${esc(tr(l.replace(/\n/g,' '))===l.replace(/\n/g,' ')?l:tr(l.replace(/\n/g,' '))).replace(/\n/g,'<br>')}</button>`).join('');
+  renderPath(); }
+function renderPath(){
+  const el=$('skpath'); if(!el) return; let path=null, back='';
+  if(S.wiz){ path=['PROGRAM',S.wiz.spec.title,'QUESTION '+(S.wiz.i+1)+' / '+S.wiz.spec.steps.length]; back='ESC = CANCEL · END = FINISH'; }
+  else if(S.pick){ path=(S.pickPath||['PROGRAM']); back='ESC = ONE LEVEL UP'; }
+  else if(S.mgt){ path=['PROGRAMS']; back='ESC / M = BACK TO THE PROGRAM'; }
+  else if(S.tt){ path=['TOOL LIST','TOOL.T']; back='ESC / T / END = BACK'; }
+  el.hidden=!path; if(path) el.innerHTML=path.map((x,i)=>i===path.length-1?`<b>${esc(x)}</b>`:esc(x)).join(' › ')+`<span class="back">${esc(back)}</span>`;
+}
 sks.addEventListener('click',e=>{ const b=e.target.closest('.sk'); if(b&&b.dataset.a) act(b.dataset.a); if(S.wiz) dlgIn.focus(); });
 function act(a){
   if(a.startsWith('w:')){ startWiz(DLG&&DLG.PATH[a.slice(2)]); return; }
   if(a.startsWith('cg:')){ const L=DLG.cycleList(a.slice(3));
+    const G=(DLG.GROUPS.find(g=>g[0]===a.slice(3))||[,''])[1].replace(/\n/g,' ');
+    S.pickPath=['PROGRAM','CYCL DEF',G];
     S.pick=L.map(c=>[c.num+'\n'+c.name.split(' ').slice(0,2).join(' '),'cy:'+c.num]).concat([['BACK','cycldef'],['END','pickend']]); renderSK(); return; }
   if(a.startsWith('cy:')){ S.pick=null; startWiz(DLG.cycleSpec(+a.slice(3))); return; }
   if(a.startsWith('wv:')){ wizAccept(a.slice(3)); return; }
   if(a.startsWith('wa:')){ dlgIn.value=(dlgIn.value.trim()+' '+a.slice(3)).trim(); dlgIn.focus(); return; }
   switch(a){
-    case 'cycldef': if(!DLG) return; if(S.mode!=='edit') setMode('edit'); S.pick=DLG.GROUPS.map(g=>[g[1],'cg:'+g[0]]).concat([['END','pickend']]); renderSK(); say('CYCL DEF — CHOOSE A CYCLE GROUP'); break;
-    case 'apprdep': if(S.mode!=='edit') setMode('edit'); S.pick=[['APPR','w:APPR'],['DEP','w:DEP'],['',''],['',''],['',''],['',''],['',''],['END','pickend']]; renderSK(); break;
+    case 'cycldef': if(!DLG) return; if(S.mode!=='edit') setMode('edit'); S.pickPath=['PROGRAM','CYCL DEF']; S.pick=DLG.GROUPS.map(g=>[g[1],'cg:'+g[0]]).concat([['END','pickend']]); renderSK(); break;
+    case 'apprdep': if(S.mode!=='edit') setMode('edit'); S.pickPath=['PROGRAM','APPR / DEP']; S.pick=[['APPR','w:APPR'],['DEP','w:DEP'],['',''],['',''],['',''],['',''],['',''],['END','pickend']]; renderSK(); break;
     case 'pickend': S.pick=null; renderSK(); break;
     case 'wskip': wizAccept('',true); break; case 'wend': wizEnd(); break; case 'wcancel': wizCancel(); break;
     case 'ttmiss': addMissingTools(); break;
@@ -679,27 +711,76 @@ function srcLine(bi){ return clamp(bi,0,lines().length-1); }     // one source l
 function beginEdit(){
   const b=S.res.blocks[S.cursor]; if(!b) return;
   S.editing=true; S.running=false; dlgIn.disabled=false; dlgIn.value=b.raw||'';
-  dlgPr.textContent='BLOCK '+(b.n==null?'':b.n); dlgHint.textContent='ENT accept · ESC cancel';
-  dlgIn.focus(); dlgIn.select();
+  dlgPr.textContent='BLOCK '+(b.n==null?'':b.n); dlgHint.textContent='ENT accept · ESC cancel · TAB takes the grey suggestion';
+  dlgIn.focus(); dlgIn.select(); ghostUpdate();
+  setTimeout(()=>{ if(S.editing&&document.activeElement!==dlgIn){ dlgIn.focus(); ghostUpdate(); } },0);   // after a dialog closes
 }
+
+/* ================= ghost autosuggest in the block line (like zsh): low-contrast rest of a block, TAB takes it =================
+   Empty line: the next thing the program still needs. Typing: your own program's lines first (newest first), then common blocks. */
+const SUGG=['BLK FORM 0.1 Z X+0 Y+0 Z-20','BLK FORM 0.2 X+100 Y+100 Z+0','TOOL CALL 1 Z S2000','TOOL DEF 1 L+0 R+3','L Z+50 R0 FMAX M3','L X+0 Y+0 R0 FMAX',
+  'L Z+2 R0 FMAX','L Z-2 R0 F150','L X+50 Y+0 RL F300','L X+0 Y+0 R0 F300','L Z+100 R0 FMAX M5','CC X+50 Y+50','C X+50 Y+50 DR+','CR X+50 Y+50 R+20 DR-',
+  'CT X+50 Y+50','CP IPA+360 IZ-2 DR+','LP PR+20 PA+0 R0 F300','RND R5','CHF 5','APPR LCT X+0 Y+0 R5 RL F300','DEP LCT X-20 Y-20 R5 F1000',
+  'CYCL DEF 200 DRILLING','CYCL CALL','M99','M30','M3','M5','M8','M9','LBL 1','LBL 0','CALL LBL 1','CALL LBL 1 REP 3/3','FN 0: Q1 = +0','Q1 = Q1 + 1','STOP'];
+function nextNeeded(){
+  const T=S.text.toUpperCase(), ls=lines(), prev=(ls[srcLine(S.cursor)-1]||'').toUpperCase();
+  if(!/BLK\s+FORM\s+0\.1/.test(T)) return 'BLK FORM 0.1 Z X+0 Y+0 Z-20';
+  if(!/BLK\s+FORM\s+0\.2/.test(T)) return 'BLK FORM 0.2 X+100 Y+100 Z+0';
+  if(!/TOOL\s+CALL/.test(T)) return 'TOOL CALL '+((mtools()[3]||mtools()[0]||{t:1}).t)+' Z S2000';
+  if(/TOOL\s+CALL/.test(prev)) return 'L Z+50 R0 FMAX M3';
+  if(/CYCL\s+DEF|^\s*Q2\d\d\s*=/.test(prev)) return 'L X+0 Y+0 R0 FMAX M99';
+  return '';
+}
+function suggestFor(typed){
+  const t=typed.replace(/^\s+/,'').toUpperCase();
+  if(!t) return nextNeeded();
+  const own=lines().map(l=>l.replace(/^\s*\d+\s+/,'').replace(/\s*;.*$/,'').trim()).filter(Boolean).reverse();
+  for(const c of own.concat(SUGG)){ const C=c.toUpperCase(); if(C.startsWith(t)&&C.length>t.length&&!/^(BEGIN|END)\s+PGM/.test(C)) return c; }
+  return '';
+}
+let ghostEl=null;
+function ghostEnsure(){
+  if(ghostEl) return ghostEl;
+  const wrap=document.createElement('span'); wrap.className='dlgwrap'; dlgIn.parentNode.insertBefore(wrap,dlgIn); wrap.appendChild(dlgIn);
+  ghostEl=document.createElement('span'); ghostEl.className='ghost'; ghostEl.setAttribute('aria-hidden','true'); wrap.appendChild(ghostEl);
+  return ghostEl;
+}
+function ghostShow(rest,typed){
+  const g=ghostEnsure(); if(!rest){ g.innerHTML=''; g.dataset.full=''; return; }
+  const cs=getComputedStyle(dlgIn); ['font','letterSpacing','paddingLeft','paddingTop','paddingRight','paddingBottom','borderLeftWidth','borderTopWidth'].forEach(k=>g.style[k]=cs[k]);
+  g.innerHTML=`<span class="gt">${esc(typed)}</span><span class="gs">${esc(rest)}</span>`;
+}
+function ghostUpdate(){
+  if(!S.editing){ ghostShow(''); return; }
+  const v=dlgIn.value, sug=suggestFor(v);
+  if(!sug||dlgIn.selectionStart!==v.length&&v.length){ ghostShow(''); ghostEnsure().dataset.full=''; return; }
+  const rest=v.trim()?sug.slice(v.replace(/^\s+/,'').length):sug;
+  ghostShow(rest,v); ghostEl.dataset.full=sug;
+}
+function ghostAccept(){ const full=ghostEl&&ghostEl.dataset.full; if(!full) return false; dlgIn.value=full; dlgIn.setSelectionRange(full.length,full.length); ghostUpdate(); return true; }
+dlgIn.addEventListener('input',ghostUpdate);
+dlgIn.addEventListener('click',ghostUpdate);
 function endEdit(accept){
   if(!S.editing) return;
-  const val=dlgIn.value; S.editing=false; dlgIn.disabled=true; dlgIn.value='';
+  const val=dlgIn.value, pend=S.insertPending; S.insertPending=false; S.editing=false; dlgIn.disabled=true; dlgIn.value=''; ghostShow('');
+  if(pend&&(!accept||!val.trim())){ const ls=lines(), i=srcLine(S.cursor); if(!(ls[i]||'').trim()){ ls.splice(i,1); setText(ls.join('\n')); moveCursor(i-1); } accept=false; }
   dlgPr.textContent='BLOCK'; dlgHint.textContent='E edit · I insert · D delete';
   if(accept){ const ls=lines(), i=srcLine(S.cursor), ind=(ls[i].match(/^\s*/)||[''])[0];
     ls[i]=(S.res.blocks[S.cursor]&&S.res.blocks[S.cursor].indent?ind:'')+val.trim(); edit(ls.join('\n'),S.cursor,'BLOCK '+nOf(S.cursor)+' STORED'); }
   document.activeElement&&document.activeElement.blur();
 }
-function insertBlock(){ const ls=lines(), i=srcLine(S.cursor); ls.splice(i+1,0,'L X+0 Y+0 R0 F500'); edit(ls.join('\n'),S.cursor+1); beginEdit(); }
+function insertBlock(){ const ls=lines(); let i=srcLine(S.cursor); if(/^\s*(\d+\s+)?END\s+PGM/i.test(ls[i]||'')) i--;
+  ls.splice(i+1,0,''); edit(ls.join('\n'),i+1); S.insertPending=true; beginEdit(); }
 function deleteBlock(){ const ls=lines(); if(ls.length<=1) return; const i=srcLine(S.cursor), n=nOf(S.cursor);
   ls.splice(i,1); edit(ls.join('\n'),S.cursor,'BLOCK '+n+' DELETED — CTRL+Z TO UNDO'); }
 function copyBlock(){ const ls=lines(), i=srcLine(S.cursor); ls.splice(i+1,0,ls[i]); edit(ls.join('\n'),S.cursor+1,'BLOCK COPIED'); }
 dlgIn.addEventListener('keydown',e=>{ if(S.wiz){ if(e.key==='Enter'){ e.preventDefault(); wizAccept(dlgIn.value); } else if(e.key==='Escape'){ e.preventDefault(); wizCancel(); } e.stopPropagation(); return; }
+  if(S.editing&&(e.key==='Tab'||(e.key==='ArrowRight'&&dlgIn.selectionStart===dlgIn.value.length))&&ghostEl&&ghostEl.dataset.full){ e.preventDefault(); ghostAccept(); e.stopPropagation(); return; }
   if(e.key==='Enter'){ e.preventDefault(); endEdit(true); }
   else if(e.key==='Escape'){ e.preventDefault(); endEdit(false); } e.stopPropagation(); });
 function toggleRaw(){
   S.raw=!S.raw; raw.hidden=!S.raw; crt.hidden=S.raw;
-  if(S.raw){ raw.value=S.text; raw.focus(); say('RAW TEXT — TAB TO RETURN'); }
+  renderSK(); if(S.raw){ raw.value=S.text; raw.focus(); say('RAW TEXT — TAB TO RETURN'); }
   else { if(raw.value!==S.text) edit(raw.value,S.cursor,'PROGRAM RE-COMPILED'); }
 }
 raw.addEventListener('keydown',e=>{
@@ -720,7 +801,7 @@ function openPgm(name){
   say('PGM '+name+' SELECTED');
 }
 function addPgm(name,text,{open=true,project=true}={}){
-  const n=uniqueName(name); pg()[n]=text;
+  const n=uniqueName(name); pg()[n]=text; touchMeta(n,true);
   if(project&&S.active){ const p=S.projects.find(p=>p.id===S.active); if(p&&!p.pgms.some(r=>r.m===S.machine&&r.name===n)) p.pgms.push({m:S.machine,name:n}); }
   persist(); renderProjects(); if(open) openPgm(n); return n;
 }
@@ -728,7 +809,7 @@ function deletePgm(name){
   if(!name) return;
   if(S.orig[S.machine][name]!=null){ say('BUILT-IN PROGRAM — USE RESTORE ORIGINAL INSTEAD'); return; }
   if(!confirm('Delete '+name+'? This cannot be undone.')) return;
-  delete pg()[name]; S.projects.forEach(p=>p.pgms=p.pgms.filter(r=>!(r.m===S.machine&&r.name===name)));
+  delete pg()[name]; if(S.meta[S.machine]) delete S.meta[S.machine][name]; S.projects.forEach(p=>p.pgms=p.pgms.filter(r=>!(r.m===S.machine&&r.name===name)));
   if(S.pgm===name){ S.pgm=Object.keys(pg())[0]; S.text=pg()[S.pgm]; compile(); }
   S.mgtSel=Math.min(S.mgtSel,mgtNames().length-1); persist(); renderMgt(); renderProjects(); say(name+' DELETED');
 }
@@ -789,7 +870,7 @@ const mgtEl=$('mgt');
 const mgtNames=()=>Object.keys(pg()).filter(n=>n!==TEMP);
 function openMgt(){ if(S.tt) closeTT(); if(S.wiz) wizCancel(); if(S.editing) endEdit(false); if(S.raw) toggleRaw(); S.running=false; S.mgt=true;
   S.mgtSel=Math.max(0,mgtNames().indexOf(S.pgm)); plist.hidden=true; $('flow').hidden=true; mgtEl.hidden=false;
-  renderMgt(); renderSK(); $('pgm-path').textContent='TNC:\\  PGM MGT'; setState('PGM MGT'); showPane('pgm'); }
+  renderMgt(); renderSK(); $('pgm-path').textContent='TNC:\\  PROGRAMS'; setState('PROGRAMS'); showPane('pgm'); }
 function closeMgt(){ if(!S.mgt) return; S.mgt=false; mgtEl.hidden=true; plist.hidden=S.flowView&&!!FLOW; $('flow').hidden=!(S.flowView&&FLOW);
   renderSK(); $('pgm-path').textContent='TNC:\\'+S.pgm; setState('READY'); }
 function renderMgt(){
@@ -822,7 +903,7 @@ $('b-mgt').onclick=()=>S.mgt?closeMgt():openMgt();
 /* ================= projects ================= */
 function renderProjects(){
   const act=S.projects.find(p=>p.id===S.active);
-  $('proj-t').textContent=act?act.name:'none active';
+  $('proj-t').textContent=S.projects.length+(act?' · '+act.name:'');
   $('proj').innerHTML=S.projects.length?S.projects.map(p=>`<div class="prow${p.id===S.active?' on':''}">
       <input type="radio" name="proj" value="${p.id}"${p.id===S.active?' checked':''} aria-label="Make ${esc(p.name)} active">
       <span class="nm" title="${esc(p.name)}">${esc(p.name)}</span><span class="ct">${p.pgms.length} PGM</span>
@@ -872,13 +953,14 @@ function toggleFlow(){
     catch(e){ say('FLOW VIEW FAILED TO START'); return; } }
   S.flowView=!S.flowView; if(S.mgt) closeMgt();
   plist.hidden=S.flowView; $('flow').hidden=!S.flowView; $('b-view').setAttribute('aria-pressed',S.flowView);
-  $('b-view').textContent=S.flowView?'Listing':'Flow'; if(S.flowView) flowUpdate(); writePrefs(); showPane('pgm');
+  $('b-view').textContent=S.flowView?'Listing':'Flow'; if(S.flowView) flowUpdate(); writePrefs(); showPane('pgm'); renderSK();
 }
 $('b-view').onclick=toggleFlow;
 if(!window.TNC_FLOW) $('b-view').hidden=true;
 
 /* ================= lessons: the coach ================= */
 const coach=$('coach');
+{ const tp=document.querySelector('.tp'), sc=tp&&tp.querySelector('.scrub'); if(tp) tp.insertBefore(coach,sc?sc.nextSibling:tp.firstChild); }   // the lesson text replaces the run controls, never the 3-D view
 function lessonsOf(){ return M().lessons||window.TNC_LESSONS||null; }
 function stepsFor(kind,L){
   if(kind==='learn') return L.steps.map(s=>({say:s.say,program:s.program,focus:s.focus,run:s.run}));
@@ -893,7 +975,7 @@ function startLesson(kind,idx){
   const Ls=lessonsOf(); if(!Ls) return; const L=(kind==='learn'?Ls.learn:Ls.breakit)[idx]; if(!L) return;
   closeModal(); if(S.mgt) closeMgt();
   S.lesson={kind,idx,L,steps:stepsFor(kind,L),i:0,prev:S.lesson?S.lesson.prev:S.pgm};
-  coach.hidden=false; $('coach-k').textContent=kind==='learn'?'LEARN':'BREAK IT';
+  coach.hidden=false; document.querySelector('.tp').classList.add('lesson'); $('coach-k').textContent=kind==='learn'?'LEARN':'BREAK IT';
   $('coach-k').style.color=kind==='learn'?'var(--mint)':'var(--red)'; $('coach-t').textContent=L.title;
   coachStep(0); showPane('gfx');
 }
@@ -909,7 +991,7 @@ function coachStep(i){
   if(st.run){ reset(); if(S.speed===0) setSpeed(16,true); start(); } else if(st.program){ reset(); }
 }
 function endLesson(silent){
-  if(!S.lesson) return; const prev=S.lesson.prev; S.lesson=null; S.focus=null; coach.hidden=true;
+  if(!S.lesson) return; const prev=S.lesson.prev; S.lesson=null; S.focus=null; coach.hidden=true; document.querySelector('.tp').classList.remove('lesson');
   delete pg()[TEMP]; if(!silent){ S.pgm=pg()[prev]!=null?prev:Object.keys(pg())[0]; S.text=pg()[S.pgm]; raw.value=S.text; S.cursor=0; compile(); }
 }
 $('coach-x').onclick=()=>endLesson(false);
@@ -944,9 +1026,9 @@ function renderHelp(){
     return;
   }
   body.onclick=null;
-  body.innerHTML='<div class="prose">'+(Ls.manual||[]).map(sec=>`<h4>${esc(sec.title)}</h4>${md(sec.body)}`+
+  body.innerHTML='<div class="prose help-manual">'+(Ls.manual||[]).map(sec=>`<details><summary>${esc(sec.title)}</summary>${md(sec.body)}`+
     (sec.rows&&sec.rows.length?`<div class="tblw"><table><thead><tr>${sec.rows[0].map(c=>`<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${
-      sec.rows.slice(1).map(r=>`<tr>${r.map(c=>`<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`:'')).join('')+'</div>';
+      sec.rows.slice(1).map(r=>`<tr>${r.map(c=>`<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`:'')+'</details>').join('')+'</div>';
 }
 $('b-help').onclick=()=>openHelp();
 
@@ -1035,13 +1117,16 @@ For tilted machining use CYCL DEF 19.0 WORKING PLANE / CYCL DEF 19.1 A+.. B+.. C
   const btn=$('ai-go'); btn.disabled=true; btn.textContent='Working…'; aiAbort=new AbortController();
   log(`<span class="dim">Model ${esc(getModel())} · machine ${esc(M().label)}</span>`);
   try{
-    const res=await AI.generate({key,model:getModel(),prompt,system:sys,verify:verifyProgram,signal:aiAbort.signal,maxRepairs:1,
+    const modify=S.aiMode==='modify', full=modify?'Here is the current program:\n```klartext\n'+S.text+'\n```\nChange it as follows: '+prompt+'\nKeep everything else as it is. Return the COMPLETE changed program.':prompt;
+    const res=await AI.generate({key,model:getModel(),prompt:full,system:sys,verify:verifyProgram,signal:aiAbort.signal,maxRepairs:1,
       onStep:s=>{ if(s.phase==='request') log(s.attempt?'Sending the simulator\'s errors back for one repair…':'Writing the program…');
         if(s.phase==='checked'){ const r=s.report;
           log(r.ok?`<span class="ok">Checked: ${r.moves} moves, no errors, no crashes${r.warns.length?', '+r.warns.length+' warning(s)':''}.</span>`
                   :`<span class="bad">Checked: ${r.errs.length} error(s), ${r.crashes.length} crash(es).</span>\n${esc(r.text)}`); } }});
-    const nm=addPgm((res.report.name||'AI_PART'),res.src,{open:true});
-    log(`<span class="${res.report.ok?'ok':'bad'}">${res.report.ok?'Saved':'Saved anyway — still has problems, see Checks'} as ${esc(nm)}.</span> Cost about $${(res.cost||0).toFixed(4)}.`);
+    let nm;
+    if(S.aiMode==='modify'){ nm=S.pgm; if(S.mode!=='edit') setMode('edit'); edit(res.src,0,'AI CHANGED '+nm+' — CTRL+Z UNDOES IT'); }
+    else nm=addPgm((res.report.name||'AI_PART'),res.src,{open:true});
+    log(`<span class="${res.report.ok?'ok':'bad'}">${res.report.ok?(S.aiMode==='modify'?'Changed':'Saved'):'Done — still has problems, see Checks'} ${S.aiMode==='modify'?'':'as '}${esc(nm)}.</span> Cost about $${(res.cost||0).toFixed(4)}.`);
     setTimeout(()=>{ closeModal(); showPane('pgm'); },res.report.ok?900:2600);
   }catch(e){ log('<span class="bad">'+esc(aiErr(e))+'</span>'); }
   finally{ btn.disabled=false; btn.textContent='Generate'; aiAbort=null; }
@@ -1049,31 +1134,58 @@ For tilted machining use CYCL DEF 19.0 WORKING PLANE / CYCL DEF 19.1 A+.. B+.. C
 
 /* ---------- NEW PROGRAM ---------- */
 function openNew(which){
-  openModal('m-new'); $('new-opts').hidden=false; $('new-scratch').hidden=true; $('new-ai').hidden=true;
+  openModal('m-new'); $('new-opts').hidden=true; $('new-scratch').hidden=true; $('new-ai').hidden=true;
+  if(which!=='ai'){ S.aiMode='new'; $('m-new-t').textContent='New program'; }
   $('ns-tool').innerHTML=mtools().map(t=>`<option value="${t.t}"${t.t===4?' selected':''}>T${t.t} ${esc(t.name)} (R${t.r})</option>`).join('');
-  keyPill(); if(which) newGo(which);
+  keyPill(); newGo(which||'scratch');
 }
+/* model picker in the AI dialog: three recommendations, or any model from OpenRouter's live list */
+const AI_REC=[['deepseek/deepseek-v4.1-flash','DeepSeek V4.1 Flash — recommended default, ~$0.04 / $0.29 per M tokens'],
+  ['qwen/qwen3.8-flash','Qwen 3.8 Flash — fast, ~$0.15 / $0.47 per M tokens'],
+  ['anthropic/claude-opus-5.5','Claude Opus 5.5 (via OpenRouter) — strongest, ~$4 / $20 per M tokens']];
+function aiModelUI(){
+  if($('ai-msel')) { syncModelUI(); return; }
+  const box=document.createElement('div'); box.className='fgrid'; box.style.marginTop='8px';
+  box.innerHTML=`<label class="fld wide"><span>MODEL (OPENROUTER)</span><select id="ai-msel">${AI_REC.map(([v,l])=>`<option value="${v}">${esc(l)}</option>`).join('')}<option value="__other">Other OpenRouter model…</option></select></label>
+    <label class="fld wide" id="ai-mother-f" hidden><span>MODEL ID — type or pick from OpenRouter's live list</span><input id="ai-mother" list="ai-mlist" spellcheck="false" placeholder="provider/model"><datalist id="ai-mlist"></datalist></label>`;
+  const ta=$('ai-prompt').closest('.fld'); ta.parentNode.insertBefore(box,ta.nextSibling);
+  $('ai-msel').onchange=()=>{ const v=$('ai-msel').value; if(v==='__other'){ $('ai-mother-f').hidden=false; $('ai-mother').focus(); loadModelList(); } else { $('ai-mother-f').hidden=true; local.set(MODEL_LS,v); say('MODEL '+v); } };
+  $('ai-mother').addEventListener('change',()=>{ const v=$('ai-mother').value.trim(); if(/^[\w.-]+\/[\w.:-]+$/.test(v)){ local.set(MODEL_LS,v); say('MODEL '+v); } else say('MODEL ID LOOKS LIKE provider/model'); });
+  $('ai-mother').addEventListener('keydown',e=>e.stopPropagation());
+  syncModelUI();
+}
+function syncModelUI(){ const m=getModel(), rec=AI_REC.some(r=>r[0]===m); $('ai-msel').value=rec?m:'__other'; $('ai-mother-f').hidden=rec; if(!rec) $('ai-mother').value=m; }
+let modelListLoaded=false;
+function loadModelList(){ if(modelListLoaded) return; modelListLoaded=true;
+  fetch('https://openrouter.ai/api/v1/models').then(r=>r.json()).then(j=>{ const L=(j.data||[]).filter(m=>!/:/.test(m.id)).sort((a,b)=>a.id.localeCompare(b.id));
+    $('ai-mlist').innerHTML=L.map(m=>{ const pr=m.pricing||{}, f=x=>'$'+(+x*1e6).toFixed(2); return `<option value="${esc(m.id)}">${esc((m.name||'')+' · '+f(pr.prompt)+' / '+f(pr.completion)+' per M')}</option>`; }).join('');
+    say(L.length+' OPENROUTER MODELS LOADED'); }).catch(()=>{ modelListLoaded=false; say('COULD NOT LOAD THE OPENROUTER MODEL LIST — TYPE THE ID'); }); }
+
+/* AI: 'new' writes a new program, 'modify' changes the program on screen (undoable) */
+function openAI(mode){ S.aiMode=mode; openNew('ai'); aiModelUI();
+  $('m-new-t').textContent=mode==='modify'?'AI — change '+S.pgm:'AI — new program';
+  $('ai-title').textContent=mode==='modify'?'Say what to change in '+S.pgm:'Describe the part';
+  $('ai-lead').textContent=mode==='modify'?'The AI gets this program and your words, returns the whole changed program, and the simulator checks it (one repair round). CTRL+Z undoes it.'
+    :'Blank size, material, features, tools if you care. The AI writes Klartext for this simulator, the simulator runs every check on it, and anything that fails goes back to the AI once for a fix.';
+  $('ai-go').textContent=mode==='modify'?'Change the program':'Generate';
+  $('ai-prompt').placeholder=mode==='modify'?'e.g. make the pocket 8 mm deep in 4 passes, and add a 1 mm chamfer around the outside':'e.g. 120 x 80 x 15 aluminium plate. Face 0.5 mm. A 60 x 30 pocket 6 mm deep in the middle, 4 passes.'; }
 function newGo(w){
   if(w==='learn'){ openHelp('learn'); return; }
   $('new-opts').hidden=true; $('new-scratch').hidden=w!=='scratch'; $('new-ai').hidden=w!=='ai';
   (w==='scratch'?$('ns-name'):$('ai-prompt')).focus();
 }
 $('m-new').addEventListener('click',e=>{ const g=e.target.closest('[data-go]'); if(g) newGo(g.dataset.go);
-  if(e.target.closest('[data-back]')){ $('new-opts').hidden=false; $('new-scratch').hidden=true; $('new-ai').hidden=true; } });
-$('b-new').onclick=()=>openNew();
+  if(e.target.closest('[data-back]')) closeModal(); });
 $('ai-go').onclick=aiGenerate; $('ai-setup').onclick=()=>openHelp('ai');
 const sgn=v=>{ v=+v; return (v<0?'-':'+')+Math.abs(v); };
 $('ns-go').onclick=()=>{
   const name=($('ns-name').value.trim()||'MY_PART').toUpperCase().replace(/[^A-Z0-9_]/g,'_').slice(0,16);
-  const v=id=>parseFloat(String($(id).value).replace(',','.'));
-  const x0=v('ns-x0'),y0=v('ns-y0'),z0=v('ns-z0'),x1=v('ns-x1'),y1=v('ns-y1'),z1=v('ns-z1'),s=Math.abs(parseInt($('ns-s').value,10)||0), t=+$('ns-tool').value;
-  if([x0,y0,z0,x1,y1,z1].some(isNaN)||!(x1>x0&&y1>y0&&z1>z0)){ say('BLK FORM: MAX CORNER MUST BE ABOVE THE MIN CORNER ON EVERY AXIS'); return; }
-  const txt=[`BEGIN PGM ${name} MM`,`BLK FORM 0.1 Z X${sgn(x0)} Y${sgn(y0)} Z${sgn(z0)}`,`BLK FORM 0.2 X${sgn(x1)} Y${sgn(y1)} Z${sgn(z1)}`,
-    `TOOL CALL ${t} Z S${s}`,'L Z+50 R0 FMAX M3','; ---------- YOUR BLOCKS START HERE ----------',
-    `L X${sgn(x0)} Y${sgn(y0)} R0 FMAX`,'L Z+100 R0 FMAX M5',`END PGM ${name} MM`].join('\n');
-  closeModal(); addPgm(name,txt); setMode('edit'); moveCursor(5); showPane('pgm'); beginEdit();
-  say('NEW PROGRAM — TYPE YOUR FIRST BLOCK, ENT TO STORE, I TO INSERT MORE');
+  const txt=[`BEGIN PGM ${name} MM`,`END PGM ${name} MM`].join('\n');     // what the control creates: nothing else
+  closeModal(); addPgm(name,txt); setMode('edit'); moveCursor(0); showPane('pgm'); insertBlock();
+  say('NEW PROGRAM — TYPE A BLOCK · TAB TAKES THE GREY SUGGESTION · ENT STORES · I INSERTS THE NEXT');
 };
+/* the New dialog asks for the name only; the rest is written block by block */
+['ns-axis','ns-tool','ns-x0','ns-y0','ns-z0','ns-x1','ns-y1','ns-z1','ns-s'].forEach(id=>{ const f=$(id)&&$(id).closest('.fld'); if(f) f.hidden=true; });
 
 /* ---------- DEV ---------- */
 let devTab='features';
@@ -1106,8 +1218,7 @@ function renderProfile(){
 <div class="actrow"><button class="cbtn pri" id="prof-export">Export profile (.zip)</button><button class="cbtn" id="prof-import">Import…</button>
  <button class="cbtn" id="prof-new">Start a new profile…</button></div>
 <div id="prof-ask"></div>
-<h4 class="sech">TOOL TABLE — ${esc(M().label)} <small>(TOOL.T · * = yours)</small></h4>
-${toolTableHTML()}`;
+<p class="note" style="margin-top:14px">The tool list (TOOL.T) is under <b>TOOL LIST</b>, next to PROGRAMS, or key T.</p>`;
   const nm=$('prof-name');
   nm.addEventListener('input',()=>{ PROF.name=nm.value.trim().slice(0,40); profChip(); persist(); });
   nm.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); nm.blur(); } });
@@ -1116,7 +1227,6 @@ ${toolTableHTML()}`;
     pl.onchange=()=>{ try{ TNC_I18N.set(pl.value); }catch(e){} renderSK(); renderChecks(); setMode(S.mode); say(pl.value==='sv'?'SPRÅK: SVENSKA':'LANGUAGE: ENGLISH'); }; }
   $('prof-import').onclick=loadFromDisk;
   $('prof-new').onclick=newProfile;
-  wireToolTable($('prof-body'),renderProfile);
   if(!(PROF&&PROF.name)) setTimeout(()=>nm.focus(),30);
 }
 function toolTableHTML(){
@@ -1271,14 +1381,93 @@ function wizFinish(){
 /* ================= tool table in the machine view (T) ================= */
 function openTT(){ if(S.wiz) wizCancel(); if(S.editing) endEdit(false); if(S.mgt) closeMgt(); S.tt=true;
   plist.hidden=true; $('flow').hidden=true; mgtEl.hidden=false; renderTT(); renderSK(); $('pgm-path').textContent='TNC:\\TOOL.T'; showPane('pgm'); }
-function renderTT(){ mgtEl.innerHTML=`<div class="ttview"><div class="mhd" style="display:block">TOOL TABLE · ${esc(M().label)} · TNC:\\TOOL.T · * = YOURS · ENT STORES A VALUE · T / END CLOSES</div>${toolTableHTML()}</div>`;
+function renderTT(){ const ms=mset(); mgtEl.innerHTML=`<div class="ttview"><div class="mhd" style="display:block">TOOL LIST · ${esc(M().label)} · TNC:\\TOOL.T · * = YOURS · ENT STORES A VALUE · T / END CLOSES</div>
+  <div class="actrow" style="padding:6px 10px"><label class="fld" style="flex-direction:row;align-items:center;gap:8px"><span>TOOL HOLDER LENGTH (USED WHEN L = 0)</span><input id="tt-hl" inputmode="decimal" style="width:90px" value="${(+ms.holderLen).toFixed(1)}"> mm</label>
+  <label class="fld" style="flex-direction:row;align-items:center;gap:8px"><span>HOLDER</span><select id="tt-ht"><option value="ISO50">ISO 50 (SK50)</option><option value="SK40">SK40</option></select></label></div>
+  ${toolTableHTML()}</div>`;
+  const hl=$('tt-hl'), ht=$('tt-ht'); ht.value=ms.holderType;
+  hl.addEventListener('keydown',e=>{ e.stopPropagation(); if(e.key==='Enter') hl.blur(); });
+  hl.addEventListener('change',()=>{ const v=parseFloat(String(hl.value).replace(',','.')); if(!(v>0)){ say('TOOL HOLDER LENGTH MUST BE > 0'); hl.value=ms.holderLen; return; }
+    ms.holderLen=v; persist(); curToolT=null; compile(); say('TOOL HOLDER LENGTH '+v+' MM — TOOLS WITH L = 0 USE IT'); });
+  ht.addEventListener('change',()=>{ ms.holderType=ht.value; persist(); curToolT=null; compile(); say('HOLDER '+ht.options[ht.selectedIndex].text); });
   wireToolTable(mgtEl,renderTT); const cur=mgtEl.querySelector('tr[data-cur]'); if(cur){ cur.style.outline='2px solid var(--cyan)'; cur.scrollIntoView({block:'nearest'}); } }
 function closeTT(){ if(!S.tt) return; S.tt=false; mgtEl.hidden=true; plist.hidden=S.flowView&&!!FLOW; $('flow').hidden=!(S.flowView&&FLOW); renderSK(); $('pgm-path').textContent='TNC:\\'+S.pgm; }
 
 /* ================= focus view: listing + graphics only ================= */
 function toggleFocus(){ S.focusView=!S.focusView; document.body.classList.toggle('focus',S.focusView); if($('b-focus')) $('b-focus').setAttribute('aria-pressed',S.focusView);
-  writePrefs(); requestAnimationFrame(()=>{ resize(); requestAnimationFrame(resize); }); say(S.focusView?'FOCUS VIEW — F TO RETURN':'FULL VIEW'); }
+  writePrefs(); renderSK(); requestAnimationFrame(()=>{ resize(); requestAnimationFrame(resize); }); say(S.focusView?'FOCUS VIEW — F TO RETURN':'FULL VIEW'); }
 if($('b-focus')) $('b-focus').onclick=toggleFocus;
+
+
+/* ================= right pane: DIAGNOSTICS · REFERENCE · <name>'s PROGRAMS ================= */
+function setSideTab(t){ S.sideTab=t; [...$('stabs').children].forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===t));
+  ['diag','ref','progs'].forEach(k=>{ const el=$('sp-'+k); if(el) el.hidden=k!==t; }); if(t==='ref') renderRef(); if(t==='progs') renderUserPrograms(); writePrefs(); }
+$('stabs').addEventListener('click',e=>{ const b=e.target.closest('[data-tab]'); if(b) setSideTab(b.dataset.tab); });
+function refOptions(){
+  const o=[['keys','Keys'],['cycles','Cycles — CYCL DEF'],['tools','Tool list'],['machine','Machine: '+M().label]], Ls=lessonsOf();
+  (Ls&&Ls.manual||[]).forEach((sec,i)=>o.push(['man:'+i,'Manual · '+sec.title]));
+  const sel=$('ref-sel'), cur=S.ref||'keys'; sel.innerHTML=o.map(([v,l])=>`<option value="${v}">${esc(l)}</option>`).join(''); sel.value=o.some(x=>x[0]===cur)?cur:'keys';
+}
+$('ref-sel').addEventListener('change',()=>{ S.ref=$('ref-sel').value; renderRef(); writePrefs(); });
+$('ref-sel').addEventListener('keydown',e=>e.stopPropagation());
+function renderRef(){
+  refOptions(); const v=$('ref-sel').value, b=$('ref-body'), Ls=lessonsOf();
+  if(v==='keys') b.innerHTML='<table>'+KEYS.map(([k,d])=>`<tr><td style="color:var(--amber);white-space:nowrap">${esc(k)}</td><td>${esc(d)}</td></tr>`).join('')+'</table>';
+  else if(v==='cycles'&&DLG) b.innerHTML='<p class="note">Click a cycle to program it (PROGRAM mode, one question per parameter).</p><table>'+
+    DLG.GROUPS.map(g=>`<tr><th colspan="2" style="color:var(--cyan)">${esc(g[1].replace(/\n/g,' '))}</th></tr>`+DLG.cycleList(g[0]).map(c=>`<tr class="cyc" data-cy="${c.num}"><td>${c.num}</td><td>${esc(c.name)}</td></tr>`).join('')).join('')+'</table>';
+  else if(v==='tools') b.innerHTML='<p class="note">T opens the editable list. * = yours.</p><table><tr><th>T</th><th>NAME</th><th>R</th><th>L</th></tr>'+
+    mtools().map(t=>`<tr${t.t===curToolT?' style="color:var(--cyan)"':''}><td>${t.t}${t.mine?' *':''}</td><td>${esc(t.name)}</td><td>${(+t.r).toFixed(3)}</td><td>${(+t.l).toFixed(2)}</td></tr>`).join('')+'</table>';
+  else if(v==='machine'){ const mc=M().machine; b.innerHTML=mc?`<table>
+    <tr><td>Axes</td><td>${esc(M().axes.join(' '))}</td></tr>`+Object.entries(mc.limits).map(([a,l])=>`<tr><td>Limit ${a}</td><td>${l[0]} … ${l[1]}${'AB'.includes(a)?'°':' mm'}</td></tr>`).join('')+
+    `<tr><td>Spindle max</td><td>${mc.sMax} rpm (MP 3515)</td></tr><tr><td>Feed max</td><td>${mc.fMax} mm/min (MP 1020)</td></tr>
+     <tr><td>Rapid X Y Z</td><td>${mc.rapid.x} / ${mc.rapid.y} / ${mc.rapid.z} mm/min</td></tr><tr><td>Rapid A B</td><td>${mc.rapid.a} / ${mc.rapid.b} °/min</td></tr>
+     <tr><td>Acceleration</td><td>${mc.accel} m/s² (MP 1060)</td></tr><tr><td>Arc end tolerance</td><td>${mc.arcTol} mm (MP 7431)</td></tr>
+     <tr><td>Pocket overlap</td><td>${mc.pocketK} × R (MP 7430)</td></tr><tr><td>Head</td><td>B carries A · A+ → Y+ · B+ → X+ · pivots ≈ ${mc.head.pivotA} mm</td></tr>
+     <tr><td>Cycle 19</td><td>positions A/B itself (MP 7500 bit 2)</td></tr></table>`
+    :'<p>Generic TNC 426: no machine limits. Choose <b>TNC 430</b> in the machine selector for the operator\'s machine.</p>'; }
+  else if(/^man:/.test(v)&&Ls){ const sec=Ls.manual[+v.slice(4)]; b.innerHTML=`<div class="prose"><h4>${esc(sec.title)}</h4>${md(sec.body)}`+
+    (sec.rows&&sec.rows.length?`<div class="tblw"><table><thead><tr>${sec.rows[0].map(c=>`<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${sec.rows.slice(1).map(r=>`<tr>${r.map(c=>`<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`:'')+'</div>'; }
+  b.onclick=e=>{ const c=e.target.closest('[data-cy]'); if(c) act('cy:'+c.dataset.cy); };
+}
+const fmtD=iso=>{ if(!iso) return '—'; const d=new Date(iso); return d.toLocaleDateString(undefined,{day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'}); };
+function renderUserPrograms(){
+  const who=(PROF&&PROF.name)?PROF.name:'My', rows=[];
+  for(const id in S.pgms) for(const n in S.pgms[id]){ if(n===TEMP) continue; const mine=S.orig[id][n]==null||S.pgms[id][n]!==S.orig[id][n]; if(!mine) continue;
+    const m=(S.meta[id]||{})[n]||{}; rows.push({id,n,m}); }
+  rows.sort((a,b)=>String(b.m.m||'').localeCompare(String(a.m.m||'')));
+  const tab=$('tab-progs'); if(tab) tab.textContent=(who==='My'?'My':who+"'s")+' programs';
+  $('up-t').textContent=(who==='My'?'My':who+"'s")+' programs'; $('up-n').textContent=rows.length;
+  $('uplist').innerHTML=rows.length?'<table><tr><th>PROGRAM</th><th>MACHINE</th><th>CREATED</th><th>EDITED</th><th>V</th></tr>'+
+    rows.map(r=>`<tr class="pg${r.id===S.machine&&r.n===S.pgm?' cur':''}" data-m="${r.id}" data-n="${esc(r.n)}"><td>${esc(r.n)}</td><td>${esc((MACHINES[r.id]||{}).label||r.id)}</td><td>${fmtD(r.m.c)}</td><td>${fmtD(r.m.m)}</td><td>${r.m.v||'—'}</td></tr>`).join('')+'</table>'
+    :'<p class="note" style="padding:0 12px 10px">Nothing yet. Every program you create, change, upload or save shows up here by itself.</p>';
+  const pn=$('proj-t'); if(pn) pn.textContent=S.projects.length;
+}
+$('uplist').addEventListener('click',e=>{ const r=e.target.closest('tr.pg'); if(!r) return; if(r.dataset.m!==S.machine) setMachine(r.dataset.m); openPgm(r.dataset.n); renderUserPrograms(); });
+if($('b-tools')) $('b-tools').onclick=()=>act('tt');
+
+
+/* ================= header menus: + NEW · LESSONS · AI ================= */
+let menuEl=null;
+function closeMenu(){ if(menuEl){ menuEl.remove(); menuEl=null; } }
+function openMenu(btn,items){
+  if(menuEl&&menuEl.dataset.for===btn.id){ closeMenu(); return; } closeMenu();
+  const m=document.createElement('div'); m.className='hmenu'; m.setAttribute('role','menu'); m.dataset.for=btn.id;
+  m.innerHTML=items.map((it,i)=>it.head?`<div class="mh">${esc(it.head)}</div>`:`<button role="menuitem" data-i="${i}">${esc(it.label)}</button>`).join('');
+  document.body.appendChild(m); const r=btn.getBoundingClientRect();
+  m.style.left=Math.min(r.left,innerWidth-m.offsetWidth-8)+'px'; m.style.top=(r.bottom+4)+'px';
+  m.onclick=e=>{ const b=e.target.closest('[data-i]'); if(!b) return; const it=items[+b.dataset.i]; closeMenu(); it.act(); };
+  m.addEventListener('keydown',e=>{ e.stopPropagation(); const bs=[...m.querySelectorAll('button')], i=bs.indexOf(document.activeElement);
+    if(e.key==='ArrowDown'){ e.preventDefault(); (bs[i+1]||bs[0]).focus(); } else if(e.key==='ArrowUp'){ e.preventDefault(); (bs[i-1]||bs[bs.length-1]).focus(); }
+    else if(e.key==='Escape'){ e.preventDefault(); closeMenu(); btn.focus(); } });
+  menuEl=m; const f=m.querySelector('button'); if(f) f.focus();
+}
+addEventListener('pointerdown',e=>{ if(menuEl&&!menuEl.contains(e.target)&&!e.target.closest('#b-new,#b-lessons,#b-ai')) closeMenu(); });
+$('b-new').onclick=()=>openMenu($('b-new'),[{label:'NEW PRG — MANUAL',act:()=>openNew('scratch')},{label:'NEW PRG — AI',act:()=>openAI('new')}]);
+$('b-lessons').onclick=()=>{ const L=lessonsOf(); if(!L){ say('LESSONS ARE NOT IN THIS BUILD'); return; }
+  openMenu($('b-lessons'),[{head:'LEARN'},...L.learn.map((x,i)=>({label:(i+1)+' · '+x.title,act:()=>startLesson('learn',i)})),
+    {head:'BREAK IT — crash it safely, then fix it'},...L.breakit.map((x,i)=>({label:(i+1)+' · '+x.title,act:()=>startLesson('breakit',i)}))]); };
+$('b-ai').onclick=()=>openMenu($('b-ai'),[{label:'Change this program ('+S.pgm+')…',act:()=>openAI('modify')},{label:'New program from a description…',act:()=>openAI('new')},
+  {label:'AI setup — OpenRouter key',act:()=>openHelp('ai')}]);
 
 /* ================= machine selector ================= */
 function setMachine(id){
@@ -1297,7 +1486,8 @@ if(Object.keys(MACHINES).length>1){
 }
 
 /* ================= modes, toggles, keyboard ================= */
-function setMode(m){ if(m!=='edit'){ if(S.wiz) wizCancel(); S.pick=null; } S.mode=m; [...document.querySelectorAll('.mode')].forEach(b=>b.setAttribute('aria-pressed',b.dataset.m===m));
+function setMode(m){ if(m!=='edit'){ if(S.wiz) wizCancel(); S.pick=null; } S.mode=m;
+  const tps=$('tp-state'); if(tps) tps.textContent={edit:'1 PROGRAM · soft keys write blocks',test:'2 TEST · SPACE = NC START / STOP',single:'3 SINGLE-BLOCK · SPACE = next block · ↑↓ moves the machine',full:'4 FULL-RUN · SPACE = NC START / STOP'}[m]||''; [...document.querySelectorAll('.mode')].forEach(b=>b.setAttribute('aria-pressed',b.dataset.m===m));
   if(!S.mgt) renderSK(); if(m==='edit'){ S.running=false; setState('EDITING'); } else setState('READY'); writePrefs(); }
 $('modes').addEventListener('click',e=>{ const b=e.target.closest('.mode'); if(b) setMode(b.dataset.m); });
 function setSpeed(v,quiet){ S.speed=v; [...$('spd').children].forEach(b=>b.dataset.on=(+b.dataset.s===v)?'1':'0'); writePrefs();
@@ -1310,12 +1500,12 @@ $('b-fx').onclick=()=>tog('fx','CHIPS & SPARKS'); $('b-cool').onclick=()=>tog('f
 $('b-fire').onclick=()=>tog('fxFire','SMOKE & FIRE'); $('b-labels').onclick=()=>tog('labels','LABELS'); $('b-sound').onclick=()=>tog('sound','SOUND');
 if(!window.TNC_FX){ ['b-fx','b-cool','b-fire'].forEach(id=>$(id).hidden=true); }
 if(!window.TNC_CALLOUTS) $('b-labels').hidden=true;
-$('b-start').onclick=start; $('b-stop').onclick=stop; $('b-step').onclick=stepBlock; $('b-reset').onclick=reset;
+$('b-start').onclick=ncStart; $('b-stop').onclick=stop; $('b-step').onclick=stepBlock; $('b-reset').onclick=reset;
 scrub.addEventListener('input',()=>{ S.running=false; seek(+scrub.value/1000*S.total,false); });
 
 const KEYS=[['↑ ↓','Block cursor'],['← →','Scrub the run (Shift ×5)'],['ENTER','Step one block · edit in EDIT mode'],['ESC','Stop · cancel · close'],
-  ['SPACE','NC START / NC STOP'],['S · R','Single block · reset'],['E I D C','Edit · insert · delete · copy'],['CTRL+Z','Undo  (CTRL+SHIFT+Z / CTRL+Y redo)'],
-  ['CTRL+S','Save as .H'],['CTRL+O','Load .H from your computer'],['TAB','Raw text editor'],['M','Program manager'],['H','Help, lessons, manual'],
+  ['SPACE','NC START (what the mode does) / NC STOP'],['S · R','Single block · reset'],['E I D C','Edit · insert · delete · copy'],['CTRL+Z','Undo  (CTRL+SHIFT+Z / CTRL+Y redo)'],
+  ['CTRL+S','Save as .H'],['CTRL+O','Load .H from your computer'],['TAB','Raw text editor'],['M','Programs'],['H','Help, lessons, manual'],
   ['V','Flowchart view'],['G','3D / TOP / FRONT / SIDE'],['1 – 4','Operating mode'],['5 – 9','Speed 1× 4× 16× 64× MAX'],['T','Tool table'],['F','Focus view (listing + graphics)'],['EDIT MODE','Soft keys: L CC C CR CT CP RND CHF · APPR/DEP · TOOL DEF/CALL · CYCL DEF/CALL · LBL · Q'],['+ / −','Feed override'],
   ['P K B','Chips · coolant · smoke & fire'],['L','Labels'],['N','Next lesson step'],['HOME/END','First / last block'],['PGUP/PGDN','Page']];
 $('klist').innerHTML=KEYS.map(([k,d])=>`<div><kbd>${k}</kbd><span>${d}</span></div>`).join('');
@@ -1328,8 +1518,10 @@ addEventListener('keydown',e=>{
   if(mod&&k.toLowerCase()==='s'){ e.preventDefault(); saveH(); return; }
   if(mod&&k.toLowerCase()==='o'){ e.preventDefault(); loadFromDisk(); return; }
   if(S.wiz){ if(k==='Escape'){ e.preventDefault(); wizCancel(); } else if(k==='Enter'){ e.preventDefault(); wizAccept(dlgIn.value); } else if(e.target!==dlgIn) dlgIn.focus(); return; }
-  if(S.pick&&k==='Escape'){ e.preventDefault(); S.pick=null; renderSK(); return; }
+  if(S.pick&&k==='Escape'){ e.preventDefault(); if(S.pickPath&&S.pickPath.length>2&&S.pickPath[1]==='CYCL DEF') act('cycldef'); else { S.pick=null; renderSK(); } return; }
   if(S.tt&&k==='Escape'){ e.preventDefault(); closeTT(); return; }
+  if(S.editing&&e.target!==dlgIn){                               // editing a block: keys belong to the block line
+    if(k==='Tab'){ e.preventDefault(); dlgIn.focus(); ghostAccept(); } else if(k==='Enter'){ e.preventDefault(); endEdit(true); } else if(k==='Escape'){ e.preventDefault(); endEdit(false); } else dlgIn.focus(); return; }
   if(S.editing||S.raw) return;
   const tg=e.target.tagName; if(tg==='INPUT'||tg==='TEXTAREA'||tg==='SELECT') return;
   if(mod&&(k==='y'||(k.toLowerCase()==='z'&&e.shiftKey))){ e.preventDefault(); redo(); return; }
@@ -1338,13 +1530,13 @@ addEventListener('keydown',e=>{
   if(S.mgt){ mgtKey(e); return; }
   const nb=(S.res.blocks||[]).length;
   switch(k){
-    case 'ArrowUp': e.preventDefault(); moveCursor(S.cursor-1); break;
-    case 'ArrowDown': e.preventDefault(); moveCursor(S.cursor+1); break;
+    case 'ArrowUp': e.preventDefault(); moveCursor(S.cursor-1); followCursor(); break;
+    case 'ArrowDown': e.preventDefault(); moveCursor(S.cursor+1); followCursor(); break;
     case 'ArrowLeft': e.preventDefault(); S.running=false; seek(S.t-(e.shiftKey?5:1),false); break;
     case 'ArrowRight': e.preventDefault(); S.running=false; seek(S.t+(e.shiftKey?5:1),false); break;
     case 'Enter': e.preventDefault(); if(S.mode==='edit') beginEdit(); else stepBlock(); break;
     case 'Escape': e.preventDefault(); if(!alarmEl.hidden) hideAlarm(); else stop(); break;
-    case ' ': e.preventDefault(); S.running?stop():start(); break;
+    case ' ': e.preventDefault(); S.running?stop():ncStart(); break;
     case 'Home': e.preventDefault(); moveCursor(0); break;
     case 'End': e.preventDefault(); moveCursor(nb-1); break;
     case 'PageUp': e.preventDefault(); moveCursor(S.cursor-12); break;
@@ -1436,7 +1628,7 @@ if($('mach-sel')) $('mach-sel').value=S.machine;
 [...document.querySelectorAll('.mode')].forEach(b=>b.setAttribute('aria-pressed',b.dataset.m===S.mode));
 document.body.classList.toggle('focus',S.focusView); if($('b-focus')) $('b-focus').setAttribute('aria-pressed',S.focusView);
 if(window.TNC_I18N) try{ TNC_I18N.set(TNC_I18N.lang||'en'); }catch(e){}
-compile(); renderSK(); renderProjects(); syncToggles(); keyPill(); resize(); profChip();
+compile(); renderSK(); renderProjects(); syncToggles(); keyPill(); resize(); profChip(); setSideTab(S.sideTab); renderUserPrograms();
 if(S.flowView&&window.TNC_FLOW){ S.flowView=false; toggleFlow(); }
 const flash=sess.get('tnc.flash'); if(flash){ sess.del('tnc.flash'); setTimeout(()=>say(flash),400); }
 if(!sess.get(BOOT_SS)) $('boot').hidden=false;

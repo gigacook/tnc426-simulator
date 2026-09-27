@@ -28,7 +28,7 @@ var TNC_LOOK = (function () {
           // r186's env/lighting defaults render the stock almost pure white and
           // flat; pull exposure down so faces actually shade differently and
           // cut depth reads. Speed over polish -- tuned by eye, not measured.
-          renderer.toneMappingExposure = 0.8;
+          renderer.toneMappingExposure = 0.72;
         }
       } catch (e) {}
 
@@ -39,10 +39,24 @@ var TNC_LOOK = (function () {
           pmrem.compileEquirectangularShader && pmrem.compileEquirectangularShader();
           var envRT = pmrem.fromScene(new THREE.RoomEnvironment(), 0.035);
           scene.environment = envRT.texture;
-          if ('environmentIntensity' in scene) scene.environmentIntensity = 0.6;   // r160+
+          if ('environmentIntensity' in scene) scene.environmentIntensity = 0.32;   // r160+ -- the room env alone was washing the part flat white
           pmrem.dispose();
         }
       } catch (e) { /* no PMREM support: materials just stay unlit-by-env, no crash */ }
+
+      /* ---- key/fill re-tune ----
+       * ui.js multiplies its r128 intensities by Math.PI (LK) for r155+'s
+       * physical light units, which is the right call for a scene lit only
+       * by directional lights -- but stacked on top of the PMREM room
+       * environment above (image-based light hitting every face at once) it
+       * blows every face to the same near-white and kills the top/side
+       * shading difference that makes the part read as machined metal.
+       * ui.js hands these two lights out through the plugin bus precisely so
+       * a look-and-feel module can re-tune them; pull them back down. */
+      try {
+        if (ui.lights && ui.lights.key) ui.lights.key.intensity = 1.05;
+        if (ui.lights && ui.lights.fill) ui.lights.fill.intensity = 0.42;
+      } catch (e) {}
 
       /* ---- FXAA, wired through the shared render hook ---- */
       var composer = null, fxaaPass = null;

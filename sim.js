@@ -63,7 +63,7 @@ var TNC_SIM = (function () {
         var f = mv.kind === 'rapid' ? rapid : Math.max(1, mv.feed || 500);
         var dt = mv.dur != null ? mv.dur * (total > 1e-9 ? len / total : 1) : len / f * 60;   // machine time when the core knows it
         segs.push({ a: a, b: b, len: len, f: f, kind: mv.kind === 'rapid' ? 'rapid' : 'feed',
-                    block: mv.block, tool: mv.tool, toolR: mv.toolR || 3, cone: isCone(mv.tool) || /CHAMFER|SPOT|CENTER|CENTRE/i.test(mv.toolName || ''),
+                    block: mv.block, tool: mv.tool, toolR: mv.toolR || 3, stick: mv.stick, toolL: mv.toolL, cone: isCone(mv.tool) || /CHAMFER|SPOT|CENTER|CENTRE/i.test(mv.toolName || ''),
                     spindle: mv.spindle || 0, coolant: !!mv.coolant, cycle: mv.cycle || null,
                     t0: t, t1: t + dt });
         t += dt;
@@ -111,7 +111,8 @@ var TNC_SIM = (function () {
     BELOW_BLANK:       'CRASH: TOOL MORE THAN 3 MM BELOW BLANK — INTO THE PARALLELS / TABLE',
     THROUGH_CUT:       'NOTE: TOOL BREAKS THROUGH THE BLANK BOTTOM — ASSUMES PARALLELS UNDER THE PART',
     CHIP_LOAD:         'WARNING: CHIP LOAD HIGH FOR THIS CUTTER',
-    SPINDLE_MAX:       'WARNING: SPINDLE SPEED ABOVE THE MACHINE MAXIMUM'
+    SPINDLE_MAX:       'WARNING: SPINDLE SPEED ABOVE THE MACHINE MAXIMUM',
+    HOLDER:            'CRASH: TOOL HOLDER COLLISION — THE HOLDER NOSE REACHES THE PART'
   };
 
   function analyse(res, ex, g) {
@@ -142,6 +143,12 @@ var TNC_SIM = (function () {
           continue;
         }
         if (inside(p, s.toolR)) {
+          /* holder: the part surface stands higher than the holder nose (tip + stick-out) */
+          if (s.stick > 0) {                    // material under the collet nut (radius ~ 2 x tool, min 12) above the nose height
+            var zn = p.z + s.stick, hr = Math.max(s.toolR * 2, 12);
+            if (zn < st.z1 && disc(hm, st, g, p.x, p.y, zn, hr, false, false))
+              add('HOLDER', 'crash', s, idx, t, p, ' — T' + s.tool + ' STICK-OUT ' + s.stick.toFixed(1) + ' MM FROM L ' + (s.toolL || 0).toFixed(1) + ' (TOOL LIST / TOOL HOLDER LENGTH)');
+          }
           if (p.z < st.z0 - 3) add('BELOW_BLANK', 'crash', s, idx, t, p);
           else if (p.z < st.z0 - 0.01) add('THROUGH_CUT', 'info', s, idx, t, p);
         }

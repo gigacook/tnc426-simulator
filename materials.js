@@ -16,7 +16,7 @@ var TNC_MATERIALS = (function () {
    * and sparkColor are handed to fx.js so chips and sparks read as the
    * right metal instead of always aluminium-grey / steel-orange. */
   var PRESETS = [
-    { id: 'aluminium',    label: 'Aluminium 6061',   color: 0xc7ccd2, metalness: 0.55, roughness: 0.42, chipColor: 0xd9dee3, sparkColor: 0xeaf2ff },
+    { id: 'aluminium',    label: 'Aluminium 6061',   color: 0xa4aab1, metalness: 0.42, roughness: 0.55, chipColor: 0xd9dee3, sparkColor: 0xeaf2ff },
     { id: 'titanium',     label: 'Titanium Ti-6Al-4V', color: 0x82868c, metalness: 0.62, roughness: 0.46, chipColor: 0x9198a0, sparkColor: 0xfff2c8 },
     { id: 'steel',        label: 'Mild steel',       color: 0x8a8f96, metalness: 0.78, roughness: 0.38, chipColor: 0x8f959c, sparkColor: 0xffb060 },
     { id: 'stainless',    label: 'Stainless 304',    color: 0xc9ced4, metalness: 0.82, roughness: 0.26, chipColor: 0xd6dbe0, sparkColor: 0xffd8a0 },
@@ -50,7 +50,7 @@ var TNC_MATERIALS = (function () {
     // Tame the r186 environment map's contribution per-material too (on top
     // of look.js's scene.environmentIntensity/exposure knobs) so the stock
     // doesn't blow out to flat white and cut faces keep visible shading.
-    if ('envMapIntensity' in m) m.envMapIntensity = 0.6;
+    if ('envMapIntensity' in m) m.envMapIntensity = 0.4;
     // vertexColors stays on for gStock: the material color above multiplies
     // with the per-vertex cut-depth tint already painted by ui.js, rather
     // than replacing it.

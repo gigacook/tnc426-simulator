@@ -112,7 +112,7 @@ button{cursor:pointer}
 textarea#raw{flex:1;width:100%;min-height:200px;background:var(--crt);color:#e8f3fd;border:0;
   font-family:var(--mono);font-size:16px;line-height:1.5;padding:8px 10px;resize:none}
 textarea#raw:focus{outline:none}
-.sks{flex:none;display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:3px;padding:6px;background:var(--panel)}
+.sks{flex:none;display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:3px;padding:6px;background:var(--panel)}
 .sk{font-family:var(--mono);font-size:12.5px;line-height:1.2;text-align:center;
   background:linear-gradient(#5c6673,#464f5c);color:#f8fafd;border:1px solid #2b323c;
   border-bottom:2px solid #1b2129;border-radius:2px;padding:9px 3px;min-height:50px}
@@ -380,6 +380,59 @@ body.focus #b-focus{border-color:var(--cyan);color:var(--cyan)}
 .dlg{flex-wrap:wrap;row-gap:4px}
 .dlg input{min-width:9em}
 .dlg .hint{flex-basis:100%;white-space:normal}
+/* ---- decluttered layout ---- */
+.ovl-dro{left:10px;bottom:34px;display:flex;flex-wrap:wrap;gap:2px 14px;background:rgba(4,8,14,.72);padding:6px 10px;border-radius:3px;border:1px solid var(--line);pointer-events:none;max-width:calc(100% - 20px)}
+.ovl-dro .drow{display:flex;gap:6px;align-items:baseline;font-family:var(--mono);font-size:15px}
+.ovl-dro .ax{font-weight:700;color:var(--cyan)}.ovl-dro .drow.x .ax{color:#ff8a7e}.ovl-dro .drow.y .ax{color:#8fe28f}.ovl-dro .drow.z .ax{color:#8fb8ff}
+.ovl-dro .val{color:var(--ink);font-variant-numeric:tabular-nums}
+.fxmenu{margin-top:4px}.fxmenu>summary{cursor:pointer;font-family:var(--mono);font-size:13px;color:var(--ink-dim);padding:4px 2px;list-style:none}
+.fxmenu>summary::before{content:'▸ '}.fxmenu[open]>summary::before{content:'▾ '}
+.tp-state{font-family:var(--mono);font-size:13px;color:var(--ink-dim);align-self:center;margin-right:auto}
+.skpath{font-family:var(--mono);font-size:13px;background:#0b2233;color:#9fd8ff;border-top:1px solid #1d557d;padding:5px 10px;display:flex;gap:10px;align-items:center}
+.skpath b{color:var(--amber);font-weight:600}.skpath .back{margin-left:auto;color:var(--ink-dim)}
+.sk.go{background:linear-gradient(#2f7d4f,#1f5c38);color:#eafff1;border-color:#3fa266}
+.sk.stop{background:linear-gradient(#9c3a33,#74271f);color:#fff0ee;border-color:#c0534a}
+.sk.here{outline:2px solid var(--amber);outline-offset:-2px}
+.stabs{display:flex;gap:2px;padding:6px 6px 0;background:var(--panel);position:sticky;top:0;z-index:2}
+.stabs button{flex:1;font-family:var(--mono);font-size:12.5px;letter-spacing:.04em;text-transform:uppercase;background:var(--panel-2);color:var(--ink-dim);border:1px solid var(--line);border-bottom:none;padding:8px 4px;border-radius:3px 3px 0 0;cursor:pointer;min-height:36px}
+.stabs button[aria-selected=true]{background:var(--void-2);color:var(--cyan);border-color:var(--cyan)}
+.refbar{padding:6px;background:var(--void-2);border-bottom:1px solid var(--line)}
+.refbar select{width:100%;background:var(--void);color:var(--ink);border:1px solid var(--line-2);padding:5px 6px;font-family:var(--mono);font-size:13px;border-radius:2px}
+.refbody{padding:10px 12px;font-size:14px;line-height:1.5;color:var(--ink)}
+.refbody table{border-collapse:collapse;width:100%;font-family:var(--mono);font-size:12.5px}.refbody td,.refbody th{padding:3px 5px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.refbody .cyc{cursor:pointer}.refbody .cyc:hover{background:var(--panel-2)}
+.pgroup{border-bottom:1px solid var(--line)}.pgroup>summary{cursor:pointer;padding:10px 12px;font-family:var(--disp);font-weight:700;letter-spacing:.12em;text-transform:uppercase;font-size:13px;list-style:none}
+.pgroup>summary::before{content:'▸ ';color:var(--ink-dim)}.pgroup[open]>summary::before{content:'▾ '}
+.pgroup .cnt{display:inline-block;min-width:22px;text-align:center;background:var(--panel-2);border:1px solid var(--line-2);border-radius:9px;padding:0 6px;margin-left:6px;color:var(--cyan);font-family:var(--mono)}
+.uplist table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12px}.uplist td,.uplist th{padding:4px 6px;border-bottom:1px solid var(--line);text-align:left}
+.uplist tr.pg{cursor:pointer}.uplist tr.pg:hover{background:var(--panel-2)}.uplist tr.cur td:first-child{color:var(--cyan)}
+.help-manual details{border-bottom:1px solid var(--line)}.help-manual summary{cursor:pointer;padding:8px 0;font-weight:700;color:var(--ink)}
+/* focus view: the program and the run, nothing else */
+body.focus .col-side{display:none!important}
+body.focus .main{grid-template-columns:minmax(380px,1fr) minmax(480px,1.9fr)!important}
+body.focus .fxmenu,body.focus .lgd,body.focus #callouts,body.focus .sub-ttl{display:none!important}
+/* ghost autosuggest in the block line */
+.dlgwrap{position:relative;flex:1;min-width:9em;display:flex}
+.dlgwrap input{flex:1;width:100%;background:transparent!important;position:relative;z-index:1}
+.dlgwrap{background:#041320;border-radius:2px}
+.ghost{position:absolute;inset:0;pointer-events:none;white-space:pre;overflow:hidden;border:0 solid transparent;box-sizing:border-box;z-index:0}
+.ghost .gt{color:transparent}.ghost .gs{color:#6a879c;font-style:italic}
+/* soft keys: always 8 per row; the label shrinks instead of wrapping into an extra row */
+.sk{min-width:0;overflow:hidden;font-size:clamp(9.5px,0.78vw,12px);padding-left:2px;padding-right:2px}
+/* toggles that are ON: green-ish glow, pressed down */
+.sk.on,.tb.fx[data-on="1"],.hbtn[aria-pressed="true"]{background:linear-gradient(#24503c,#1b3d2e)!important;color:#c9ffe0!important;border-color:#43c07a!important;
+  box-shadow:inset 0 3px 6px rgba(0,0,0,.55),0 0 10px rgba(67,192,122,.35)!important;transform:translateY(1px)}
+/* header menus */
+.hbtn.lessons{border-color:#a596ff;color:#cfc6ff}.hbtn.lessons:hover{background:#2a2450}
+.hbtn.aibtn{border-color:#ff7ac8;color:#ffc2e6}.hbtn.aibtn:hover{background:#3d1f33}
+.hmenu{position:fixed;z-index:60;min-width:240px;max-height:70vh;overflow:auto;background:var(--panel);border:1px solid var(--line-2);border-radius:3px;box-shadow:0 12px 30px rgba(0,0,0,.6);padding:4px}
+.hmenu .mh{font-family:var(--mono);font-size:11.5px;color:var(--ink-faint);padding:8px 10px 4px;letter-spacing:.06em;text-transform:uppercase}
+.hmenu button{display:block;width:100%;text-align:left;background:none;border:0;color:var(--ink);font-family:var(--mono);font-size:14px;padding:9px 12px;cursor:pointer;border-radius:2px}
+.hmenu button:hover,.hmenu button:focus{background:var(--panel-2);color:var(--cyan);outline:none}
+/* lessons live in the run pane, never over the 3-D view */
+.tp .coach{position:static;width:auto;max-height:none;margin:0;box-shadow:none}
+.tp.lesson>.tp-row,.tp.lesson>.fxmenu{display:none!important}
+.tp.lesson .coach-bd{max-height:26vh;overflow:auto}
 </style>
 
 <style>html{color-scheme:dark} img{max-width:100%} [hidden]{display:none!important}</style>
@@ -391,15 +444,17 @@ body.focus #b-focus{border-color:var(--cyan);color:var(--cyan)}
    <span class="ttl">TNC 426</span>
    <span class="sub-ttl">CNC SIMULATOR &middot; NC SW 280 476-17</span>
    <button class="hbtn devbtn" id="b-dev" title="Feature log, version history, release plan" data-i18n="btn.dev">DEV</button>
-   <button class="hbtn new" id="b-new" title="Make a new program" data-i18n="btn.new">+ New</button>
+   <button class="hbtn new" id="b-new" title="New program: manual or AI" aria-haspopup="menu">+ New ▾</button>
+   <button class="hbtn lessons" id="b-lessons" title="Lessons and BREAK IT" aria-haspopup="menu">Lessons ▾</button>
+   <button class="hbtn aibtn" id="b-ai" title="AI: change this program or write a new one" aria-haspopup="menu">AI ▾</button>
    <button class="hbtn" id="b-help" title="Lessons, pitfalls, manual, AI setup (H)" data-i18n="btn.help">Help</button>
    <button class="hbtn" id="b-focus" aria-pressed="false" title="Focus view (F)" data-i18n="btn.focus">Focus</button>
    <button class="hbtn prof" id="b-prof" title="Your profile: name, programs, tool table, export / import">Profile</button>
    <div class="modes" id="modes">
-     <button class="mode" data-m="edit"   aria-pressed="false"><b>1</b><span class="lg" data-i18n="mode.edit">PROGRAMMING AND EDITING</span><span class="sm">EDIT</span></button>
-     <button class="mode" data-m="test"   aria-pressed="true"><b>2</b><span class="lg" data-i18n="mode.test">TEST RUN</span><span class="sm">TEST</span></button>
-     <button class="mode" data-m="single" aria-pressed="false"><b>3</b><span class="lg" data-i18n="mode.single">PGM RUN, SINGLE BLOCK</span><span class="sm">SINGLE</span></button>
-     <button class="mode" data-m="full"   aria-pressed="false"><b>4</b><span class="lg" data-i18n="mode.full">PGM RUN, FULL SEQ.</span><span class="sm">FULL</span></button>
+     <button class="mode" data-m="edit"   aria-pressed="false"><b>1</b><span class="lg" data-i18n="mode.edit">PROGRAM</span><span class="sm">PROGRAM</span></button>
+     <button class="mode" data-m="test"   aria-pressed="true"><b>2</b><span class="lg" data-i18n="mode.test">TEST</span><span class="sm">TEST</span></button>
+     <button class="mode" data-m="single" aria-pressed="false"><b>3</b><span class="lg" data-i18n="mode.single">SINGLE-BLOCK</span><span class="sm">SINGLE</span></button>
+     <button class="mode" data-m="full"   aria-pressed="false"><b>4</b><span class="lg" data-i18n="mode.full">FULL-RUN</span><span class="sm">FULL</span></button>
    </div>
  </header>
 
@@ -410,8 +465,8 @@ body.focus #b-focus{border-color:var(--cyan);color:var(--cyan)}
        <span data-i18n="panel.program">Program</span>
        <span class="rt" id="pgm-path">TNC:\</span>
        <span class="grow"></span>
-       <button class="chb" id="b-view" aria-pressed="false" title="Program as a flowchart">Flow</button>
-       <button class="chb" id="b-mgt" title="Program manager (M)" data-i18n="btn.pgmmgt">PGM MGT</button>
+       <button class="chb" id="b-mgt" title="Programs on the control (M)" data-i18n="btn.pgmmgt">Programs</button>
+       <button class="chb" id="b-tools" title="Tool list — TOOL.T (T)" data-i18n="btn.tools">Tool list</button>
        <button class="chb" id="b-save" title="Save as .H (Ctrl+S)" data-i18n="btn.save">Save .H</button>
      </div>
      <div class="crt" id="crt">
@@ -425,6 +480,7 @@ body.focus #b-focus{border-color:var(--cyan);color:var(--cyan)}
        <input id="dlg-in" spellcheck="false" autocomplete="off" disabled aria-label="Block entry">
        <span class="hint" id="dlg-hint">E edit &middot; I insert &middot; D delete</span>
      </div>
+     <div class="skpath" id="skpath" hidden></div>
      <div class="sks" id="sks"></div>
    </section>
 
@@ -436,6 +492,7 @@ body.focus #b-focus{border-color:var(--cyan);color:var(--cyan)}
        <div class="callouts" id="callouts"></div>
        <div class="ovl ovl-tl" id="ovl-l"></div>
        <div class="ovl ovl-tr" id="ovl-r"></div>
+       <div class="ovl ovl-dro" id="dro" aria-label="Position"></div>
        <div class="alarm" id="alarm" hidden></div>
        <div class="coach" id="coach" hidden>
          <div class="coach-hd"><span class="k" id="coach-k">LEARN</span><span class="t" id="coach-t"></span>
@@ -453,30 +510,37 @@ body.focus #b-focus{border-color:var(--cyan);color:var(--cyan)}
      <div class="tp">
        <input type="range" class="scrub" id="scrub" min="0" max="1000" value="0" step="1" aria-label="Run position">
        <div class="tp-row">
-         <button class="tb go" id="b-start"><span data-i18n="btn.ncstart">NC Start</span><small>SPACE</small></button>
-         <button class="tb stop" id="b-stop"><span data-i18n="btn.ncstop">NC Stop</span><small>ESC</small></button>
-         <button class="tb" id="b-step"><span data-i18n="btn.step">Step</span><small>S</small></button>
-         <button class="tb" id="b-reset"><span data-i18n="btn.reset">Reset</span><small>R</small></button>
+         <button class="tb go" id="b-start" hidden><span data-i18n="btn.ncstart">NC Start</span><small>SPACE</small></button>
+         <button class="tb stop" id="b-stop" hidden><span data-i18n="btn.ncstop">NC Stop</span><small>ESC</small></button>
+         <button class="tb" id="b-step" hidden><span data-i18n="btn.step">Step</span><small>S</small></button>
+         <button class="tb" id="b-reset" hidden><span data-i18n="btn.reset">Reset</span><small>R</small></button>
+         <span class="tp-state" id="tp-state"></span>
          <div class="spd" id="spd">
            <button data-s="1">1&times;</button><button data-s="4">4&times;</button>
            <button data-s="16">16&times;</button><button data-s="64">64&times;</button>
            <button data-s="0">MAX</button>
          </div>
        </div>
+       <details class="fxmenu" id="fxmenu"><summary data-i18n="btn.effects">Effects &amp; view</summary>
        <div class="tp-row">
+         <button class="tb fx" id="b-view" aria-pressed="false" title="Program as a flowchart (V)">Flow</button>
          <button class="tb fx" id="b-fx"><span data-i18n="btn.fx">Chips &amp; sparks</span><small>P</small></button>
          <button class="tb fx" id="b-cool"><span data-i18n="btn.cool">Coolant</span><small>K</small></button>
          <button class="tb fx" id="b-fire"><span data-i18n="btn.fire">Smoke &amp; fire</span><small>B</small></button>
          <button class="tb fx" id="b-labels"><span data-i18n="btn.labels">Labels</span><small>L</small></button>
          <button class="tb fx" id="b-sound" data-i18n="btn.sound">Sound</button>
-       </div>
+       </div></details>
      </div>
    </section>
 
    <!-- SIDE -->
    <aside class="col col-side" aria-label="Status">
-     <div class="card card-dro"><h3><span data-i18n="panel.position">Position</span> <span class="tagx" id="dro-t">ACTL MM</span></h3>
-       <div class="in"><div class="dro" id="dro"></div></div></div>
+     <div class="stabs" role="tablist" id="stabs">
+       <button role="tab" data-tab="diag" aria-selected="true" data-i18n="tab.diag">Diagnostics</button>
+       <button role="tab" data-tab="ref" aria-selected="false" data-i18n="tab.ref">Reference</button>
+       <button role="tab" data-tab="progs" aria-selected="false" id="tab-progs">Programs</button>
+     </div>
+     <div class="spane" id="sp-diag">
      <div class="card card-run"><h3><span data-i18n="panel.run">Run</span> <span class="tagx" id="run-state">READY</span></h3>
        <div class="in"><dl class="kv" id="runkv"></dl></div></div>
      <div class="card card-checks"><h3><span data-i18n="panel.checks">Checks</span> <span class="tagx" id="errc">0</span></h3>
@@ -485,14 +549,22 @@ body.focus #b-focus{border-color:var(--cyan);color:var(--cyan)}
        <div class="in"><div class="cmp" id="cmp"></div>
          <button class="mini" id="b-snap" data-i18n="btn.snap">Store finished run as reference A</button>
          <button class="mini" id="b-restore" data-i18n="btn.restore">Open reference program</button></div></div>
-     <div class="card card-projects"><h3><span data-i18n="panel.projects">Projects</span> <span class="tagx" id="proj-t"></span></h3>
-       <div class="in"><div class="proj" id="proj"></div>
+     </div>
+     <div class="spane" id="sp-ref" hidden>
+       <div class="refbar"><select id="ref-sel" aria-label="What to show"></select></div>
+       <div class="refbody" id="ref-body"></div>
+       <div class="klist" id="klist" hidden></div>
+     </div>
+     <div class="spane" id="sp-progs" hidden>
+       <details class="pgroup" id="up-box"><summary><span id="up-t">Programs</span> <span class="cnt" id="up-n">0</span></summary>
+         <div class="uplist" id="uplist"></div></details>
+       <details class="pgroup" id="pj-box"><summary>Projects <span class="cnt" id="proj-t"></span></summary>
+         <div class="in"><div class="proj" id="proj"></div>
          <div class="pnew"><input id="proj-name" placeholder="New project name" maxlength="40" aria-label="New project name">
            <button id="b-proj-new">Create</button></div>
          <button class="mini" id="b-proj-add" data-i18n="btn.projadd">Add current program to active project</button>
-         <p class="note">New programs you create go into the active project. ZIP downloads every program in it as a .H file.</p></div></div>
-     <div class="card klist-card"><h3 data-i18n="panel.keys">Keys</h3>
-       <div class="in"><div class="klist" id="klist"></div></div></div>
+         <p class="note">A project is a named folder of programs. New programs join the active project automatically; ZIP downloads the whole folder as .H files.</p></div></details>
+     </div>
      <div class="copy">
        <div class="c1">&copy; 2026 TNC 426 Simulator</div>
        <div class="c2">TNC 426 Simulator. Code under the MIT licence; bundles three.js (MIT) and JSZip (MIT).<br>
@@ -516,7 +588,7 @@ body.focus #b-focus{border-color:var(--cyan);color:var(--cyan)}
   <div class="mhead"><span class="mt" id="m-new-t" data-i18n="title.newprogram">New program</span>
     <button class="x" data-close>Close <small>ESC</small></button></div>
   <div class="mbody">
-    <div class="opts" id="new-opts">
+    <div class="opts" id="new-opts" hidden>
       <div class="opt" data-opt="scratch"><span class="on">1 &middot; THE TNC WAY</span><h4>From scratch</h4>
         <p>Answer the control's own dialog &mdash; spindle axis, blank min and max corner, first tool &mdash; and start typing blocks.</p>
         <button class="cbtn pri" data-go="scratch">Start from scratch</button></div>
@@ -529,7 +601,7 @@ body.focus #b-focus{border-color:var(--cyan);color:var(--cyan)}
     </div>
 
     <div id="new-scratch" hidden>
-      <div class="prose"><h4>BEGIN PGM &mdash; the dialog, as on the control</h4></div>
+      <div class="prose"><h4>New program &mdash; name it, then write it block by block</h4></div>
       <div class="fgrid">
         <label class="fld wide"><span>PROGRAM NAME (A&ndash;Z, 0&ndash;9, _ )</span><input id="ns-name" value="MY_PART" maxlength="16"></label>
         <label class="fld"><span>UNIT</span><select id="ns-unit"><option>MM</option><option disabled>INCH (not converted)</option></select></label>
@@ -547,8 +619,8 @@ body.focus #b-focus{border-color:var(--cyan);color:var(--cyan)}
     </div>
 
     <div id="new-ai" hidden>
-      <div class="prose"><h4>Describe the part</h4>
-        <p>Blank size, material, features, tools if you care. The AI writes Klartext for this simulator, the simulator runs every check on it, and anything that fails goes back to the AI once for a fix.</p></div>
+      <div class="prose"><h4 id="ai-title">Describe the part</h4>
+        <p id="ai-lead">Blank size, material, features, tools if you care. The AI writes Klartext for this simulator, the simulator runs every check on it, and anything that fails goes back to the AI once for a fix.</p></div>
       <label class="fld wide"><span>WHAT SHOULD THE PROGRAM MAKE?</span>
         <textarea id="ai-prompt" placeholder="e.g. 120 x 80 x 15 aluminium plate. Face 0.5 mm. A 60 x 30 pocket 6 mm deep in the middle, 4 passes. Four M10 holes 10 mm from each corner, spot drill first."></textarea></label>
       <div class="actrow">
@@ -6952,6 +7024,8 @@ var TNC = (function () {
       tool: st.tool.t,
       toolR: st.tool.r,
       toolDR: st.tool.dr || 0,
+      toolL: (st.tool.l > 0 ? st.tool.l : (st.holder && st.holder.len) || 0),
+      stick: stickOf(st),
       toolName: st.tool.name,
       spindle: st.spindle,
       coolant: st.coolant,
@@ -6977,6 +7051,11 @@ var TNC = (function () {
     if (st.moves.length >= MAX_MOVES) { st.abort = true; fail(st, bi, 'EXCESSIVE SUBPROGRAM NESTING'); }
   }
 
+  function stickOf(st) {
+    var L = st.tool.l > 0 ? st.tool.l : (st.holder && st.holder.len) || 0;
+    if (!(L > 0) || !st.holder || !st.holder.stack || !st.tool.t) return null;
+    return Math.max(L - st.holder.stack(st.tool.r), 0.35 * L);
+  }
   function mark(st, m) { m.kind = 'mark'; st.moves.push(m); }   // m.len is the APPR/DEP LEN, not a path length
 
   /* M-functions take effect either at block start (M3 M4 M8 M13 M14) or at
@@ -8139,7 +8218,7 @@ var TNC = (function () {
   /* primitive -> move, copying tool / spindle / block data from a template move */
   function moveFrom(p, tpl, extra) {
     var mv = { kind: tpl.kind === 'arc' ? 'feed' : tpl.kind, from: pStart(p), to: pEnd(p), cx: null, cy: null, ccw: false, sweep: null,
-      feed: tpl.feed, tool: tpl.tool, toolR: tpl.toolR, toolDR: tpl.toolDR || 0, toolName: tpl.toolName, spindle: tpl.spindle,
+      feed: tpl.feed, tool: tpl.tool, toolR: tpl.toolR, toolDR: tpl.toolDR || 0, toolL: tpl.toolL, stick: tpl.stick, toolName: tpl.toolName, spindle: tpl.spindle,
       coolant: tpl.coolant, block: tpl.block, cycle: tpl.cycle || null, rc: null, rcAct: false, len: 0,
       rot0: tpl.rot1 || tpl.rot0 || null, rot1: tpl.rot1 || null, dur: null };
     if (p.type === 'arc') {
@@ -8403,6 +8482,9 @@ var TNC = (function () {
        axes, limits {A:[min,max], ...} (MP 910/920), sMax (MP 3515) */
     st.mach = (opts && opts.machine) || {};
     st.arcTol = st.mach.arcTol || ARC_TOL;
+    /* opts.holder: {len, stack(r)} — TOOL HOLDER LENGTH is the gauge length used when a tool has L = 0;
+       stack(r) = holder height below the spindle face, so stick-out = L - stack(r) */
+    st.holder = (opts && opts.holder) || null;
     st.autoTools = !!(opts && opts.autoTools);
 
     // label table
@@ -8571,7 +8653,7 @@ var TNC_SIM = (function () {
         var f = mv.kind === 'rapid' ? rapid : Math.max(1, mv.feed || 500);
         var dt = mv.dur != null ? mv.dur * (total > 1e-9 ? len / total : 1) : len / f * 60;   // machine time when the core knows it
         segs.push({ a: a, b: b, len: len, f: f, kind: mv.kind === 'rapid' ? 'rapid' : 'feed',
-                    block: mv.block, tool: mv.tool, toolR: mv.toolR || 3, cone: isCone(mv.tool) || /CHAMFER|SPOT|CENTER|CENTRE/i.test(mv.toolName || ''),
+                    block: mv.block, tool: mv.tool, toolR: mv.toolR || 3, stick: mv.stick, toolL: mv.toolL, cone: isCone(mv.tool) || /CHAMFER|SPOT|CENTER|CENTRE/i.test(mv.toolName || ''),
                     spindle: mv.spindle || 0, coolant: !!mv.coolant, cycle: mv.cycle || null,
                     t0: t, t1: t + dt });
         t += dt;
@@ -8619,7 +8701,8 @@ var TNC_SIM = (function () {
     BELOW_BLANK:       'CRASH: TOOL MORE THAN 3 MM BELOW BLANK — INTO THE PARALLELS / TABLE',
     THROUGH_CUT:       'NOTE: TOOL BREAKS THROUGH THE BLANK BOTTOM — ASSUMES PARALLELS UNDER THE PART',
     CHIP_LOAD:         'WARNING: CHIP LOAD HIGH FOR THIS CUTTER',
-    SPINDLE_MAX:       'WARNING: SPINDLE SPEED ABOVE THE MACHINE MAXIMUM'
+    SPINDLE_MAX:       'WARNING: SPINDLE SPEED ABOVE THE MACHINE MAXIMUM',
+    HOLDER:            'CRASH: TOOL HOLDER COLLISION — THE HOLDER NOSE REACHES THE PART'
   };
 
   function analyse(res, ex, g) {
@@ -8650,6 +8733,12 @@ var TNC_SIM = (function () {
           continue;
         }
         if (inside(p, s.toolR)) {
+          /* holder: the part surface stands higher than the holder nose (tip + stick-out) */
+          if (s.stick > 0) {                    // material under the collet nut (radius ~ 2 x tool, min 12) above the nose height
+            var zn = p.z + s.stick, hr = Math.max(s.toolR * 2, 12);
+            if (zn < st.z1 && disc(hm, st, g, p.x, p.y, zn, hr, false, false))
+              add('HOLDER', 'crash', s, idx, t, p, ' — T' + s.tool + ' STICK-OUT ' + s.stick.toFixed(1) + ' MM FROM L ' + (s.toolL || 0).toFixed(1) + ' (TOOL LIST / TOOL HOLDER LENGTH)');
+          }
           if (p.z < st.z0 - 3) add('BELOW_BLANK', 'crash', s, idx, t, p);
           else if (p.z < st.z0 - 0.01) add('THROUGH_CUT', 'info', s, idx, t, p);
         }
@@ -10319,19 +10408,29 @@ var TNC_TOOLS3D = (function () {
   // SK40 / DIN 69871 steep-taper holder with an ER collet chuck, for shank
   // tools. `gripZ` = local z (holder-local, base at 0) where the collet
   // grips the tool shank -- that is where the cutter's shank should stop.
+  /* steep-taper holder sizes: ISO 50 / SK50 (the operator's machine) and SK40 */
+  var HOLDERS = {
+    ISO50: { label: 'ISO 50 (SK50) · ER COLLET CHUCK', flangeR: 50, taperR0: 34.9, taperR1: 22, taperLen: 70, bodyMin: 26, bodyLen: 44, flangeLen: 11, noseMin: 30 },
+    SK40:  { label: 'SK40 DIN 69871 · ER COLLET CHUCK', flangeR: 31.75, taperR0: 27.3, taperR1: 12.3, taperLen: 48, bodyMin: 17, bodyLen: 34, flangeLen: 8, noseMin: 24 }
+  };
+  var style = 'ISO50';
+  function setHolder(s) { if (HOLDERS[s]) style = s; }
+  /* holder height below the gauge line (spindle face): nut + body + flange */
+  function holderStack(r) { var H = HOLDERS[style]; return Math.max((r || 3) * 3.2, H.noseMin) + H.bodyLen + H.flangeLen; }
+
   function holderSK40Collet(THREE_, opts) {
-    var r = opts.r, gaugeZ = opts.gaugeZ, holdMat = mat(COL.holder, 0.5, 0.75);
+    var r = opts.r, gaugeZ = opts.gaugeZ, holdMat = mat(COL.holder, 0.5, 0.75), H = HOLDERS[style];
     var colletMat = mat(COL.collet, 0.4, 0.7);
     var grp = new THREE.Group(); grp.name = 'holder';
 
     var noseR = Math.max(r * 2.0, 9);          // ER nut nose radius
-    var noseLen = Math.max(r * 3.2, 24);
-    var bodyR = Math.max(noseR * 1.35, 17);
-    var bodyLen = 34;
-    var flangeR = 31.75;                        // SK40 flange ~ 63.5mm dia
-    var flangeLen = 8;
-    var taperR0 = flangeR * 0.86, taperR1 = 12.3; // 7:24 taper, narrow end down
-    var taperLen = 48;
+    var noseLen = Math.max(r * 3.2, H.noseMin);
+    var bodyR = Math.max(noseR * 1.35, H.bodyMin);
+    var bodyLen = H.bodyLen;
+    var flangeR = H.flangeR;                    // SK40 Ø63.5 · ISO 50 Ø100
+    var flangeLen = H.flangeLen;
+    var taperR0 = H.taperR0, taperR1 = H.taperR1; // 7:24 taper
+    var taperLen = H.taperLen;
 
     var stackSum = noseLen + bodyLen + flangeLen + taperLen;
     var maxStack = (opts.maxStack !== undefined) ? opts.maxStack : stackSum;
@@ -10735,7 +10834,7 @@ var TNC_TOOLS3D = (function () {
     disposeObj(group);
   }
 
-  return { build: build, dispose: dispose };
+  return { build: build, dispose: dispose, setHolder: setHolder, holderStack: holderStack, holderLabel: function () { return HOLDERS[style].label; }, get holder() { return style; } };
 })();
 
 if (typeof module !== 'undefined') module.exports = TNC_TOOLS3D;
@@ -11877,8 +11976,19 @@ var TNC_FX = (function () {
     if (n === 0) return;
     for (var i = 0; i < this.attrs.length; i++) {
       var at = this.attrs[i];
-      at.updateRange.offset = 0;
-      at.updateRange.count = n * at.itemSize;
+      // r159+ dropped BufferAttribute.updateRange (a single {offset,count})
+      // in favour of updateRanges (a list) via addUpdateRange(); the old
+      // single-range object no longer exists so setting .offset on it threw
+      // ("Cannot set properties of undefined"), silently caught by ui.js's
+      // per-frame try/catch -- nothing ever got uploaded to the GPU.
+      if (at.updateRange) {
+        at.updateRange.offset = 0;
+        at.updateRange.count = n * at.itemSize;
+      }
+      if (typeof at.clearUpdateRanges === 'function') {
+        at.clearUpdateRanges();
+        at.addUpdateRange(0, n * at.itemSize);
+      }
       at.needsUpdate = true;
     }
   };
@@ -12437,7 +12547,7 @@ var TNC_MATERIALS = (function () {
    * and sparkColor are handed to fx.js so chips and sparks read as the
    * right metal instead of always aluminium-grey / steel-orange. */
   var PRESETS = [
-    { id: 'aluminium',    label: 'Aluminium 6061',   color: 0xc7ccd2, metalness: 0.55, roughness: 0.42, chipColor: 0xd9dee3, sparkColor: 0xeaf2ff },
+    { id: 'aluminium',    label: 'Aluminium 6061',   color: 0xa4aab1, metalness: 0.42, roughness: 0.55, chipColor: 0xd9dee3, sparkColor: 0xeaf2ff },
     { id: 'titanium',     label: 'Titanium Ti-6Al-4V', color: 0x82868c, metalness: 0.62, roughness: 0.46, chipColor: 0x9198a0, sparkColor: 0xfff2c8 },
     { id: 'steel',        label: 'Mild steel',       color: 0x8a8f96, metalness: 0.78, roughness: 0.38, chipColor: 0x8f959c, sparkColor: 0xffb060 },
     { id: 'stainless',    label: 'Stainless 304',    color: 0xc9ced4, metalness: 0.82, roughness: 0.26, chipColor: 0xd6dbe0, sparkColor: 0xffd8a0 },
@@ -12471,7 +12581,7 @@ var TNC_MATERIALS = (function () {
     // Tame the r186 environment map's contribution per-material too (on top
     // of look.js's scene.environmentIntensity/exposure knobs) so the stock
     // doesn't blow out to flat white and cut faces keep visible shading.
-    if ('envMapIntensity' in m) m.envMapIntensity = 0.6;
+    if ('envMapIntensity' in m) m.envMapIntensity = 0.4;
     // vertexColors stays on for gStock: the material color above multiplies
     // with the per-vertex cut-depth tint already painted by ui.js, rather
     // than replacing it.
@@ -12570,7 +12680,7 @@ var TNC_LOOK = (function () {
           // r186's env/lighting defaults render the stock almost pure white and
           // flat; pull exposure down so faces actually shade differently and
           // cut depth reads. Speed over polish -- tuned by eye, not measured.
-          renderer.toneMappingExposure = 0.8;
+          renderer.toneMappingExposure = 0.72;
         }
       } catch (e) {}
 
@@ -12581,10 +12691,24 @@ var TNC_LOOK = (function () {
           pmrem.compileEquirectangularShader && pmrem.compileEquirectangularShader();
           var envRT = pmrem.fromScene(new THREE.RoomEnvironment(), 0.035);
           scene.environment = envRT.texture;
-          if ('environmentIntensity' in scene) scene.environmentIntensity = 0.6;   // r160+
+          if ('environmentIntensity' in scene) scene.environmentIntensity = 0.32;   // r160+ -- the room env alone was washing the part flat white
           pmrem.dispose();
         }
       } catch (e) { /* no PMREM support: materials just stay unlit-by-env, no crash */ }
+
+      /* ---- key/fill re-tune ----
+       * ui.js multiplies its r128 intensities by Math.PI (LK) for r155+'s
+       * physical light units, which is the right call for a scene lit only
+       * by directional lights -- but stacked on top of the PMREM room
+       * environment above (image-based light hitting every face at once) it
+       * blows every face to the same near-white and kills the top/side
+       * shading difference that makes the part read as machined metal.
+       * ui.js hands these two lights out through the plugin bus precisely so
+       * a look-and-feel module can re-tune them; pull them back down. */
+      try {
+        if (ui.lights && ui.lights.key) ui.lights.key.intensity = 1.05;
+        if (ui.lights && ui.lights.fill) ui.lights.fill.intensity = 0.42;
+      } catch (e) {}
 
       /* ---- FXAA, wired through the shared render hook ---- */
       var composer = null, fxaaPass = null;
@@ -12828,7 +12952,9 @@ if (typeof module !== 'undefined') module.exports = TNC_PROFILE;
    operator ticks Remember), or comes from .env in the gitignored local build.
 
    TNC_AI.DEFAULT_MODEL
-   TNC_AI.generate({key, model, prompt, system, tools, verify, onStep, signal, maxRepairs}) -> {src, report, cost}
+   TNC_AI.generate({key, model, prompt, system, tools, verify, onStep, signal, maxRepairs, timeoutMs}) -> {src, report, cost}
+     onStep phases: 'request' {attempt}, 'progress' {attempt, secs, chars, reasoningChars, stage:'thinking'|'writing'}
+     (fired about once a second while the model streams), 'checked' {attempt, report, src}.
    TNC_AI.testKey(key) -> {label, usage, limit, ...}
    TNC_AI.extract(text) -> program text or null
    TNC_AI.system(tools) -> the system prompt for a tool table
@@ -12849,7 +12975,28 @@ var TNC_AI = (function () {
     var msg = (body && body.error && (body.error.message || body.error)) || res.statusText || 'request failed';
     var e = new Error(typeof msg === 'string' ? msg : JSON.stringify(msg)); e.status = res.status; return e;
   }
+  function dataError(obj) {
+    var msg = (obj && obj.error && (obj.error.message || obj.error)) || 'stream error';
+    var e = new Error(typeof msg === 'string' ? msg : JSON.stringify(msg)); e.status = (obj && obj.error && obj.error.code) || 502; return e;
+  }
   function readJson(res) { return res.text().then(function (t) { try { return JSON.parse(t); } catch (e) { return { raw: t }; } }); }
+
+  /* SSE line/byte parsing, kept pure (no fetch, no timers) so it can be unit-tested without a network call. */
+  function sseLine(line, onEvent) {
+    line = line.replace(/\r$/, '');
+    if (line.slice(0, 5) !== 'data:') return;
+    var data = line.slice(5).trim();
+    if (!data || data === '[DONE]') return;
+    var obj; try { obj = JSON.parse(data); } catch (e) { return; }
+    onEvent(obj);
+  }
+  function sseFeed(buf, chunk, onEvent) {
+    buf += chunk;
+    var lines = buf.split('\n');
+    buf = lines.pop();
+    for (var i = 0; i < lines.length; i++) sseLine(lines[i], onEvent);
+    return buf;
+  }
 
   function testKey(key) {
     return fetch(API + '/key', { headers: headers(key) }).then(function (res) {
@@ -12857,17 +13004,63 @@ var TNC_AI = (function () {
     });
   }
 
+  /* Streams the answer over SSE so the caller can show live progress (reasoning models can think for
+     minutes before writing anything). Ties together the caller's AbortSignal and an overall timeout. */
   function chat(o) {
+    var onProgress = o.onProgress || function () {};
+    var timeoutMs = o.timeoutMs || 600000; // 10 min: reasoning models can run long before the first content token
+    var text = '', reasoning = '', usage = null, streamErr = null, timedOut = false;
+    var start = Date.now();
+    var ac = new AbortController();
+    var to = setTimeout(function () { timedOut = true; ac.abort(); }, timeoutMs);
+    if (o.signal) { if (o.signal.aborted) ac.abort(); else o.signal.addEventListener('abort', function () { ac.abort(); }); }
+    var tick = setInterval(function () {
+      onProgress({ secs: (Date.now() - start) / 1000, chars: text.length, reasoningChars: reasoning.length,
+        stage: text.length ? 'writing' : 'thinking' });
+    }, 1000);
+    function cleanup() { clearTimeout(to); clearInterval(tick); }
+    function onEvent(obj) {
+      if (obj.error) { streamErr = streamErr || dataError(obj); return; }
+      var d = obj.choices && obj.choices[0] && obj.choices[0].delta;
+      if (d) {
+        if (d.content) text += d.content;
+        if (d.reasoning) reasoning += d.reasoning; // OpenRouter puts reasoning-model "thinking" tokens here
+      }
+      if (obj.usage) usage = obj.usage;
+    }
+
     return fetch(API + '/chat/completions', {
-      method: 'POST', headers: headers(o.key), signal: o.signal,
-      body: JSON.stringify({ model: o.model, messages: o.messages, temperature: 0.2, usage: { include: true } })
+      method: 'POST', headers: headers(o.key), signal: ac.signal,
+      body: JSON.stringify({ model: o.model, messages: o.messages, temperature: 0.2, usage: { include: true }, stream: true })
     }).then(function (res) {
-      return readJson(res).then(function (b) {
-        if (!res.ok || b.error) throw httpError(res, b);
-        var c = b.choices && b.choices[0], text = c && c.message && c.message.content;
-        if (!text) { var e = new Error('EMPTY ANSWER FROM THE MODEL'); e.status = 502; throw e; }
-        return { text: text, cost: (b.usage && +b.usage.cost) || 0 };
-      });
+      if (!res.ok) return readJson(res).then(function (b) { throw httpError(res, b); });
+      if (!res.body || !res.body.getReader) { // no streaming reader available: fall back to one shot
+        return res.text().then(function (t) { var buf = ''; var lines = t.split('\n'); for (var i = 0; i < lines.length; i++) sseLine(lines[i], onEvent); });
+      }
+      var reader = res.body.getReader(), decoder = new TextDecoder(), buf = '';
+      function pump() {
+        return reader.read().then(function (r) {
+          if (streamErr) throw streamErr;
+          if (r.done) { if (buf) sseLine(buf, onEvent); return; }
+          buf = sseFeed(buf, decoder.decode(r.value, { stream: true }), onEvent);
+          if (streamErr) throw streamErr;
+          return pump();
+        });
+      }
+      return pump();
+    }).then(function () {
+      cleanup();
+      if (streamErr) throw streamErr;
+      if (!text && reasoning) { var e = new Error('THE MODEL ANSWERED WITH REASONING ONLY, NO FINAL TEXT (' + reasoning.length + ' chars) — try a lower reasoning effort or a non-reasoning model'); e.status = 502; throw e; }
+      if (!text) { var e2 = new Error('EMPTY ANSWER FROM THE MODEL'); e2.status = 502; throw e2; }
+      return { text: text, cost: (usage && +usage.cost) || 0 };
+    }).catch(function (e) {
+      cleanup();
+      if (e && e.name === 'AbortError') {
+        if (timedOut) { var te = new Error('TIMED OUT WAITING FOR THE MODEL (' + Math.round((Date.now() - start) / 1000) + 's)'); te.status = 0; throw te; }
+        throw e; // caller cancelled: keep e.name === 'AbortError' so the UI shows CANCELLED
+      }
+      throw e;
     });
   }
 
@@ -12983,7 +13176,9 @@ toolLine(tools),
     var cost = 0, attempt = 0, last = null;
     function step() {
       onStep({ phase: 'request', attempt: attempt });
-      return chat({ key: o.key, model: model, messages: messages, signal: o.signal }).then(function (r) {
+      return chat({ key: o.key, model: model, messages: messages, signal: o.signal, timeoutMs: o.timeoutMs,
+        onProgress: function (p) { onStep({ phase: 'progress', attempt: attempt, secs: p.secs, chars: p.chars, reasoningChars: p.reasoningChars, stage: p.stage }); }
+      }).then(function (r) {
         cost += r.cost;
         var src = extract(r.text);
         if (!src) {
@@ -13007,9 +13202,145 @@ toolLine(tools),
   }
 
   return { DEFAULT_MODEL: DEFAULT_MODEL, MODELS: MODELS, FALLBACK_SYSTEM: FALLBACK_SYSTEM,
-    generate: generate, testKey: testKey, extract: extract, system: system };
+    generate: generate, testKey: testKey, extract: extract, system: system,
+    _sseLine: sseLine, _sseFeed: sseFeed /* internal: exposed only so tests can drive the SSE parser without a network call */ };
 })();
 if (typeof module !== 'undefined') module.exports = TNC_AI;
+
+</script>
+<script>/* ===== View aids: axis vectors, click to pick ===== */
+/* ============================================================
+   TNC_VIZ — understanding aids in the 3-D view (plugin on the TNC_UI bus)
+   1. Axis vectors: X (red), Y (green), Z (blue) legs from the program zero to the
+      tool tip, each labelled with its value; A / B as arcs at the tool (TNC 430).
+   2. Pick: a click (not a drag) in the view drops a green light and glow on the
+      surface and shows that point's program coordinates. Click again = move it,
+      Esc or a click on the marker's spot again = remove.
+   TNC_VIZ.set({vectors:bool, pick:bool})
+   ============================================================ */
+var TNC_VIZ = (function () {
+  'use strict';
+  var api = { set: function () {} };
+  if (typeof window === 'undefined') return api;
+  (window.TNC_UI_PLUGINS = window.TNC_UI_PLUGINS || []).push(function (ui) {
+    var THREE = ui.THREE, camera = ui.camera, renderer = ui.renderer, host = document.getElementById('gfx');
+    var opts = { vectors: true, pick: true };
+    try { var sv = JSON.parse(localStorage.getItem('tnc.viz') || 'null'); if (sv) { opts.vectors = sv.vectors !== false; opts.pick = sv.pick !== false; } } catch (e) {}
+    var root = null, stock = null;
+    var css = document.createElement('style');
+    css.textContent = '.vlab{position:absolute;pointer-events:none;font-family:var(--mono,monospace);font-size:13px;font-weight:600;padding:1px 6px;border-radius:3px;background:rgba(4,8,14,.78);white-space:nowrap;transform:translate(-50%,-120%);z-index:4}' +
+      '.vlab.x{color:#ff8a7e;border:1px solid #ff6b5e}.vlab.y{color:#8fe28f;border:1px solid #6fcf6f}.vlab.z{color:#8fb8ff;border:1px solid #6fa8ff}.vlab.r{color:#ffd27a;border:1px solid #ffb03a}' +
+      '.vlab.pick{color:#b8ffcf;border:1px solid #3dff8a;box-shadow:0 0 12px 3px rgba(61,255,138,.55),inset 0 0 6px rgba(61,255,138,.35);font-size:14px;text-shadow:0 0 6px #3dff8a}';
+    document.head.appendChild(css);
+
+    function lab(cls) { var d = document.createElement('div'); d.className = 'vlab ' + cls; d.hidden = true; host.appendChild(d); return d; }
+    function seg(color, dashed) {
+      var g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
+      var m = dashed ? new THREE.LineDashedMaterial({ color: color, dashSize: 3, gapSize: 2, depthTest: false, transparent: true, opacity: .75 })
+                     : new THREE.LineBasicMaterial({ color: color, depthTest: false, transparent: true, opacity: .95 });
+      var l = new THREE.Line(g, m); l.renderOrder = 9; l.frustumCulled = false; return l;
+    }
+    function setSeg(l, a, b) { var p = l.geometry.attributes.position.array; p[0] = a.x; p[1] = a.y; p[2] = a.z; p[3] = b.x; p[4] = b.y; p[5] = b.z;
+      l.geometry.attributes.position.needsUpdate = true; if (l.computeLineDistances) l.computeLineDistances(); }
+    function arc(color, n) { var g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(new Float32Array((n + 1) * 3), 3));
+      var l = new THREE.Line(g, new THREE.LineBasicMaterial({ color: color, depthTest: false, transparent: true, opacity: .95 })); l.renderOrder = 9; l.frustumCulled = false; return l; }
+
+    var vg = new THREE.Group(), lx = seg(0xff6b5e), ly = seg(0x7ddc7d), lz = seg(0x6fa8ff), lr = seg(0xffffff, true), aA = arc(0xffb03a, 32), aB = arc(0xffd27a, 32);
+    [lx, ly, lz, lr, aA, aB].forEach(function (o) { vg.add(o); });
+    var LX = lab('x'), LY = lab('y'), LZ = lab('z'), LA = lab('r'), LB = lab('r');
+
+    /* pick marker: glow sprite + green point light + label */
+    var glowTex = (function () { var c = document.createElement('canvas'); c.width = c.height = 64; var x = c.getContext('2d');
+      var g = x.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(210,255,225,1)'); g.addColorStop(.3, 'rgba(61,255,138,.85)'); g.addColorStop(1, 'rgba(61,255,138,0)');
+      x.fillStyle = g; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
+    var mk = new THREE.Group(), spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, depthTest: false, transparent: true, blending: THREE.AdditiveBlending }));
+    spr.scale.set(12, 12, 1); spr.renderOrder = 10; mk.add(spr);
+    var dot = new THREE.Mesh(new THREE.SphereGeometry(1.2, 16, 12), new THREE.MeshBasicMaterial({ color: 0x3dff8a, depthTest: false })); dot.renderOrder = 10; mk.add(dot);
+    var gl = new THREE.PointLight(0x3dff8a, 0, 90, 0); mk.add(gl); mk.visible = false;
+    var LP = lab('pick'), pick = null;
+
+    ui.on('scene', function (e) {
+      root = e.partRoot; stock = e.stock; if (!root) return;
+      root.add(vg); root.add(mk); mk.visible = false; pick = null; LP.hidden = true;
+    });
+
+    function toScreen(p, el) {
+      var v = root ? root.localToWorld(new THREE.Vector3(p.x, p.y, p.z)) : new THREE.Vector3(p.x, p.y, p.z);
+      v.project(camera); var w = renderer.domElement.clientWidth, h = renderer.domElement.clientHeight;
+      if (v.z > 1 || v.z < -1) { el.hidden = true; return; }
+      el.hidden = false; el.style.left = ((v.x + 1) / 2 * w) + 'px'; el.style.top = ((1 - v.y) / 2 * h) + 'px';
+    }
+    var f3 = function (v) { return (v >= 0 ? '+' : '') + v.toFixed(3); };
+    function arcPts(l, c, r, axis, deg) {
+      var p = l.geometry.attributes.position.array, n = p.length / 3 - 1;
+      for (var i = 0; i <= n; i++) { var t = deg * Math.PI / 180 * i / n;
+        // A: about X, the tip swings from -Z toward +Y; B: about Y, the tip swings from -Z toward +X
+        var q = axis === 'A' ? { x: c.x, y: c.y + r * Math.sin(t), z: c.z - r * Math.cos(t) } : { x: c.x + r * Math.sin(t), y: c.y, z: c.z - r * Math.cos(t) };
+        p[i * 3] = q.x; p[i * 3 + 1] = q.y; p[i * 3 + 2] = q.z; }
+      l.geometry.attributes.position.needsUpdate = true;
+    }
+
+    ui.on('tick', function () {
+      var S = ui.state, p = S.pos, show = opts.vectors && root && p && !document.body.classList.contains('focus-novec');
+      vg.visible = !!show; [LX, LY, LZ, LA, LB].forEach(function (l) { if (!show) l.hidden = true; });
+      if (show) {
+        var o = { x: 0, y: 0, z: 0 }, px = { x: p.x, y: 0, z: 0 }, pxy = { x: p.x, y: p.y, z: 0 };
+        setSeg(lx, o, px); setSeg(ly, px, pxy); setSeg(lz, pxy, p); setSeg(lr, o, p);
+        LX.textContent = 'X ' + f3(p.x); LY.textContent = 'Y ' + f3(p.y); LZ.textContent = 'Z ' + f3(p.z);
+        toScreen({ x: p.x / 2, y: 0, z: 0 }, LX); toScreen({ x: p.x, y: p.y / 2, z: 0 }, LY); toScreen({ x: p.x, y: p.y, z: p.z / 2 }, LZ);
+        var s = S.seg, A = null, B = null;
+        if (s && s.a && s.a.a != null) { var u = Math.max(0, Math.min(1, (S.t - s.t0) / Math.max(1e-9, s.t1 - s.t0)));
+          A = s.a.a + ((s.b.a || 0) - s.a.a) * u; B = s.a.b + ((s.b.b || 0) - s.a.b) * u; }
+        aA.visible = aB.visible = A !== null;
+        if (A !== null) {
+          arcPts(aA, p, 26, 'A', A); arcPts(aB, p, 34, 'B', B);
+          LA.textContent = 'A ' + A.toFixed(2) + '°'; LB.textContent = 'B ' + B.toFixed(2) + '°';
+          toScreen({ x: p.x, y: p.y + 26 * Math.sin(A * Math.PI / 360), z: p.z - 26 * Math.cos(A * Math.PI / 360) }, LA);
+          toScreen({ x: p.x + 34 * Math.sin(B * Math.PI / 360), y: p.y, z: p.z - 34 * Math.cos(B * Math.PI / 360) }, LB);
+        } else { LA.hidden = LB.hidden = true; }
+      }
+      if (pick && mk.visible) {
+        toScreen({ x: pick.x, y: pick.y, z: pick.z + 3 }, LP);
+        var k = 0.55 + 0.45 * Math.sin(performance.now() / 220); spr.material.opacity = 0.6 + 0.4 * k; gl.intensity = (3 + 3 * k) * Math.PI;
+      }
+    });
+
+    /* click (not drag) = pick */
+    var down = null, rc = new THREE.Raycaster();
+    renderer.domElement.addEventListener('pointerdown', function (e) { down = { x: e.clientX, y: e.clientY }; });
+    renderer.domElement.addEventListener('pointerup', function (e) {
+      if (!down || !opts.pick || !root) { down = null; return; }
+      var moved = Math.hypot(e.clientX - down.x, e.clientY - down.y); down = null; if (moved > 4) return;
+      var r = renderer.domElement.getBoundingClientRect();
+      rc.setFromCamera(new THREE.Vector2((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1), camera);
+      var hits = rc.intersectObjects(root.children, true).filter(function (h) {
+        var o = h.object; while (o) { if (o === vg || o === mk) return false; o = o.parent; } return h.object.isMesh; });
+      var wp = hits.length ? hits[0].point : null;
+      if (!wp && stock) { var pl = new THREE.Plane(new THREE.Vector3(0, 0, 1), -stock.z1), q = new THREE.Vector3(); if (rc.ray.intersectPlane(pl, q)) wp = q; }
+      if (!wp) return;
+      var lp = root.worldToLocal(wp.clone());
+      if (pick && Math.hypot(lp.x - pick.x, lp.y - pick.y, lp.z - pick.z) < 2) { clearPick(); return; }
+      pick = { x: lp.x, y: lp.y, z: lp.z }; mk.position.set(lp.x, lp.y, lp.z); mk.visible = true;
+      LP.textContent = 'X ' + f3(lp.x) + '   Y ' + f3(lp.y) + '   Z ' + f3(lp.z); LP.hidden = false;
+      if (ui.say) ui.say('POINT X' + f3(lp.x) + ' Y' + f3(lp.y) + ' Z' + f3(lp.z));
+    });
+    function clearPick() { pick = null; mk.visible = false; LP.hidden = true; gl.intensity = 0; }
+    addEventListener('keydown', function (e) { if (e.key === 'Escape' && pick) clearPick(); });
+
+    /* toggles in the Effects & view menu */
+    function btn(id, label, key) {
+      var anchor = document.getElementById('b-sound'); if (!anchor) return;
+      var b = document.createElement('button'); b.className = 'tb fx'; b.id = id; b.textContent = label; b.dataset.on = opts[key] ? '1' : '0';
+      b.onclick = function () { opts[key] = !opts[key]; b.dataset.on = opts[key] ? '1' : '0'; if (key === 'pick' && !opts.pick) clearPick(); save(); if (ui.say) ui.say(label.toUpperCase() + (opts[key] ? ' ON' : ' OFF')); };
+      anchor.parentNode.insertBefore(b, anchor.nextSibling);
+    }
+    function save() { try { localStorage.setItem('tnc.viz', JSON.stringify(opts)); } catch (e) {} }
+    btn('b-pick', 'Click to pick', 'pick'); btn('b-vec', 'Axis vectors', 'vectors');
+    api.set = function (o) { for (var k in o) opts[k] = !!o[k]; if (!opts.pick) clearPick(); save(); };
+  });
+  return api;
+})();
+if (typeof module !== 'undefined') module.exports = TNC_VIZ;
 
 </script>
 <script>/* ===== Programming dialogs: path functions, CYCL DEF, TOOL CALL ===== */
@@ -13208,10 +13539,14 @@ var TNC_I18N = (function () {
       'btn.new': '+ New',
       'btn.help': 'Help',
       'btn.focus': 'Focus',
-      'mode.edit': 'PROGRAMMING AND EDITING',
-      'mode.test': 'TEST RUN',
-      'mode.single': 'PGM RUN, SINGLE BLOCK',
-      'mode.full': 'PGM RUN, FULL SEQ.',
+      'mode.edit': 'PROGRAM',
+      'btn.tools': 'Tool list',
+      'btn.effects': 'Effects & view',
+      'tab.diag': 'Diagnostics',
+      'tab.ref': 'Reference',
+      'mode.test': 'TEST',
+      'mode.single': 'SINGLE-BLOCK',
+      'mode.full': 'FULL-RUN',
       'panel.program': 'Program',
       'panel.testgfx': 'Test graphics',
       'panel.position': 'Position',
@@ -13220,7 +13555,7 @@ var TNC_I18N = (function () {
       'panel.compare': 'Compare',
       'panel.projects': 'Projects',
       'panel.keys': 'Keys',
-      'btn.pgmmgt': 'PGM MGT',
+      'btn.pgmmgt': 'Programs',
       'btn.save': 'Save .H',
       'btn.ncstart': 'NC Start',
       'btn.ncstop': 'NC Stop',
@@ -13245,10 +13580,14 @@ var TNC_I18N = (function () {
       'btn.new': '+ Nytt',
       'btn.help': 'Hjälp',
       'btn.focus': 'Fokus',
-      'mode.edit': 'PROGRAMMERING OCH REDIGERING',
-      'mode.test': 'TESTKÖRNING',
-      'mode.single': 'PROGRAMKÖRNING, ENSTAKA BLOCK',
-      'mode.full': 'PROGRAMKÖRNING, HELA SEKVENSEN',
+      'mode.edit': 'PROGRAM',
+      'btn.tools': 'Verktygslista',
+      'btn.effects': 'Effekter & vy',
+      'tab.diag': 'Diagnostik',
+      'tab.ref': 'Referens',
+      'mode.test': 'TEST',
+      'mode.single': 'ENKELBLOCK',
+      'mode.full': 'HELKÖRNING',
       'panel.program': 'Program',
       'panel.testgfx': 'Testgrafik',
       'panel.position': 'Position',
@@ -13257,7 +13596,7 @@ var TNC_I18N = (function () {
       'panel.compare': 'Jämförelse',
       'panel.projects': 'Projekt',
       'panel.keys': 'Tangenter',
-      'btn.pgmmgt': 'PGM-HANT',
+      'btn.pgmmgt': 'Program',
       'btn.save': 'Spara .H',
       'btn.ncstart': 'NC Start',
       'btn.ncstop': 'NC Stopp',
@@ -13450,30 +13789,30 @@ function readPrefs(){
 function writePrefs(){
   try{
     const v=encodeURIComponent(JSON.stringify({speed:S.speed, ovr:S.ovr, view:S.view, mode:S.mode, fx:S.fx,
-      cool:S.fxCool, fire:S.fxFire, labels:S.labels, sound:S.sound, machine:S.machine, flow:S.flowView, focus:S.focusView}));
+      cool:S.fxCool, fire:S.fxFire, labels:S.labels, sound:S.sound, machine:S.machine, flow:S.flowView, focus:S.focusView, side:S.sideTab, ref:S.ref}));
     const path=location.pathname.replace(/[^/]*$/,'')||'/';
     document.cookie=`${PREF}=${v}; Max-Age=31536000; Path=${path}; SameSite=Lax${location.protocol==='https:'?'; Secure':''}`;
   }catch(e){}
   if(PROF) persist();
 }
-const prefsNow=()=>({speed:S.speed, ovr:S.ovr, view:S.view, mode:S.mode, fx:S.fx, cool:S.fxCool, fire:S.fxFire, labels:S.labels, sound:S.sound, machine:S.machine, flow:S.flowView, focus:S.focusView});
+const prefsNow=()=>({speed:S.speed, ovr:S.ovr, view:S.view, mode:S.mode, fx:S.fx, cool:S.fxCool, fire:S.fxFire, labels:S.labels, sound:S.sound, machine:S.machine, flow:S.flowView, focus:S.focusView, side:S.sideTab, ref:S.ref});
 
 /* ================= machines ================= */
 const MACHINES={
   '426':{ id:'426', label:'TNC 426', axes:['X','Y','Z'], tools:TNC.TOOLS,
-    run:t=>TNC.run(t,{tools:mtools('426')}), expand:r=>TNC_SIM.expand(r),
+    run:t=>TNC.run(t,{tools:mtools('426'),holder:holderOpt('426')}), expand:r=>TNC_SIM.expand(r),
     analyse:(r,ex)=>TNC_SIM.analyse(r,ex,TNC_SIM.grid(r.stock,ex.segs)),
     programs:window.TNC_PROGRAMS||{}, lessons:window.TNC_LESSONS||null }
 };
 /* TNC 430: the operator's machine, from its machine-parameter list (vertical, A/B swivel head).
    Head: B (outer, near the body) carries A (inner, holds the spindle); at A0 B0 the tool points to Z-;
    A+ tilts the tip to Y+, B+ to X+; A-90 B0 = horizontal. Pivots ~250 mm (operator's estimate). */
-const MACHINE_430={ arcTol:0.006, pocketK:1.1, fMax:1500, accel:0.4, sMax:2500,
+const MACHINE_430={ arcTol:0.006, pocketK:1.1, fMax:1500, accel:0.4, sMax:3000,   // S max: the operator's figure (MP 3515 lists 2500 for gear 2)
   rapid:{x:9000,y:10000,z:5000,a:4000,b:1000}, axes:['X','Y','Z','B','A'],
   limits:{X:[2,1250.2],Y:[-850.2,0.2],Z:[-500.2,0.2],B:[-180.1,0.1],A:[-195,15]},
   head:{inner:'A',outer:'B',pivotA:250,pivotB:250} };
 MACHINES['430']={ id:'430', label:'TNC 430', axes:['X','Y','Z','B','A'], tools:TNC.TOOLS, machine:MACHINE_430,
-  run:t=>TNC.run(t,{tools:mtools('430'),machine:MACHINE_430}), expand:r=>TNC_SIM.expand(r),
+  run:t=>TNC.run(t,{tools:mtools('430'),machine:MACHINE_430,holder:holderOpt('430')}), expand:r=>TNC_SIM.expand(r),
   analyse:(r,ex)=>TNC_SIM.analyse(r,ex,TNC_SIM.grid(r.stock,ex.segs)),
   programs:window.TNC_PROGRAMS||{}, lessons:window.TNC_LESSONS||null };
 Object.keys(window.TNC_MACHINES||{}).forEach(k=>{ MACHINES[k]=window.TNC_MACHINES[k]; });
@@ -13483,7 +13822,7 @@ const M=()=>MACHINES[S.machine];
 const P=readPrefs();
 const S={
   machine: MACHINES[P.machine]?P.machine:'426',
-  pgms:{}, orig:{}, cur:{}, tools:{}, projects:[], active:null, pgm:null, text:'',
+  pgms:{}, orig:{}, cur:{}, tools:{}, meta:{}, mset:{}, projects:[], active:null, pgm:null, text:'',
   res:null, ex:{segs:[],total:0}, segs:[], total:0, events:[], evIdx:0,
   t:0, stampT:0, running:false,
   speed:[1,4,16,64,0].includes(P.speed)?P.speed:4, ovr:clamp(+P.ovr||100,0,150),
@@ -13492,7 +13831,7 @@ const S={
   cursor:0, editing:false, raw:false, mgt:false, mgtSel:0, flowView:!!P.flow,
   fx:P.fx!==undefined?!!P.fx:!REDUCED, fxCool:P.cool!==undefined?!!P.cool:true, fxFire:!!P.fire,
   labels:P.labels!==undefined?!!P.labels:true, sound:P.sound!==undefined?!!P.sound:true,
-  ref:null, pos:null, seg:null, shake:0, lesson:null, focus:null, focusView:!!P.focus, execB:-1, wiz:null, pick:null, tt:false
+  ref:null, pos:null, seg:null, shake:0, lesson:null, focus:null, focusView:!!P.focus, sideTab:P.side||'diag', ref:P.ref||'keys', pickPath:null, execB:-1, wiz:null, pick:null, tt:false
 };
 const TEMP='LESSON.H';
 const pg=()=>S.pgms[S.machine]||(S.pgms[S.machine]={});
@@ -13502,6 +13841,10 @@ const PSTORE=window.TNC_PROFILE||{ load:()=>Promise.resolve(null), save:()=>Prom
   blank:n=>({v:2,name:n||'',created:new Date().toISOString(),prefs:{},machines:{},projects:[],active:null}), legacy:()=>null };
 let PROF=null;
 /* the machine's tool table: built-ins, overridden / extended by the operator's own TOOL.T */
+/* TOOL HOLDER LENGTH: the gauge length used for every tool with L = 0 (length measured on the machine) */
+const mset=id=>(S.mset[id||S.machine]=S.mset[id||S.machine]||{holderLen:150,holderType:'ISO50'});
+function holderOpt(id){ const m=mset(id); if(window.TNC_TOOLS3D&&TNC_TOOLS3D.setHolder) TNC_TOOLS3D.setHolder(m.holderType);
+  return { len:+m.holderLen||150, stack:r=>window.TNC_TOOLS3D&&TNC_TOOLS3D.holderStack?TNC_TOOLS3D.holderStack(r):90 }; }
 function mtools(id){ id=id||S.machine; const base=(MACHINES[id]&&MACHINES[id].tools)||[], mine=S.tools[id]||[];
   const by={}; base.forEach(t=>by[t.t]=Object.assign({},t)); mine.forEach(t=>by[t.t]=Object.assign({},t,{mine:true}));
   return Object.values(by).sort((a,b)=>a.t-b.t); }
@@ -13514,6 +13857,8 @@ function loadStore(){
     S.pgms[id]=Object.assign({}, S.orig[id], mm.pgms||{});
     S.tools[id]=Array.isArray(mm.tools)?mm.tools:[];
     S.cur[id]=mm.cur||null;
+    S.meta[id]=mm.meta||{};
+    S.mset[id]=Object.assign({holderLen:150,holderType:'ISO50'},mm.settings||{});
   }
   S.projects=Array.isArray(j.projects)?j.projects:[];
   S.active=S.projects.some(p=>p.id===j.active)?j.active:((S.projects[0]||{}).id||null);
@@ -13527,14 +13872,14 @@ function profileNow(){
   const machines={};
   for(const id in S.pgms){ const pg_={};          // only what differs from the built-ins, so fixes to them still arrive
     for(const n in S.pgms[id]) if(n!==TEMP && S.pgms[id][n]!==S.orig[id][n]) pg_[n]=S.pgms[id][n];
-    machines[id]={pgms:pg_, cur:S.cur[id]||null, tools:S.tools[id]||[]}; }
+    machines[id]={pgms:pg_, cur:S.cur[id]||null, tools:S.tools[id]||[], meta:S.meta[id]||{}, settings:S.mset[id]||{}}; }
   return Object.assign({}, PROF||PSTORE.blank(''), {v:2, machines, projects:S.projects, active:S.active, prefs:prefsNow()});
 }
 let persistT=0;
 function persist(){
   if(!PROF) return;
   clearTimeout(persistT);
-  persistT=setTimeout(()=>{ PROF=profileNow(); PSTORE.save(PROF).then(r=>{ profChip(r); }); },300);
+  persistT=setTimeout(()=>{ PROF=profileNow(); PSTORE.save(PROF).then(r=>{ profChip(r); }); renderUserPrograms(); },300);
 }
 
 /* ================= undo / redo (per program) ================= */
@@ -13542,7 +13887,9 @@ const UNDO={}, REDO={};
 const ukey=()=>S.machine+':'+S.pgm;
 function snapshot(){ const k=ukey(); (UNDO[k]=UNDO[k]||[]).push({text:S.text,cursor:S.cursor});
   if(UNDO[k].length>200) UNDO[k].shift(); REDO[k]=[]; }
-function setText(t){ S.text=t; pg()[S.pgm]=t; raw.value=t; compile(); persist(); }
+function setText(t){ S.text=t; pg()[S.pgm]=t; raw.value=t; touchMeta(S.pgm); compile(); persist(); }
+function touchMeta(n,created){ if(!n||n===TEMP) return; const mm=(S.meta[S.machine]=S.meta[S.machine]||{}), now=new Date().toISOString();
+  const e=mm[n]||(mm[n]={c:now,m:now,v:0}); if(created){ e.c=now; e.v=0; } e.m=now; e.v++; }
 function edit(t, cur, msg){
   if(t===S.text) return;
   snapshot(); setText(t);
@@ -13664,7 +14011,8 @@ function toolEntry(t){ return mtools().find(x=>x.t===t)||null; }
 function setTool(t){
   if(t===curToolT && gTool) return;
   if(gTool){ if(window.TNC_TOOLS3D&&TNC_TOOLS3D.dispose) TNC_TOOLS3D.dispose(gTool); disposeTree(gTool); }
-  curToolT=t; const e=toolEntry(t);
+  curToolT=t; const e0=toolEntry(t), hl=+mset().holderLen||150, e=e0&&!(e0.l>0)?Object.assign({},e0,{l:hl}):e0;   // L=0: TOOL HOLDER LENGTH
+  if(window.TNC_TOOLS3D&&TNC_TOOLS3D.setHolder) TNC_TOOLS3D.setHolder(mset().holderType);
   if(window.TNC_TOOLS3D){
     try{ const b=TNC_TOOLS3D.build(THREE,e); gTool=b.group; toolCutter=b.cutter; toolHolder=b.holder; }
     catch(err){ gTool=null; }
@@ -13695,7 +14043,8 @@ function calloutsFor(){
   try{
     CO.remove('tool'); CO.remove('holder'); CO.remove('part');
     if(e&&toolCutter) CO.add('tool',toolCutter,`T${e.t} ${e.name} Ø${(e.r*2).toFixed(e.r*2%1?1:0)}`,{anchor:[0,0,Math.min(8,e.l*.1)],offset:[70,-50],color:'#6fdcff'});
-    if(e&&toolHolder) CO.add('holder',toolHolder,/FACEMILL/.test(e.name)?'SK40 SHELL-MILL ARBOR':(/PROBE/.test(e.name)?'TS 640 PROBE BODY':'SK40 DIN 69871 · ER COLLET CHUCK'),{anchor:[0,0,0],offset:[80,-20],color:'#a596ff'});
+    const hk=mset().holderType==='SK40'?'SK40':'ISO 50';
+    if(e&&toolHolder) CO.add('holder',toolHolder,/FACEMILL/.test(e.name)?hk+' SHELL-MILL ARBOR':(/PROBE/.test(e.name)?'TS 640 PROBE BODY':(window.TNC_TOOLS3D&&TNC_TOOLS3D.holderLabel?TNC_TOOLS3D.holderLabel():hk+' · ER COLLET CHUCK')),{anchor:[0,0,0],offset:[80,-20],color:'#a596ff'});
     const mesh=stockH?stockH.mesh:gStock;
     if(mesh) CO.add('part',mesh,`BLANK ${fmt(st.x1-st.x0)}×${fmt(st.y1-st.y0)}×${fmt(st.z1-st.z0)} ${alloy}`,{anchor:[st.x1,st.y0,st.z1],offset:[40,40],color:'#63e6b0'});
   }catch(err){}
@@ -13884,6 +14233,8 @@ function start(){
   if(S.speed===0) runMax();
 }
 function stop(){ if(S.running){ S.running=false; setState('FEED HOLD'); } }
+/* NC START does what the operating mode says: SINGLE-BLOCK = the next block, TEST / FULL-RUN = run, PROGRAM = nothing */
+function ncStart(){ if(S.mode==='single') stepBlock(); else if(S.mode==='edit') say('PROGRAM MODE — NC START WORKS IN 2 TEST, 3 SINGLE-BLOCK, 4 FULL-RUN'); else start(); }
 function runMax(){ S.running=false; seek(S.total,true); if(S.t>=S.total-1e-6) setState('PROGRAM END'); }
 function stepBlock(){
   if(!S.segs.length) return;
@@ -13948,6 +14299,12 @@ function markRows(scroll){
   if(!S.running) traceFor(S.cursor);
   if(S.flowView) flowHighlight();
 }
+/* TEST / SINGLE-BLOCK / FULL-RUN: moving the block cursor moves the machine to the end of that block */
+function followCursor(){
+  if(S.mode==='edit'||S.running||!S.segs.length) return;
+  let j=-1; for(let k=S.segs.length-1;k>=0;k--) if(S.segs[k].block<=S.cursor){ j=k; break; }
+  const cur=S.cursor; seek(j<0?0:S.segs[j].t1,false); S.cursor=cur; markRows(); traceFor(S.cursor);
+}
 function moveCursor(i){ S.cursor=clamp(i,0,Math.max(0,S.res.blocks.length-1)); markRows(); }
 plist.addEventListener('click',e=>{ const d=e.target.closest('.blk'); if(!d) return;
   moveCursor(+d.dataset.i); const s=S.segs.find(x=>x.block===S.cursor); if(s&&!S.running) seek(s.t0+1e-6,false); });
@@ -14011,9 +14368,9 @@ function renderDro(now){
   const extra=(M().axes||[]).filter(a=>/[ABC]/.test(a)).map(a=>{ const k=a.toLowerCase(); let v=0;
     if(s&&s.a&&s.a[k]!=null) v=s.a[k]+((s.b[k]||0)-s.a[k])*u; return ['s',a,(+v).toFixed(3)]; });
   const R=[['x','X',x.toFixed(3)],['y','Y',y.toFixed(3)],['z','Z',z.toFixed(3)],...extra,
-           ['s','S',Math.abs(sp)+(sp<0?' M4':sp>0?' M3':' M5')],['f','F',s&&s.kind==='rapid'?'FMAX':f]];
+           ['s','S',Math.abs(sp)+(sp<0?' M4':sp>0?' M3':' M5')],['f','F',s&&s.kind==='rapid'?'FMAX':f],['t','T',String(tl)]];
   $('dro').innerHTML=R.map(([c,a,v])=>`<div class="drow ${c}"><span class="ax">${a}</span><span class="val">${v}</span></div>`).join('');
-  $('dro-t').textContent='T'+tl+' · ACTL MM';
+
 }
 
 /* ================= soft keys ================= */
@@ -14022,27 +14379,41 @@ const SK={
   /* EDIT: the path-function keys, the program keys (CYCL DEF, TOOL CALL …) and the editing keys — three rows */
   edit:  [['L','w:L'],['CC','w:CC'],['C','w:C'],['CR','w:CR'],['CT','w:CT'],['CP\nPOLAR','w:CP'],['RND','w:RND'],['CHF','w:CHF'],
           ['APPR\nDEP','apprdep'],['TOOL\nDEF','w:TOOLDEF'],['TOOL\nCALL','w:TOOLCALL'],['CYCL\nDEF','cycldef'],['CYCL\nCALL','w:CYCLCALL'],['LBL\nSET','w:LBLSET'],['LBL\nCALL','w:LBLCALL'],['Q','w:Q'],
-          ['EDIT','ed'],['INSERT','ins'],['DELETE','del'],['UNDO','undo'],['REDO','redo'],['TOOL\nTABLE','tt'],['RAW\nTEXT','rawt'],['CHECK','chk']],
-  test:  [['START','start'],['START\nSINGLE','step'],['RESET\n+ START','rs'],['STOP','stop'],['3-D\nVIEW','v3'],['PLAN\nVIEW','vt'],['TOOL\nTABLE','tt'],['FOCUS','focus']],
-  single:[['NC\nSTART','step'],['NC\nSTOP','stop'],['RESET','reset'],['OVR\n−','ovrd'],['OVR\n+','ovru'],['TOOL\nTABLE','tt'],['FLOW\nVIEW','flow'],['PGM\nMGT','mgt']],
-  full:  [['NC\nSTART','start'],['NC\nSTOP','stop'],['RESET','reset'],['OVR\n−','ovrd'],['OVR\n+','ovru'],['3-D\nVIEW','v3'],['FLOW\nVIEW','flow'],['PGM\nMGT','mgt']],
+          ['EDIT','ed'],['INSERT','ins'],['DELETE','del'],['UNDO','undo'],['REDO','redo'],['TOOL\nLIST','tt'],['RAW\nTEXT','rawt'],['CHECK','chk']],
+  test:  [['START','start'],['START\nSINGLE','step'],['STOP','stop'],['RESET','reset'],['3-D\nVIEW','v3'],['PLAN\nVIEW','vt'],['FRONT','vf'],['SIDE','vs']],
+  single:[['NC START\nNEXT BLOCK','step'],['NC\nSTOP','stop'],['RESET','reset'],['OVR\n−','ovrd'],['OVR\n+','ovru'],['3-D\nVIEW','v3'],['TOOL\nLIST','tt'],['PROGRAMS','mgt']],
+  full:  [['NC\nSTART','start'],['NC\nSTOP','stop'],['RESET','reset'],['OVR\n−','ovrd'],['OVR\n+','ovru'],['3-D\nVIEW','v3'],['TOOL\nLIST','tt'],['PROGRAMS','mgt']],
   tt:    [['ADD\nMISSING','ttmiss'],['IMPORT\nTOOL.T','load'],['EXPORT\nTOOL.T','ttexp'],['',''],['',''],['',''],['',''],['END','ttend']],
   mgt:   [['NEW','new'],['OPEN','open'],['LOAD\nFROM PC','load'],['SAVE\n.H','save'],['RESTORE\nORIGINAL','restore'],['DELETE','mdel'],['ADD TO\nPROJECT','padd'],['END','end']]
 };
 function skRows(){ if(S.wiz) return wizSK(); if(S.pick) return S.pick; if(S.mgt) return SK.mgt; if(S.tt) return SK.tt; return SK[S.mode]||SK.test; }
+/* soft keys: the same look and the same behaviour everywhere; NC START green, NC STOP red; a path row when nested */
+function skClass(a){ const on=(a==='rawt'&&S.raw)||(a==='flow'&&S.flowView)||(a==='focus'&&S.focusView)||(a==='tt'&&S.tt)||(a==='mgt'&&S.mgt);
+  return (a==='start'||(a==='step'&&S.mode==='single'))?' go':(a==='stop'?' stop':(on?' on':'')); }
 function renderSK(){ const tr=window.TNC_I18N?(x=>TNC_I18N.tr(x)):(x=>x);
-  sks.innerHTML=skRows().map(([l,a])=>`<button class="sk" data-a="${esc(a)}">${esc(tr(l.replace(/\n/g,' '))===l.replace(/\n/g,' ')?l:tr(l.replace(/\n/g,' '))).replace(/\n/g,'<br>')}</button>`).join(''); }
+  sks.innerHTML=skRows().map(([l,a])=>`<button class="sk${skClass(a)}" data-a="${esc(a)}">${esc(tr(l.replace(/\n/g,' '))===l.replace(/\n/g,' ')?l:tr(l.replace(/\n/g,' '))).replace(/\n/g,'<br>')}</button>`).join('');
+  renderPath(); }
+function renderPath(){
+  const el=$('skpath'); if(!el) return; let path=null, back='';
+  if(S.wiz){ path=['PROGRAM',S.wiz.spec.title,'QUESTION '+(S.wiz.i+1)+' / '+S.wiz.spec.steps.length]; back='ESC = CANCEL · END = FINISH'; }
+  else if(S.pick){ path=(S.pickPath||['PROGRAM']); back='ESC = ONE LEVEL UP'; }
+  else if(S.mgt){ path=['PROGRAMS']; back='ESC / M = BACK TO THE PROGRAM'; }
+  else if(S.tt){ path=['TOOL LIST','TOOL.T']; back='ESC / T / END = BACK'; }
+  el.hidden=!path; if(path) el.innerHTML=path.map((x,i)=>i===path.length-1?`<b>${esc(x)}</b>`:esc(x)).join(' › ')+`<span class="back">${esc(back)}</span>`;
+}
 sks.addEventListener('click',e=>{ const b=e.target.closest('.sk'); if(b&&b.dataset.a) act(b.dataset.a); if(S.wiz) dlgIn.focus(); });
 function act(a){
   if(a.startsWith('w:')){ startWiz(DLG&&DLG.PATH[a.slice(2)]); return; }
   if(a.startsWith('cg:')){ const L=DLG.cycleList(a.slice(3));
+    const G=(DLG.GROUPS.find(g=>g[0]===a.slice(3))||[,''])[1].replace(/\n/g,' ');
+    S.pickPath=['PROGRAM','CYCL DEF',G];
     S.pick=L.map(c=>[c.num+'\n'+c.name.split(' ').slice(0,2).join(' '),'cy:'+c.num]).concat([['BACK','cycldef'],['END','pickend']]); renderSK(); return; }
   if(a.startsWith('cy:')){ S.pick=null; startWiz(DLG.cycleSpec(+a.slice(3))); return; }
   if(a.startsWith('wv:')){ wizAccept(a.slice(3)); return; }
   if(a.startsWith('wa:')){ dlgIn.value=(dlgIn.value.trim()+' '+a.slice(3)).trim(); dlgIn.focus(); return; }
   switch(a){
-    case 'cycldef': if(!DLG) return; if(S.mode!=='edit') setMode('edit'); S.pick=DLG.GROUPS.map(g=>[g[1],'cg:'+g[0]]).concat([['END','pickend']]); renderSK(); say('CYCL DEF — CHOOSE A CYCLE GROUP'); break;
-    case 'apprdep': if(S.mode!=='edit') setMode('edit'); S.pick=[['APPR','w:APPR'],['DEP','w:DEP'],['',''],['',''],['',''],['',''],['',''],['END','pickend']]; renderSK(); break;
+    case 'cycldef': if(!DLG) return; if(S.mode!=='edit') setMode('edit'); S.pickPath=['PROGRAM','CYCL DEF']; S.pick=DLG.GROUPS.map(g=>[g[1],'cg:'+g[0]]).concat([['END','pickend']]); renderSK(); break;
+    case 'apprdep': if(S.mode!=='edit') setMode('edit'); S.pickPath=['PROGRAM','APPR / DEP']; S.pick=[['APPR','w:APPR'],['DEP','w:DEP'],['',''],['',''],['',''],['',''],['',''],['END','pickend']]; renderSK(); break;
     case 'pickend': S.pick=null; renderSK(); break;
     case 'wskip': wizAccept('',true); break; case 'wend': wizEnd(); break; case 'wcancel': wizCancel(); break;
     case 'ttmiss': addMissingTools(); break;
@@ -14075,27 +14446,76 @@ function srcLine(bi){ return clamp(bi,0,lines().length-1); }     // one source l
 function beginEdit(){
   const b=S.res.blocks[S.cursor]; if(!b) return;
   S.editing=true; S.running=false; dlgIn.disabled=false; dlgIn.value=b.raw||'';
-  dlgPr.textContent='BLOCK '+(b.n==null?'':b.n); dlgHint.textContent='ENT accept · ESC cancel';
-  dlgIn.focus(); dlgIn.select();
+  dlgPr.textContent='BLOCK '+(b.n==null?'':b.n); dlgHint.textContent='ENT accept · ESC cancel · TAB takes the grey suggestion';
+  dlgIn.focus(); dlgIn.select(); ghostUpdate();
+  setTimeout(()=>{ if(S.editing&&document.activeElement!==dlgIn){ dlgIn.focus(); ghostUpdate(); } },0);   // after a dialog closes
 }
+
+/* ================= ghost autosuggest in the block line (like zsh): low-contrast rest of a block, TAB takes it =================
+   Empty line: the next thing the program still needs. Typing: your own program's lines first (newest first), then common blocks. */
+const SUGG=['BLK FORM 0.1 Z X+0 Y+0 Z-20','BLK FORM 0.2 X+100 Y+100 Z+0','TOOL CALL 1 Z S2000','TOOL DEF 1 L+0 R+3','L Z+50 R0 FMAX M3','L X+0 Y+0 R0 FMAX',
+  'L Z+2 R0 FMAX','L Z-2 R0 F150','L X+50 Y+0 RL F300','L X+0 Y+0 R0 F300','L Z+100 R0 FMAX M5','CC X+50 Y+50','C X+50 Y+50 DR+','CR X+50 Y+50 R+20 DR-',
+  'CT X+50 Y+50','CP IPA+360 IZ-2 DR+','LP PR+20 PA+0 R0 F300','RND R5','CHF 5','APPR LCT X+0 Y+0 R5 RL F300','DEP LCT X-20 Y-20 R5 F1000',
+  'CYCL DEF 200 DRILLING','CYCL CALL','M99','M30','M3','M5','M8','M9','LBL 1','LBL 0','CALL LBL 1','CALL LBL 1 REP 3/3','FN 0: Q1 = +0','Q1 = Q1 + 1','STOP'];
+function nextNeeded(){
+  const T=S.text.toUpperCase(), ls=lines(), prev=(ls[srcLine(S.cursor)-1]||'').toUpperCase();
+  if(!/BLK\s+FORM\s+0\.1/.test(T)) return 'BLK FORM 0.1 Z X+0 Y+0 Z-20';
+  if(!/BLK\s+FORM\s+0\.2/.test(T)) return 'BLK FORM 0.2 X+100 Y+100 Z+0';
+  if(!/TOOL\s+CALL/.test(T)) return 'TOOL CALL '+((mtools()[3]||mtools()[0]||{t:1}).t)+' Z S2000';
+  if(/TOOL\s+CALL/.test(prev)) return 'L Z+50 R0 FMAX M3';
+  if(/CYCL\s+DEF|^\s*Q2\d\d\s*=/.test(prev)) return 'L X+0 Y+0 R0 FMAX M99';
+  return '';
+}
+function suggestFor(typed){
+  const t=typed.replace(/^\s+/,'').toUpperCase();
+  if(!t) return nextNeeded();
+  const own=lines().map(l=>l.replace(/^\s*\d+\s+/,'').replace(/\s*;.*$/,'').trim()).filter(Boolean).reverse();
+  for(const c of own.concat(SUGG)){ const C=c.toUpperCase(); if(C.startsWith(t)&&C.length>t.length&&!/^(BEGIN|END)\s+PGM/.test(C)) return c; }
+  return '';
+}
+let ghostEl=null;
+function ghostEnsure(){
+  if(ghostEl) return ghostEl;
+  const wrap=document.createElement('span'); wrap.className='dlgwrap'; dlgIn.parentNode.insertBefore(wrap,dlgIn); wrap.appendChild(dlgIn);
+  ghostEl=document.createElement('span'); ghostEl.className='ghost'; ghostEl.setAttribute('aria-hidden','true'); wrap.appendChild(ghostEl);
+  return ghostEl;
+}
+function ghostShow(rest,typed){
+  const g=ghostEnsure(); if(!rest){ g.innerHTML=''; g.dataset.full=''; return; }
+  const cs=getComputedStyle(dlgIn); ['font','letterSpacing','paddingLeft','paddingTop','paddingRight','paddingBottom','borderLeftWidth','borderTopWidth'].forEach(k=>g.style[k]=cs[k]);
+  g.innerHTML=`<span class="gt">${esc(typed)}</span><span class="gs">${esc(rest)}</span>`;
+}
+function ghostUpdate(){
+  if(!S.editing){ ghostShow(''); return; }
+  const v=dlgIn.value, sug=suggestFor(v);
+  if(!sug||dlgIn.selectionStart!==v.length&&v.length){ ghostShow(''); ghostEnsure().dataset.full=''; return; }
+  const rest=v.trim()?sug.slice(v.replace(/^\s+/,'').length):sug;
+  ghostShow(rest,v); ghostEl.dataset.full=sug;
+}
+function ghostAccept(){ const full=ghostEl&&ghostEl.dataset.full; if(!full) return false; dlgIn.value=full; dlgIn.setSelectionRange(full.length,full.length); ghostUpdate(); return true; }
+dlgIn.addEventListener('input',ghostUpdate);
+dlgIn.addEventListener('click',ghostUpdate);
 function endEdit(accept){
   if(!S.editing) return;
-  const val=dlgIn.value; S.editing=false; dlgIn.disabled=true; dlgIn.value='';
+  const val=dlgIn.value, pend=S.insertPending; S.insertPending=false; S.editing=false; dlgIn.disabled=true; dlgIn.value=''; ghostShow('');
+  if(pend&&(!accept||!val.trim())){ const ls=lines(), i=srcLine(S.cursor); if(!(ls[i]||'').trim()){ ls.splice(i,1); setText(ls.join('\n')); moveCursor(i-1); } accept=false; }
   dlgPr.textContent='BLOCK'; dlgHint.textContent='E edit · I insert · D delete';
   if(accept){ const ls=lines(), i=srcLine(S.cursor), ind=(ls[i].match(/^\s*/)||[''])[0];
     ls[i]=(S.res.blocks[S.cursor]&&S.res.blocks[S.cursor].indent?ind:'')+val.trim(); edit(ls.join('\n'),S.cursor,'BLOCK '+nOf(S.cursor)+' STORED'); }
   document.activeElement&&document.activeElement.blur();
 }
-function insertBlock(){ const ls=lines(), i=srcLine(S.cursor); ls.splice(i+1,0,'L X+0 Y+0 R0 F500'); edit(ls.join('\n'),S.cursor+1); beginEdit(); }
+function insertBlock(){ const ls=lines(); let i=srcLine(S.cursor); if(/^\s*(\d+\s+)?END\s+PGM/i.test(ls[i]||'')) i--;
+  ls.splice(i+1,0,''); edit(ls.join('\n'),i+1); S.insertPending=true; beginEdit(); }
 function deleteBlock(){ const ls=lines(); if(ls.length<=1) return; const i=srcLine(S.cursor), n=nOf(S.cursor);
   ls.splice(i,1); edit(ls.join('\n'),S.cursor,'BLOCK '+n+' DELETED — CTRL+Z TO UNDO'); }
 function copyBlock(){ const ls=lines(), i=srcLine(S.cursor); ls.splice(i+1,0,ls[i]); edit(ls.join('\n'),S.cursor+1,'BLOCK COPIED'); }
 dlgIn.addEventListener('keydown',e=>{ if(S.wiz){ if(e.key==='Enter'){ e.preventDefault(); wizAccept(dlgIn.value); } else if(e.key==='Escape'){ e.preventDefault(); wizCancel(); } e.stopPropagation(); return; }
+  if(S.editing&&(e.key==='Tab'||(e.key==='ArrowRight'&&dlgIn.selectionStart===dlgIn.value.length))&&ghostEl&&ghostEl.dataset.full){ e.preventDefault(); ghostAccept(); e.stopPropagation(); return; }
   if(e.key==='Enter'){ e.preventDefault(); endEdit(true); }
   else if(e.key==='Escape'){ e.preventDefault(); endEdit(false); } e.stopPropagation(); });
 function toggleRaw(){
   S.raw=!S.raw; raw.hidden=!S.raw; crt.hidden=S.raw;
-  if(S.raw){ raw.value=S.text; raw.focus(); say('RAW TEXT — TAB TO RETURN'); }
+  renderSK(); if(S.raw){ raw.value=S.text; raw.focus(); say('RAW TEXT — TAB TO RETURN'); }
   else { if(raw.value!==S.text) edit(raw.value,S.cursor,'PROGRAM RE-COMPILED'); }
 }
 raw.addEventListener('keydown',e=>{
@@ -14116,7 +14536,7 @@ function openPgm(name){
   say('PGM '+name+' SELECTED');
 }
 function addPgm(name,text,{open=true,project=true}={}){
-  const n=uniqueName(name); pg()[n]=text;
+  const n=uniqueName(name); pg()[n]=text; touchMeta(n,true);
   if(project&&S.active){ const p=S.projects.find(p=>p.id===S.active); if(p&&!p.pgms.some(r=>r.m===S.machine&&r.name===n)) p.pgms.push({m:S.machine,name:n}); }
   persist(); renderProjects(); if(open) openPgm(n); return n;
 }
@@ -14124,7 +14544,7 @@ function deletePgm(name){
   if(!name) return;
   if(S.orig[S.machine][name]!=null){ say('BUILT-IN PROGRAM — USE RESTORE ORIGINAL INSTEAD'); return; }
   if(!confirm('Delete '+name+'? This cannot be undone.')) return;
-  delete pg()[name]; S.projects.forEach(p=>p.pgms=p.pgms.filter(r=>!(r.m===S.machine&&r.name===name)));
+  delete pg()[name]; if(S.meta[S.machine]) delete S.meta[S.machine][name]; S.projects.forEach(p=>p.pgms=p.pgms.filter(r=>!(r.m===S.machine&&r.name===name)));
   if(S.pgm===name){ S.pgm=Object.keys(pg())[0]; S.text=pg()[S.pgm]; compile(); }
   S.mgtSel=Math.min(S.mgtSel,mgtNames().length-1); persist(); renderMgt(); renderProjects(); say(name+' DELETED');
 }
@@ -14185,7 +14605,7 @@ const mgtEl=$('mgt');
 const mgtNames=()=>Object.keys(pg()).filter(n=>n!==TEMP);
 function openMgt(){ if(S.tt) closeTT(); if(S.wiz) wizCancel(); if(S.editing) endEdit(false); if(S.raw) toggleRaw(); S.running=false; S.mgt=true;
   S.mgtSel=Math.max(0,mgtNames().indexOf(S.pgm)); plist.hidden=true; $('flow').hidden=true; mgtEl.hidden=false;
-  renderMgt(); renderSK(); $('pgm-path').textContent='TNC:\\  PGM MGT'; setState('PGM MGT'); showPane('pgm'); }
+  renderMgt(); renderSK(); $('pgm-path').textContent='TNC:\\  PROGRAMS'; setState('PROGRAMS'); showPane('pgm'); }
 function closeMgt(){ if(!S.mgt) return; S.mgt=false; mgtEl.hidden=true; plist.hidden=S.flowView&&!!FLOW; $('flow').hidden=!(S.flowView&&FLOW);
   renderSK(); $('pgm-path').textContent='TNC:\\'+S.pgm; setState('READY'); }
 function renderMgt(){
@@ -14218,7 +14638,7 @@ $('b-mgt').onclick=()=>S.mgt?closeMgt():openMgt();
 /* ================= projects ================= */
 function renderProjects(){
   const act=S.projects.find(p=>p.id===S.active);
-  $('proj-t').textContent=act?act.name:'none active';
+  $('proj-t').textContent=S.projects.length+(act?' · '+act.name:'');
   $('proj').innerHTML=S.projects.length?S.projects.map(p=>`<div class="prow${p.id===S.active?' on':''}">
       <input type="radio" name="proj" value="${p.id}"${p.id===S.active?' checked':''} aria-label="Make ${esc(p.name)} active">
       <span class="nm" title="${esc(p.name)}">${esc(p.name)}</span><span class="ct">${p.pgms.length} PGM</span>
@@ -14268,13 +14688,14 @@ function toggleFlow(){
     catch(e){ say('FLOW VIEW FAILED TO START'); return; } }
   S.flowView=!S.flowView; if(S.mgt) closeMgt();
   plist.hidden=S.flowView; $('flow').hidden=!S.flowView; $('b-view').setAttribute('aria-pressed',S.flowView);
-  $('b-view').textContent=S.flowView?'Listing':'Flow'; if(S.flowView) flowUpdate(); writePrefs(); showPane('pgm');
+  $('b-view').textContent=S.flowView?'Listing':'Flow'; if(S.flowView) flowUpdate(); writePrefs(); showPane('pgm'); renderSK();
 }
 $('b-view').onclick=toggleFlow;
 if(!window.TNC_FLOW) $('b-view').hidden=true;
 
 /* ================= lessons: the coach ================= */
 const coach=$('coach');
+{ const tp=document.querySelector('.tp'), sc=tp&&tp.querySelector('.scrub'); if(tp) tp.insertBefore(coach,sc?sc.nextSibling:tp.firstChild); }   // the lesson text replaces the run controls, never the 3-D view
 function lessonsOf(){ return M().lessons||window.TNC_LESSONS||null; }
 function stepsFor(kind,L){
   if(kind==='learn') return L.steps.map(s=>({say:s.say,program:s.program,focus:s.focus,run:s.run}));
@@ -14289,7 +14710,7 @@ function startLesson(kind,idx){
   const Ls=lessonsOf(); if(!Ls) return; const L=(kind==='learn'?Ls.learn:Ls.breakit)[idx]; if(!L) return;
   closeModal(); if(S.mgt) closeMgt();
   S.lesson={kind,idx,L,steps:stepsFor(kind,L),i:0,prev:S.lesson?S.lesson.prev:S.pgm};
-  coach.hidden=false; $('coach-k').textContent=kind==='learn'?'LEARN':'BREAK IT';
+  coach.hidden=false; document.querySelector('.tp').classList.add('lesson'); $('coach-k').textContent=kind==='learn'?'LEARN':'BREAK IT';
   $('coach-k').style.color=kind==='learn'?'var(--mint)':'var(--red)'; $('coach-t').textContent=L.title;
   coachStep(0); showPane('gfx');
 }
@@ -14305,7 +14726,7 @@ function coachStep(i){
   if(st.run){ reset(); if(S.speed===0) setSpeed(16,true); start(); } else if(st.program){ reset(); }
 }
 function endLesson(silent){
-  if(!S.lesson) return; const prev=S.lesson.prev; S.lesson=null; S.focus=null; coach.hidden=true;
+  if(!S.lesson) return; const prev=S.lesson.prev; S.lesson=null; S.focus=null; coach.hidden=true; document.querySelector('.tp').classList.remove('lesson');
   delete pg()[TEMP]; if(!silent){ S.pgm=pg()[prev]!=null?prev:Object.keys(pg())[0]; S.text=pg()[S.pgm]; raw.value=S.text; S.cursor=0; compile(); }
 }
 $('coach-x').onclick=()=>endLesson(false);
@@ -14340,9 +14761,9 @@ function renderHelp(){
     return;
   }
   body.onclick=null;
-  body.innerHTML='<div class="prose">'+(Ls.manual||[]).map(sec=>`<h4>${esc(sec.title)}</h4>${md(sec.body)}`+
+  body.innerHTML='<div class="prose help-manual">'+(Ls.manual||[]).map(sec=>`<details><summary>${esc(sec.title)}</summary>${md(sec.body)}`+
     (sec.rows&&sec.rows.length?`<div class="tblw"><table><thead><tr>${sec.rows[0].map(c=>`<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${
-      sec.rows.slice(1).map(r=>`<tr>${r.map(c=>`<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`:'')).join('')+'</div>';
+      sec.rows.slice(1).map(r=>`<tr>${r.map(c=>`<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`:'')+'</details>').join('')+'</div>';
 }
 $('b-help').onclick=()=>openHelp();
 
@@ -14431,13 +14852,16 @@ For tilted machining use CYCL DEF 19.0 WORKING PLANE / CYCL DEF 19.1 A+.. B+.. C
   const btn=$('ai-go'); btn.disabled=true; btn.textContent='Working…'; aiAbort=new AbortController();
   log(`<span class="dim">Model ${esc(getModel())} · machine ${esc(M().label)}</span>`);
   try{
-    const res=await AI.generate({key,model:getModel(),prompt,system:sys,verify:verifyProgram,signal:aiAbort.signal,maxRepairs:1,
+    const modify=S.aiMode==='modify', full=modify?'Here is the current program:\n```klartext\n'+S.text+'\n```\nChange it as follows: '+prompt+'\nKeep everything else as it is. Return the COMPLETE changed program.':prompt;
+    const res=await AI.generate({key,model:getModel(),prompt:full,system:sys,verify:verifyProgram,signal:aiAbort.signal,maxRepairs:1,
       onStep:s=>{ if(s.phase==='request') log(s.attempt?'Sending the simulator\'s errors back for one repair…':'Writing the program…');
         if(s.phase==='checked'){ const r=s.report;
           log(r.ok?`<span class="ok">Checked: ${r.moves} moves, no errors, no crashes${r.warns.length?', '+r.warns.length+' warning(s)':''}.</span>`
                   :`<span class="bad">Checked: ${r.errs.length} error(s), ${r.crashes.length} crash(es).</span>\n${esc(r.text)}`); } }});
-    const nm=addPgm((res.report.name||'AI_PART'),res.src,{open:true});
-    log(`<span class="${res.report.ok?'ok':'bad'}">${res.report.ok?'Saved':'Saved anyway — still has problems, see Checks'} as ${esc(nm)}.</span> Cost about $${(res.cost||0).toFixed(4)}.`);
+    let nm;
+    if(S.aiMode==='modify'){ nm=S.pgm; if(S.mode!=='edit') setMode('edit'); edit(res.src,0,'AI CHANGED '+nm+' — CTRL+Z UNDOES IT'); }
+    else nm=addPgm((res.report.name||'AI_PART'),res.src,{open:true});
+    log(`<span class="${res.report.ok?'ok':'bad'}">${res.report.ok?(S.aiMode==='modify'?'Changed':'Saved'):'Done — still has problems, see Checks'} ${S.aiMode==='modify'?'':'as '}${esc(nm)}.</span> Cost about $${(res.cost||0).toFixed(4)}.`);
     setTimeout(()=>{ closeModal(); showPane('pgm'); },res.report.ok?900:2600);
   }catch(e){ log('<span class="bad">'+esc(aiErr(e))+'</span>'); }
   finally{ btn.disabled=false; btn.textContent='Generate'; aiAbort=null; }
@@ -14445,31 +14869,58 @@ For tilted machining use CYCL DEF 19.0 WORKING PLANE / CYCL DEF 19.1 A+.. B+.. C
 
 /* ---------- NEW PROGRAM ---------- */
 function openNew(which){
-  openModal('m-new'); $('new-opts').hidden=false; $('new-scratch').hidden=true; $('new-ai').hidden=true;
+  openModal('m-new'); $('new-opts').hidden=true; $('new-scratch').hidden=true; $('new-ai').hidden=true;
+  if(which!=='ai'){ S.aiMode='new'; $('m-new-t').textContent='New program'; }
   $('ns-tool').innerHTML=mtools().map(t=>`<option value="${t.t}"${t.t===4?' selected':''}>T${t.t} ${esc(t.name)} (R${t.r})</option>`).join('');
-  keyPill(); if(which) newGo(which);
+  keyPill(); newGo(which||'scratch');
 }
+/* model picker in the AI dialog: three recommendations, or any model from OpenRouter's live list */
+const AI_REC=[['deepseek/deepseek-v4.1-flash','DeepSeek V4.1 Flash — recommended default, ~$0.04 / $0.29 per M tokens'],
+  ['qwen/qwen3.8-flash','Qwen 3.8 Flash — fast, ~$0.15 / $0.47 per M tokens'],
+  ['anthropic/claude-opus-5.5','Claude Opus 5.5 (via OpenRouter) — strongest, ~$4 / $20 per M tokens']];
+function aiModelUI(){
+  if($('ai-msel')) { syncModelUI(); return; }
+  const box=document.createElement('div'); box.className='fgrid'; box.style.marginTop='8px';
+  box.innerHTML=`<label class="fld wide"><span>MODEL (OPENROUTER)</span><select id="ai-msel">${AI_REC.map(([v,l])=>`<option value="${v}">${esc(l)}</option>`).join('')}<option value="__other">Other OpenRouter model…</option></select></label>
+    <label class="fld wide" id="ai-mother-f" hidden><span>MODEL ID — type or pick from OpenRouter's live list</span><input id="ai-mother" list="ai-mlist" spellcheck="false" placeholder="provider/model"><datalist id="ai-mlist"></datalist></label>`;
+  const ta=$('ai-prompt').closest('.fld'); ta.parentNode.insertBefore(box,ta.nextSibling);
+  $('ai-msel').onchange=()=>{ const v=$('ai-msel').value; if(v==='__other'){ $('ai-mother-f').hidden=false; $('ai-mother').focus(); loadModelList(); } else { $('ai-mother-f').hidden=true; local.set(MODEL_LS,v); say('MODEL '+v); } };
+  $('ai-mother').addEventListener('change',()=>{ const v=$('ai-mother').value.trim(); if(/^[\w.-]+\/[\w.:-]+$/.test(v)){ local.set(MODEL_LS,v); say('MODEL '+v); } else say('MODEL ID LOOKS LIKE provider/model'); });
+  $('ai-mother').addEventListener('keydown',e=>e.stopPropagation());
+  syncModelUI();
+}
+function syncModelUI(){ const m=getModel(), rec=AI_REC.some(r=>r[0]===m); $('ai-msel').value=rec?m:'__other'; $('ai-mother-f').hidden=rec; if(!rec) $('ai-mother').value=m; }
+let modelListLoaded=false;
+function loadModelList(){ if(modelListLoaded) return; modelListLoaded=true;
+  fetch('https://openrouter.ai/api/v1/models').then(r=>r.json()).then(j=>{ const L=(j.data||[]).filter(m=>!/:/.test(m.id)).sort((a,b)=>a.id.localeCompare(b.id));
+    $('ai-mlist').innerHTML=L.map(m=>{ const pr=m.pricing||{}, f=x=>'$'+(+x*1e6).toFixed(2); return `<option value="${esc(m.id)}">${esc((m.name||'')+' · '+f(pr.prompt)+' / '+f(pr.completion)+' per M')}</option>`; }).join('');
+    say(L.length+' OPENROUTER MODELS LOADED'); }).catch(()=>{ modelListLoaded=false; say('COULD NOT LOAD THE OPENROUTER MODEL LIST — TYPE THE ID'); }); }
+
+/* AI: 'new' writes a new program, 'modify' changes the program on screen (undoable) */
+function openAI(mode){ S.aiMode=mode; openNew('ai'); aiModelUI();
+  $('m-new-t').textContent=mode==='modify'?'AI — change '+S.pgm:'AI — new program';
+  $('ai-title').textContent=mode==='modify'?'Say what to change in '+S.pgm:'Describe the part';
+  $('ai-lead').textContent=mode==='modify'?'The AI gets this program and your words, returns the whole changed program, and the simulator checks it (one repair round). CTRL+Z undoes it.'
+    :'Blank size, material, features, tools if you care. The AI writes Klartext for this simulator, the simulator runs every check on it, and anything that fails goes back to the AI once for a fix.';
+  $('ai-go').textContent=mode==='modify'?'Change the program':'Generate';
+  $('ai-prompt').placeholder=mode==='modify'?'e.g. make the pocket 8 mm deep in 4 passes, and add a 1 mm chamfer around the outside':'e.g. 120 x 80 x 15 aluminium plate. Face 0.5 mm. A 60 x 30 pocket 6 mm deep in the middle, 4 passes.'; }
 function newGo(w){
   if(w==='learn'){ openHelp('learn'); return; }
   $('new-opts').hidden=true; $('new-scratch').hidden=w!=='scratch'; $('new-ai').hidden=w!=='ai';
   (w==='scratch'?$('ns-name'):$('ai-prompt')).focus();
 }
 $('m-new').addEventListener('click',e=>{ const g=e.target.closest('[data-go]'); if(g) newGo(g.dataset.go);
-  if(e.target.closest('[data-back]')){ $('new-opts').hidden=false; $('new-scratch').hidden=true; $('new-ai').hidden=true; } });
-$('b-new').onclick=()=>openNew();
+  if(e.target.closest('[data-back]')) closeModal(); });
 $('ai-go').onclick=aiGenerate; $('ai-setup').onclick=()=>openHelp('ai');
 const sgn=v=>{ v=+v; return (v<0?'-':'+')+Math.abs(v); };
 $('ns-go').onclick=()=>{
   const name=($('ns-name').value.trim()||'MY_PART').toUpperCase().replace(/[^A-Z0-9_]/g,'_').slice(0,16);
-  const v=id=>parseFloat(String($(id).value).replace(',','.'));
-  const x0=v('ns-x0'),y0=v('ns-y0'),z0=v('ns-z0'),x1=v('ns-x1'),y1=v('ns-y1'),z1=v('ns-z1'),s=Math.abs(parseInt($('ns-s').value,10)||0), t=+$('ns-tool').value;
-  if([x0,y0,z0,x1,y1,z1].some(isNaN)||!(x1>x0&&y1>y0&&z1>z0)){ say('BLK FORM: MAX CORNER MUST BE ABOVE THE MIN CORNER ON EVERY AXIS'); return; }
-  const txt=[`BEGIN PGM ${name} MM`,`BLK FORM 0.1 Z X${sgn(x0)} Y${sgn(y0)} Z${sgn(z0)}`,`BLK FORM 0.2 X${sgn(x1)} Y${sgn(y1)} Z${sgn(z1)}`,
-    `TOOL CALL ${t} Z S${s}`,'L Z+50 R0 FMAX M3','; ---------- YOUR BLOCKS START HERE ----------',
-    `L X${sgn(x0)} Y${sgn(y0)} R0 FMAX`,'L Z+100 R0 FMAX M5',`END PGM ${name} MM`].join('\n');
-  closeModal(); addPgm(name,txt); setMode('edit'); moveCursor(5); showPane('pgm'); beginEdit();
-  say('NEW PROGRAM — TYPE YOUR FIRST BLOCK, ENT TO STORE, I TO INSERT MORE');
+  const txt=[`BEGIN PGM ${name} MM`,`END PGM ${name} MM`].join('\n');     // what the control creates: nothing else
+  closeModal(); addPgm(name,txt); setMode('edit'); moveCursor(0); showPane('pgm'); insertBlock();
+  say('NEW PROGRAM — TYPE A BLOCK · TAB TAKES THE GREY SUGGESTION · ENT STORES · I INSERTS THE NEXT');
 };
+/* the New dialog asks for the name only; the rest is written block by block */
+['ns-axis','ns-tool','ns-x0','ns-y0','ns-z0','ns-x1','ns-y1','ns-z1','ns-s'].forEach(id=>{ const f=$(id)&&$(id).closest('.fld'); if(f) f.hidden=true; });
 
 /* ---------- DEV ---------- */
 let devTab='features';
@@ -14502,8 +14953,7 @@ function renderProfile(){
 <div class="actrow"><button class="cbtn pri" id="prof-export">Export profile (.zip)</button><button class="cbtn" id="prof-import">Import…</button>
  <button class="cbtn" id="prof-new">Start a new profile…</button></div>
 <div id="prof-ask"></div>
-<h4 class="sech">TOOL TABLE — ${esc(M().label)} <small>(TOOL.T · * = yours)</small></h4>
-${toolTableHTML()}`;
+<p class="note" style="margin-top:14px">The tool list (TOOL.T) is under <b>TOOL LIST</b>, next to PROGRAMS, or key T.</p>`;
   const nm=$('prof-name');
   nm.addEventListener('input',()=>{ PROF.name=nm.value.trim().slice(0,40); profChip(); persist(); });
   nm.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); nm.blur(); } });
@@ -14512,7 +14962,6 @@ ${toolTableHTML()}`;
     pl.onchange=()=>{ try{ TNC_I18N.set(pl.value); }catch(e){} renderSK(); renderChecks(); setMode(S.mode); say(pl.value==='sv'?'SPRÅK: SVENSKA':'LANGUAGE: ENGLISH'); }; }
   $('prof-import').onclick=loadFromDisk;
   $('prof-new').onclick=newProfile;
-  wireToolTable($('prof-body'),renderProfile);
   if(!(PROF&&PROF.name)) setTimeout(()=>nm.focus(),30);
 }
 function toolTableHTML(){
@@ -14667,14 +15116,93 @@ function wizFinish(){
 /* ================= tool table in the machine view (T) ================= */
 function openTT(){ if(S.wiz) wizCancel(); if(S.editing) endEdit(false); if(S.mgt) closeMgt(); S.tt=true;
   plist.hidden=true; $('flow').hidden=true; mgtEl.hidden=false; renderTT(); renderSK(); $('pgm-path').textContent='TNC:\\TOOL.T'; showPane('pgm'); }
-function renderTT(){ mgtEl.innerHTML=`<div class="ttview"><div class="mhd" style="display:block">TOOL TABLE · ${esc(M().label)} · TNC:\\TOOL.T · * = YOURS · ENT STORES A VALUE · T / END CLOSES</div>${toolTableHTML()}</div>`;
+function renderTT(){ const ms=mset(); mgtEl.innerHTML=`<div class="ttview"><div class="mhd" style="display:block">TOOL LIST · ${esc(M().label)} · TNC:\\TOOL.T · * = YOURS · ENT STORES A VALUE · T / END CLOSES</div>
+  <div class="actrow" style="padding:6px 10px"><label class="fld" style="flex-direction:row;align-items:center;gap:8px"><span>TOOL HOLDER LENGTH (USED WHEN L = 0)</span><input id="tt-hl" inputmode="decimal" style="width:90px" value="${(+ms.holderLen).toFixed(1)}"> mm</label>
+  <label class="fld" style="flex-direction:row;align-items:center;gap:8px"><span>HOLDER</span><select id="tt-ht"><option value="ISO50">ISO 50 (SK50)</option><option value="SK40">SK40</option></select></label></div>
+  ${toolTableHTML()}</div>`;
+  const hl=$('tt-hl'), ht=$('tt-ht'); ht.value=ms.holderType;
+  hl.addEventListener('keydown',e=>{ e.stopPropagation(); if(e.key==='Enter') hl.blur(); });
+  hl.addEventListener('change',()=>{ const v=parseFloat(String(hl.value).replace(',','.')); if(!(v>0)){ say('TOOL HOLDER LENGTH MUST BE > 0'); hl.value=ms.holderLen; return; }
+    ms.holderLen=v; persist(); curToolT=null; compile(); say('TOOL HOLDER LENGTH '+v+' MM — TOOLS WITH L = 0 USE IT'); });
+  ht.addEventListener('change',()=>{ ms.holderType=ht.value; persist(); curToolT=null; compile(); say('HOLDER '+ht.options[ht.selectedIndex].text); });
   wireToolTable(mgtEl,renderTT); const cur=mgtEl.querySelector('tr[data-cur]'); if(cur){ cur.style.outline='2px solid var(--cyan)'; cur.scrollIntoView({block:'nearest'}); } }
 function closeTT(){ if(!S.tt) return; S.tt=false; mgtEl.hidden=true; plist.hidden=S.flowView&&!!FLOW; $('flow').hidden=!(S.flowView&&FLOW); renderSK(); $('pgm-path').textContent='TNC:\\'+S.pgm; }
 
 /* ================= focus view: listing + graphics only ================= */
 function toggleFocus(){ S.focusView=!S.focusView; document.body.classList.toggle('focus',S.focusView); if($('b-focus')) $('b-focus').setAttribute('aria-pressed',S.focusView);
-  writePrefs(); requestAnimationFrame(()=>{ resize(); requestAnimationFrame(resize); }); say(S.focusView?'FOCUS VIEW — F TO RETURN':'FULL VIEW'); }
+  writePrefs(); renderSK(); requestAnimationFrame(()=>{ resize(); requestAnimationFrame(resize); }); say(S.focusView?'FOCUS VIEW — F TO RETURN':'FULL VIEW'); }
 if($('b-focus')) $('b-focus').onclick=toggleFocus;
+
+
+/* ================= right pane: DIAGNOSTICS · REFERENCE · <name>'s PROGRAMS ================= */
+function setSideTab(t){ S.sideTab=t; [...$('stabs').children].forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===t));
+  ['diag','ref','progs'].forEach(k=>{ const el=$('sp-'+k); if(el) el.hidden=k!==t; }); if(t==='ref') renderRef(); if(t==='progs') renderUserPrograms(); writePrefs(); }
+$('stabs').addEventListener('click',e=>{ const b=e.target.closest('[data-tab]'); if(b) setSideTab(b.dataset.tab); });
+function refOptions(){
+  const o=[['keys','Keys'],['cycles','Cycles — CYCL DEF'],['tools','Tool list'],['machine','Machine: '+M().label]], Ls=lessonsOf();
+  (Ls&&Ls.manual||[]).forEach((sec,i)=>o.push(['man:'+i,'Manual · '+sec.title]));
+  const sel=$('ref-sel'), cur=S.ref||'keys'; sel.innerHTML=o.map(([v,l])=>`<option value="${v}">${esc(l)}</option>`).join(''); sel.value=o.some(x=>x[0]===cur)?cur:'keys';
+}
+$('ref-sel').addEventListener('change',()=>{ S.ref=$('ref-sel').value; renderRef(); writePrefs(); });
+$('ref-sel').addEventListener('keydown',e=>e.stopPropagation());
+function renderRef(){
+  refOptions(); const v=$('ref-sel').value, b=$('ref-body'), Ls=lessonsOf();
+  if(v==='keys') b.innerHTML='<table>'+KEYS.map(([k,d])=>`<tr><td style="color:var(--amber);white-space:nowrap">${esc(k)}</td><td>${esc(d)}</td></tr>`).join('')+'</table>';
+  else if(v==='cycles'&&DLG) b.innerHTML='<p class="note">Click a cycle to program it (PROGRAM mode, one question per parameter).</p><table>'+
+    DLG.GROUPS.map(g=>`<tr><th colspan="2" style="color:var(--cyan)">${esc(g[1].replace(/\n/g,' '))}</th></tr>`+DLG.cycleList(g[0]).map(c=>`<tr class="cyc" data-cy="${c.num}"><td>${c.num}</td><td>${esc(c.name)}</td></tr>`).join('')).join('')+'</table>';
+  else if(v==='tools') b.innerHTML='<p class="note">T opens the editable list. * = yours.</p><table><tr><th>T</th><th>NAME</th><th>R</th><th>L</th></tr>'+
+    mtools().map(t=>`<tr${t.t===curToolT?' style="color:var(--cyan)"':''}><td>${t.t}${t.mine?' *':''}</td><td>${esc(t.name)}</td><td>${(+t.r).toFixed(3)}</td><td>${(+t.l).toFixed(2)}</td></tr>`).join('')+'</table>';
+  else if(v==='machine'){ const mc=M().machine; b.innerHTML=mc?`<table>
+    <tr><td>Axes</td><td>${esc(M().axes.join(' '))}</td></tr>`+Object.entries(mc.limits).map(([a,l])=>`<tr><td>Limit ${a}</td><td>${l[0]} … ${l[1]}${'AB'.includes(a)?'°':' mm'}</td></tr>`).join('')+
+    `<tr><td>Spindle max</td><td>${mc.sMax} rpm (MP 3515)</td></tr><tr><td>Feed max</td><td>${mc.fMax} mm/min (MP 1020)</td></tr>
+     <tr><td>Rapid X Y Z</td><td>${mc.rapid.x} / ${mc.rapid.y} / ${mc.rapid.z} mm/min</td></tr><tr><td>Rapid A B</td><td>${mc.rapid.a} / ${mc.rapid.b} °/min</td></tr>
+     <tr><td>Acceleration</td><td>${mc.accel} m/s² (MP 1060)</td></tr><tr><td>Arc end tolerance</td><td>${mc.arcTol} mm (MP 7431)</td></tr>
+     <tr><td>Pocket overlap</td><td>${mc.pocketK} × R (MP 7430)</td></tr><tr><td>Head</td><td>B carries A · A+ → Y+ · B+ → X+ · pivots ≈ ${mc.head.pivotA} mm</td></tr>
+     <tr><td>Cycle 19</td><td>positions A/B itself (MP 7500 bit 2)</td></tr></table>`
+    :'<p>Generic TNC 426: no machine limits. Choose <b>TNC 430</b> in the machine selector for the operator\'s machine.</p>'; }
+  else if(/^man:/.test(v)&&Ls){ const sec=Ls.manual[+v.slice(4)]; b.innerHTML=`<div class="prose"><h4>${esc(sec.title)}</h4>${md(sec.body)}`+
+    (sec.rows&&sec.rows.length?`<div class="tblw"><table><thead><tr>${sec.rows[0].map(c=>`<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${sec.rows.slice(1).map(r=>`<tr>${r.map(c=>`<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`:'')+'</div>'; }
+  b.onclick=e=>{ const c=e.target.closest('[data-cy]'); if(c) act('cy:'+c.dataset.cy); };
+}
+const fmtD=iso=>{ if(!iso) return '—'; const d=new Date(iso); return d.toLocaleDateString(undefined,{day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'}); };
+function renderUserPrograms(){
+  const who=(PROF&&PROF.name)?PROF.name:'My', rows=[];
+  for(const id in S.pgms) for(const n in S.pgms[id]){ if(n===TEMP) continue; const mine=S.orig[id][n]==null||S.pgms[id][n]!==S.orig[id][n]; if(!mine) continue;
+    const m=(S.meta[id]||{})[n]||{}; rows.push({id,n,m}); }
+  rows.sort((a,b)=>String(b.m.m||'').localeCompare(String(a.m.m||'')));
+  const tab=$('tab-progs'); if(tab) tab.textContent=(who==='My'?'My':who+"'s")+' programs';
+  $('up-t').textContent=(who==='My'?'My':who+"'s")+' programs'; $('up-n').textContent=rows.length;
+  $('uplist').innerHTML=rows.length?'<table><tr><th>PROGRAM</th><th>MACHINE</th><th>CREATED</th><th>EDITED</th><th>V</th></tr>'+
+    rows.map(r=>`<tr class="pg${r.id===S.machine&&r.n===S.pgm?' cur':''}" data-m="${r.id}" data-n="${esc(r.n)}"><td>${esc(r.n)}</td><td>${esc((MACHINES[r.id]||{}).label||r.id)}</td><td>${fmtD(r.m.c)}</td><td>${fmtD(r.m.m)}</td><td>${r.m.v||'—'}</td></tr>`).join('')+'</table>'
+    :'<p class="note" style="padding:0 12px 10px">Nothing yet. Every program you create, change, upload or save shows up here by itself.</p>';
+  const pn=$('proj-t'); if(pn) pn.textContent=S.projects.length;
+}
+$('uplist').addEventListener('click',e=>{ const r=e.target.closest('tr.pg'); if(!r) return; if(r.dataset.m!==S.machine) setMachine(r.dataset.m); openPgm(r.dataset.n); renderUserPrograms(); });
+if($('b-tools')) $('b-tools').onclick=()=>act('tt');
+
+
+/* ================= header menus: + NEW · LESSONS · AI ================= */
+let menuEl=null;
+function closeMenu(){ if(menuEl){ menuEl.remove(); menuEl=null; } }
+function openMenu(btn,items){
+  if(menuEl&&menuEl.dataset.for===btn.id){ closeMenu(); return; } closeMenu();
+  const m=document.createElement('div'); m.className='hmenu'; m.setAttribute('role','menu'); m.dataset.for=btn.id;
+  m.innerHTML=items.map((it,i)=>it.head?`<div class="mh">${esc(it.head)}</div>`:`<button role="menuitem" data-i="${i}">${esc(it.label)}</button>`).join('');
+  document.body.appendChild(m); const r=btn.getBoundingClientRect();
+  m.style.left=Math.min(r.left,innerWidth-m.offsetWidth-8)+'px'; m.style.top=(r.bottom+4)+'px';
+  m.onclick=e=>{ const b=e.target.closest('[data-i]'); if(!b) return; const it=items[+b.dataset.i]; closeMenu(); it.act(); };
+  m.addEventListener('keydown',e=>{ e.stopPropagation(); const bs=[...m.querySelectorAll('button')], i=bs.indexOf(document.activeElement);
+    if(e.key==='ArrowDown'){ e.preventDefault(); (bs[i+1]||bs[0]).focus(); } else if(e.key==='ArrowUp'){ e.preventDefault(); (bs[i-1]||bs[bs.length-1]).focus(); }
+    else if(e.key==='Escape'){ e.preventDefault(); closeMenu(); btn.focus(); } });
+  menuEl=m; const f=m.querySelector('button'); if(f) f.focus();
+}
+addEventListener('pointerdown',e=>{ if(menuEl&&!menuEl.contains(e.target)&&!e.target.closest('#b-new,#b-lessons,#b-ai')) closeMenu(); });
+$('b-new').onclick=()=>openMenu($('b-new'),[{label:'NEW PRG — MANUAL',act:()=>openNew('scratch')},{label:'NEW PRG — AI',act:()=>openAI('new')}]);
+$('b-lessons').onclick=()=>{ const L=lessonsOf(); if(!L){ say('LESSONS ARE NOT IN THIS BUILD'); return; }
+  openMenu($('b-lessons'),[{head:'LEARN'},...L.learn.map((x,i)=>({label:(i+1)+' · '+x.title,act:()=>startLesson('learn',i)})),
+    {head:'BREAK IT — crash it safely, then fix it'},...L.breakit.map((x,i)=>({label:(i+1)+' · '+x.title,act:()=>startLesson('breakit',i)}))]); };
+$('b-ai').onclick=()=>openMenu($('b-ai'),[{label:'Change this program ('+S.pgm+')…',act:()=>openAI('modify')},{label:'New program from a description…',act:()=>openAI('new')},
+  {label:'AI setup — OpenRouter key',act:()=>openHelp('ai')}]);
 
 /* ================= machine selector ================= */
 function setMachine(id){
@@ -14693,7 +15221,8 @@ if(Object.keys(MACHINES).length>1){
 }
 
 /* ================= modes, toggles, keyboard ================= */
-function setMode(m){ if(m!=='edit'){ if(S.wiz) wizCancel(); S.pick=null; } S.mode=m; [...document.querySelectorAll('.mode')].forEach(b=>b.setAttribute('aria-pressed',b.dataset.m===m));
+function setMode(m){ if(m!=='edit'){ if(S.wiz) wizCancel(); S.pick=null; } S.mode=m;
+  const tps=$('tp-state'); if(tps) tps.textContent={edit:'1 PROGRAM · soft keys write blocks',test:'2 TEST · SPACE = NC START / STOP',single:'3 SINGLE-BLOCK · SPACE = next block · ↑↓ moves the machine',full:'4 FULL-RUN · SPACE = NC START / STOP'}[m]||''; [...document.querySelectorAll('.mode')].forEach(b=>b.setAttribute('aria-pressed',b.dataset.m===m));
   if(!S.mgt) renderSK(); if(m==='edit'){ S.running=false; setState('EDITING'); } else setState('READY'); writePrefs(); }
 $('modes').addEventListener('click',e=>{ const b=e.target.closest('.mode'); if(b) setMode(b.dataset.m); });
 function setSpeed(v,quiet){ S.speed=v; [...$('spd').children].forEach(b=>b.dataset.on=(+b.dataset.s===v)?'1':'0'); writePrefs();
@@ -14706,12 +15235,12 @@ $('b-fx').onclick=()=>tog('fx','CHIPS & SPARKS'); $('b-cool').onclick=()=>tog('f
 $('b-fire').onclick=()=>tog('fxFire','SMOKE & FIRE'); $('b-labels').onclick=()=>tog('labels','LABELS'); $('b-sound').onclick=()=>tog('sound','SOUND');
 if(!window.TNC_FX){ ['b-fx','b-cool','b-fire'].forEach(id=>$(id).hidden=true); }
 if(!window.TNC_CALLOUTS) $('b-labels').hidden=true;
-$('b-start').onclick=start; $('b-stop').onclick=stop; $('b-step').onclick=stepBlock; $('b-reset').onclick=reset;
+$('b-start').onclick=ncStart; $('b-stop').onclick=stop; $('b-step').onclick=stepBlock; $('b-reset').onclick=reset;
 scrub.addEventListener('input',()=>{ S.running=false; seek(+scrub.value/1000*S.total,false); });
 
 const KEYS=[['↑ ↓','Block cursor'],['← →','Scrub the run (Shift ×5)'],['ENTER','Step one block · edit in EDIT mode'],['ESC','Stop · cancel · close'],
-  ['SPACE','NC START / NC STOP'],['S · R','Single block · reset'],['E I D C','Edit · insert · delete · copy'],['CTRL+Z','Undo  (CTRL+SHIFT+Z / CTRL+Y redo)'],
-  ['CTRL+S','Save as .H'],['CTRL+O','Load .H from your computer'],['TAB','Raw text editor'],['M','Program manager'],['H','Help, lessons, manual'],
+  ['SPACE','NC START (what the mode does) / NC STOP'],['S · R','Single block · reset'],['E I D C','Edit · insert · delete · copy'],['CTRL+Z','Undo  (CTRL+SHIFT+Z / CTRL+Y redo)'],
+  ['CTRL+S','Save as .H'],['CTRL+O','Load .H from your computer'],['TAB','Raw text editor'],['M','Programs'],['H','Help, lessons, manual'],
   ['V','Flowchart view'],['G','3D / TOP / FRONT / SIDE'],['1 – 4','Operating mode'],['5 – 9','Speed 1× 4× 16× 64× MAX'],['T','Tool table'],['F','Focus view (listing + graphics)'],['EDIT MODE','Soft keys: L CC C CR CT CP RND CHF · APPR/DEP · TOOL DEF/CALL · CYCL DEF/CALL · LBL · Q'],['+ / −','Feed override'],
   ['P K B','Chips · coolant · smoke & fire'],['L','Labels'],['N','Next lesson step'],['HOME/END','First / last block'],['PGUP/PGDN','Page']];
 $('klist').innerHTML=KEYS.map(([k,d])=>`<div><kbd>${k}</kbd><span>${d}</span></div>`).join('');
@@ -14724,8 +15253,10 @@ addEventListener('keydown',e=>{
   if(mod&&k.toLowerCase()==='s'){ e.preventDefault(); saveH(); return; }
   if(mod&&k.toLowerCase()==='o'){ e.preventDefault(); loadFromDisk(); return; }
   if(S.wiz){ if(k==='Escape'){ e.preventDefault(); wizCancel(); } else if(k==='Enter'){ e.preventDefault(); wizAccept(dlgIn.value); } else if(e.target!==dlgIn) dlgIn.focus(); return; }
-  if(S.pick&&k==='Escape'){ e.preventDefault(); S.pick=null; renderSK(); return; }
+  if(S.pick&&k==='Escape'){ e.preventDefault(); if(S.pickPath&&S.pickPath.length>2&&S.pickPath[1]==='CYCL DEF') act('cycldef'); else { S.pick=null; renderSK(); } return; }
   if(S.tt&&k==='Escape'){ e.preventDefault(); closeTT(); return; }
+  if(S.editing&&e.target!==dlgIn){                               // editing a block: keys belong to the block line
+    if(k==='Tab'){ e.preventDefault(); dlgIn.focus(); ghostAccept(); } else if(k==='Enter'){ e.preventDefault(); endEdit(true); } else if(k==='Escape'){ e.preventDefault(); endEdit(false); } else dlgIn.focus(); return; }
   if(S.editing||S.raw) return;
   const tg=e.target.tagName; if(tg==='INPUT'||tg==='TEXTAREA'||tg==='SELECT') return;
   if(mod&&(k==='y'||(k.toLowerCase()==='z'&&e.shiftKey))){ e.preventDefault(); redo(); return; }
@@ -14734,13 +15265,13 @@ addEventListener('keydown',e=>{
   if(S.mgt){ mgtKey(e); return; }
   const nb=(S.res.blocks||[]).length;
   switch(k){
-    case 'ArrowUp': e.preventDefault(); moveCursor(S.cursor-1); break;
-    case 'ArrowDown': e.preventDefault(); moveCursor(S.cursor+1); break;
+    case 'ArrowUp': e.preventDefault(); moveCursor(S.cursor-1); followCursor(); break;
+    case 'ArrowDown': e.preventDefault(); moveCursor(S.cursor+1); followCursor(); break;
     case 'ArrowLeft': e.preventDefault(); S.running=false; seek(S.t-(e.shiftKey?5:1),false); break;
     case 'ArrowRight': e.preventDefault(); S.running=false; seek(S.t+(e.shiftKey?5:1),false); break;
     case 'Enter': e.preventDefault(); if(S.mode==='edit') beginEdit(); else stepBlock(); break;
     case 'Escape': e.preventDefault(); if(!alarmEl.hidden) hideAlarm(); else stop(); break;
-    case ' ': e.preventDefault(); S.running?stop():start(); break;
+    case ' ': e.preventDefault(); S.running?stop():ncStart(); break;
     case 'Home': e.preventDefault(); moveCursor(0); break;
     case 'End': e.preventDefault(); moveCursor(nb-1); break;
     case 'PageUp': e.preventDefault(); moveCursor(S.cursor-12); break;
@@ -14832,7 +15363,7 @@ if($('mach-sel')) $('mach-sel').value=S.machine;
 [...document.querySelectorAll('.mode')].forEach(b=>b.setAttribute('aria-pressed',b.dataset.m===S.mode));
 document.body.classList.toggle('focus',S.focusView); if($('b-focus')) $('b-focus').setAttribute('aria-pressed',S.focusView);
 if(window.TNC_I18N) try{ TNC_I18N.set(TNC_I18N.lang||'en'); }catch(e){}
-compile(); renderSK(); renderProjects(); syncToggles(); keyPill(); resize(); profChip();
+compile(); renderSK(); renderProjects(); syncToggles(); keyPill(); resize(); profChip(); setSideTab(S.sideTab); renderUserPrograms();
 if(S.flowView&&window.TNC_FLOW){ S.flowView=false; toggleFlow(); }
 const flash=sess.get('tnc.flash'); if(flash){ sess.del('tnc.flash'); setTimeout(()=>say(flash),400); }
 if(!sess.get(BOOT_SS)) $('boot').hidden=false;

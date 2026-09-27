@@ -106,7 +106,7 @@ button{cursor:pointer}
 textarea#raw{flex:1;width:100%;min-height:200px;background:var(--crt);color:#e8f3fd;border:0;
   font-family:var(--mono);font-size:16px;line-height:1.5;padding:8px 10px;resize:none}
 textarea#raw:focus{outline:none}
-.sks{flex:none;display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:3px;padding:6px;background:var(--panel)}
+.sks{flex:none;display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:3px;padding:6px;background:var(--panel)}
 .sk{font-family:var(--mono);font-size:12.5px;line-height:1.2;text-align:center;
   background:linear-gradient(#5c6673,#464f5c);color:#f8fafd;border:1px solid #2b323c;
   border-bottom:2px solid #1b2129;border-radius:2px;padding:9px 3px;min-height:50px}
@@ -374,6 +374,59 @@ body.focus #b-focus{border-color:var(--cyan);color:var(--cyan)}
 .dlg{flex-wrap:wrap;row-gap:4px}
 .dlg input{min-width:9em}
 .dlg .hint{flex-basis:100%;white-space:normal}
+/* ---- decluttered layout ---- */
+.ovl-dro{left:10px;bottom:34px;display:flex;flex-wrap:wrap;gap:2px 14px;background:rgba(4,8,14,.72);padding:6px 10px;border-radius:3px;border:1px solid var(--line);pointer-events:none;max-width:calc(100% - 20px)}
+.ovl-dro .drow{display:flex;gap:6px;align-items:baseline;font-family:var(--mono);font-size:15px}
+.ovl-dro .ax{font-weight:700;color:var(--cyan)}.ovl-dro .drow.x .ax{color:#ff8a7e}.ovl-dro .drow.y .ax{color:#8fe28f}.ovl-dro .drow.z .ax{color:#8fb8ff}
+.ovl-dro .val{color:var(--ink);font-variant-numeric:tabular-nums}
+.fxmenu{margin-top:4px}.fxmenu>summary{cursor:pointer;font-family:var(--mono);font-size:13px;color:var(--ink-dim);padding:4px 2px;list-style:none}
+.fxmenu>summary::before{content:'▸ '}.fxmenu[open]>summary::before{content:'▾ '}
+.tp-state{font-family:var(--mono);font-size:13px;color:var(--ink-dim);align-self:center;margin-right:auto}
+.skpath{font-family:var(--mono);font-size:13px;background:#0b2233;color:#9fd8ff;border-top:1px solid #1d557d;padding:5px 10px;display:flex;gap:10px;align-items:center}
+.skpath b{color:var(--amber);font-weight:600}.skpath .back{margin-left:auto;color:var(--ink-dim)}
+.sk.go{background:linear-gradient(#2f7d4f,#1f5c38);color:#eafff1;border-color:#3fa266}
+.sk.stop{background:linear-gradient(#9c3a33,#74271f);color:#fff0ee;border-color:#c0534a}
+.sk.here{outline:2px solid var(--amber);outline-offset:-2px}
+.stabs{display:flex;gap:2px;padding:6px 6px 0;background:var(--panel);position:sticky;top:0;z-index:2}
+.stabs button{flex:1;font-family:var(--mono);font-size:12.5px;letter-spacing:.04em;text-transform:uppercase;background:var(--panel-2);color:var(--ink-dim);border:1px solid var(--line);border-bottom:none;padding:8px 4px;border-radius:3px 3px 0 0;cursor:pointer;min-height:36px}
+.stabs button[aria-selected=true]{background:var(--void-2);color:var(--cyan);border-color:var(--cyan)}
+.refbar{padding:6px;background:var(--void-2);border-bottom:1px solid var(--line)}
+.refbar select{width:100%;background:var(--void);color:var(--ink);border:1px solid var(--line-2);padding:5px 6px;font-family:var(--mono);font-size:13px;border-radius:2px}
+.refbody{padding:10px 12px;font-size:14px;line-height:1.5;color:var(--ink)}
+.refbody table{border-collapse:collapse;width:100%;font-family:var(--mono);font-size:12.5px}.refbody td,.refbody th{padding:3px 5px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.refbody .cyc{cursor:pointer}.refbody .cyc:hover{background:var(--panel-2)}
+.pgroup{border-bottom:1px solid var(--line)}.pgroup>summary{cursor:pointer;padding:10px 12px;font-family:var(--disp);font-weight:700;letter-spacing:.12em;text-transform:uppercase;font-size:13px;list-style:none}
+.pgroup>summary::before{content:'▸ ';color:var(--ink-dim)}.pgroup[open]>summary::before{content:'▾ '}
+.pgroup .cnt{display:inline-block;min-width:22px;text-align:center;background:var(--panel-2);border:1px solid var(--line-2);border-radius:9px;padding:0 6px;margin-left:6px;color:var(--cyan);font-family:var(--mono)}
+.uplist table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12px}.uplist td,.uplist th{padding:4px 6px;border-bottom:1px solid var(--line);text-align:left}
+.uplist tr.pg{cursor:pointer}.uplist tr.pg:hover{background:var(--panel-2)}.uplist tr.cur td:first-child{color:var(--cyan)}
+.help-manual details{border-bottom:1px solid var(--line)}.help-manual summary{cursor:pointer;padding:8px 0;font-weight:700;color:var(--ink)}
+/* focus view: the program and the run, nothing else */
+body.focus .col-side{display:none!important}
+body.focus .main{grid-template-columns:minmax(380px,1fr) minmax(480px,1.9fr)!important}
+body.focus .fxmenu,body.focus .lgd,body.focus #callouts,body.focus .sub-ttl{display:none!important}
+/* ghost autosuggest in the block line */
+.dlgwrap{position:relative;flex:1;min-width:9em;display:flex}
+.dlgwrap input{flex:1;width:100%;background:transparent!important;position:relative;z-index:1}
+.dlgwrap{background:#041320;border-radius:2px}
+.ghost{position:absolute;inset:0;pointer-events:none;white-space:pre;overflow:hidden;border:0 solid transparent;box-sizing:border-box;z-index:0}
+.ghost .gt{color:transparent}.ghost .gs{color:#6a879c;font-style:italic}
+/* soft keys: always 8 per row; the label shrinks instead of wrapping into an extra row */
+.sk{min-width:0;overflow:hidden;font-size:clamp(9.5px,0.78vw,12px);padding-left:2px;padding-right:2px}
+/* toggles that are ON: green-ish glow, pressed down */
+.sk.on,.tb.fx[data-on="1"],.hbtn[aria-pressed="true"]{background:linear-gradient(#24503c,#1b3d2e)!important;color:#c9ffe0!important;border-color:#43c07a!important;
+  box-shadow:inset 0 3px 6px rgba(0,0,0,.55),0 0 10px rgba(67,192,122,.35)!important;transform:translateY(1px)}
+/* header menus */
+.hbtn.lessons{border-color:#a596ff;color:#cfc6ff}.hbtn.lessons:hover{background:#2a2450}
+.hbtn.aibtn{border-color:#ff7ac8;color:#ffc2e6}.hbtn.aibtn:hover{background:#3d1f33}
+.hmenu{position:fixed;z-index:60;min-width:240px;max-height:70vh;overflow:auto;background:var(--panel);border:1px solid var(--line-2);border-radius:3px;box-shadow:0 12px 30px rgba(0,0,0,.6);padding:4px}
+.hmenu .mh{font-family:var(--mono);font-size:11.5px;color:var(--ink-faint);padding:8px 10px 4px;letter-spacing:.06em;text-transform:uppercase}
+.hmenu button{display:block;width:100%;text-align:left;background:none;border:0;color:var(--ink);font-family:var(--mono);font-size:14px;padding:9px 12px;cursor:pointer;border-radius:2px}
+.hmenu button:hover,.hmenu button:focus{background:var(--panel-2);color:var(--cyan);outline:none}
+/* lessons live in the run pane, never over the 3-D view */
+.tp .coach{position:static;width:auto;max-height:none;margin:0;box-shadow:none}
+.tp.lesson>.tp-row,.tp.lesson>.fxmenu{display:none!important}
+.tp.lesson .coach-bd{max-height:26vh;overflow:auto}
 </style>
 
 <div class="app">
@@ -382,15 +435,17 @@ body.focus #b-focus{border-color:var(--cyan);color:var(--cyan)}
    <span class="ttl">TNC 426</span>
    <span class="sub-ttl">CNC SIMULATOR &middot; NC SW 280 476-17</span>
    <button class="hbtn devbtn" id="b-dev" title="Feature log, version history, release plan" data-i18n="btn.dev">DEV</button>
-   <button class="hbtn new" id="b-new" title="Make a new program" data-i18n="btn.new">+ New</button>
+   <button class="hbtn new" id="b-new" title="New program: manual or AI" aria-haspopup="menu">+ New ▾</button>
+   <button class="hbtn lessons" id="b-lessons" title="Lessons and BREAK IT" aria-haspopup="menu">Lessons ▾</button>
+   <button class="hbtn aibtn" id="b-ai" title="AI: change this program or write a new one" aria-haspopup="menu">AI ▾</button>
    <button class="hbtn" id="b-help" title="Lessons, pitfalls, manual, AI setup (H)" data-i18n="btn.help">Help</button>
    <button class="hbtn" id="b-focus" aria-pressed="false" title="Focus view (F)" data-i18n="btn.focus">Focus</button>
    <button class="hbtn prof" id="b-prof" title="Your profile: name, programs, tool table, export / import">Profile</button>
    <div class="modes" id="modes">
-     <button class="mode" data-m="edit"   aria-pressed="false"><b>1</b><span class="lg" data-i18n="mode.edit">PROGRAMMING AND EDITING</span><span class="sm">EDIT</span></button>
-     <button class="mode" data-m="test"   aria-pressed="true"><b>2</b><span class="lg" data-i18n="mode.test">TEST RUN</span><span class="sm">TEST</span></button>
-     <button class="mode" data-m="single" aria-pressed="false"><b>3</b><span class="lg" data-i18n="mode.single">PGM RUN, SINGLE BLOCK</span><span class="sm">SINGLE</span></button>
-     <button class="mode" data-m="full"   aria-pressed="false"><b>4</b><span class="lg" data-i18n="mode.full">PGM RUN, FULL SEQ.</span><span class="sm">FULL</span></button>
+     <button class="mode" data-m="edit"   aria-pressed="false"><b>1</b><span class="lg" data-i18n="mode.edit">PROGRAM</span><span class="sm">PROGRAM</span></button>
+     <button class="mode" data-m="test"   aria-pressed="true"><b>2</b><span class="lg" data-i18n="mode.test">TEST</span><span class="sm">TEST</span></button>
+     <button class="mode" data-m="single" aria-pressed="false"><b>3</b><span class="lg" data-i18n="mode.single">SINGLE-BLOCK</span><span class="sm">SINGLE</span></button>
+     <button class="mode" data-m="full"   aria-pressed="false"><b>4</b><span class="lg" data-i18n="mode.full">FULL-RUN</span><span class="sm">FULL</span></button>
    </div>
  </header>
 
@@ -401,8 +456,8 @@ body.focus #b-focus{border-color:var(--cyan);color:var(--cyan)}
        <span data-i18n="panel.program">Program</span>
        <span class="rt" id="pgm-path">TNC:\</span>
        <span class="grow"></span>
-       <button class="chb" id="b-view" aria-pressed="false" title="Program as a flowchart">Flow</button>
-       <button class="chb" id="b-mgt" title="Program manager (M)" data-i18n="btn.pgmmgt">PGM MGT</button>
+       <button class="chb" id="b-mgt" title="Programs on the control (M)" data-i18n="btn.pgmmgt">Programs</button>
+       <button class="chb" id="b-tools" title="Tool list — TOOL.T (T)" data-i18n="btn.tools">Tool list</button>
        <button class="chb" id="b-save" title="Save as .H (Ctrl+S)" data-i18n="btn.save">Save .H</button>
      </div>
      <div class="crt" id="crt">
@@ -416,6 +471,7 @@ body.focus #b-focus{border-color:var(--cyan);color:var(--cyan)}
        <input id="dlg-in" spellcheck="false" autocomplete="off" disabled aria-label="Block entry">
        <span class="hint" id="dlg-hint">E edit &middot; I insert &middot; D delete</span>
      </div>
+     <div class="skpath" id="skpath" hidden></div>
      <div class="sks" id="sks"></div>
    </section>
 
@@ -427,6 +483,7 @@ body.focus #b-focus{border-color:var(--cyan);color:var(--cyan)}
        <div class="callouts" id="callouts"></div>
        <div class="ovl ovl-tl" id="ovl-l"></div>
        <div class="ovl ovl-tr" id="ovl-r"></div>
+       <div class="ovl ovl-dro" id="dro" aria-label="Position"></div>
        <div class="alarm" id="alarm" hidden></div>
        <div class="coach" id="coach" hidden>
          <div class="coach-hd"><span class="k" id="coach-k">LEARN</span><span class="t" id="coach-t"></span>
@@ -444,30 +501,37 @@ body.focus #b-focus{border-color:var(--cyan);color:var(--cyan)}
      <div class="tp">
        <input type="range" class="scrub" id="scrub" min="0" max="1000" value="0" step="1" aria-label="Run position">
        <div class="tp-row">
-         <button class="tb go" id="b-start"><span data-i18n="btn.ncstart">NC Start</span><small>SPACE</small></button>
-         <button class="tb stop" id="b-stop"><span data-i18n="btn.ncstop">NC Stop</span><small>ESC</small></button>
-         <button class="tb" id="b-step"><span data-i18n="btn.step">Step</span><small>S</small></button>
-         <button class="tb" id="b-reset"><span data-i18n="btn.reset">Reset</span><small>R</small></button>
+         <button class="tb go" id="b-start" hidden><span data-i18n="btn.ncstart">NC Start</span><small>SPACE</small></button>
+         <button class="tb stop" id="b-stop" hidden><span data-i18n="btn.ncstop">NC Stop</span><small>ESC</small></button>
+         <button class="tb" id="b-step" hidden><span data-i18n="btn.step">Step</span><small>S</small></button>
+         <button class="tb" id="b-reset" hidden><span data-i18n="btn.reset">Reset</span><small>R</small></button>
+         <span class="tp-state" id="tp-state"></span>
          <div class="spd" id="spd">
            <button data-s="1">1&times;</button><button data-s="4">4&times;</button>
            <button data-s="16">16&times;</button><button data-s="64">64&times;</button>
            <button data-s="0">MAX</button>
          </div>
        </div>
+       <details class="fxmenu" id="fxmenu"><summary data-i18n="btn.effects">Effects &amp; view</summary>
        <div class="tp-row">
+         <button class="tb fx" id="b-view" aria-pressed="false" title="Program as a flowchart (V)">Flow</button>
          <button class="tb fx" id="b-fx"><span data-i18n="btn.fx">Chips &amp; sparks</span><small>P</small></button>
          <button class="tb fx" id="b-cool"><span data-i18n="btn.cool">Coolant</span><small>K</small></button>
          <button class="tb fx" id="b-fire"><span data-i18n="btn.fire">Smoke &amp; fire</span><small>B</small></button>
          <button class="tb fx" id="b-labels"><span data-i18n="btn.labels">Labels</span><small>L</small></button>
          <button class="tb fx" id="b-sound" data-i18n="btn.sound">Sound</button>
-       </div>
+       </div></details>
      </div>
    </section>
 
    <!-- SIDE -->
    <aside class="col col-side" aria-label="Status">
-     <div class="card card-dro"><h3><span data-i18n="panel.position">Position</span> <span class="tagx" id="dro-t">ACTL MM</span></h3>
-       <div class="in"><div class="dro" id="dro"></div></div></div>
+     <div class="stabs" role="tablist" id="stabs">
+       <button role="tab" data-tab="diag" aria-selected="true" data-i18n="tab.diag">Diagnostics</button>
+       <button role="tab" data-tab="ref" aria-selected="false" data-i18n="tab.ref">Reference</button>
+       <button role="tab" data-tab="progs" aria-selected="false" id="tab-progs">Programs</button>
+     </div>
+     <div class="spane" id="sp-diag">
      <div class="card card-run"><h3><span data-i18n="panel.run">Run</span> <span class="tagx" id="run-state">READY</span></h3>
        <div class="in"><dl class="kv" id="runkv"></dl></div></div>
      <div class="card card-checks"><h3><span data-i18n="panel.checks">Checks</span> <span class="tagx" id="errc">0</span></h3>
@@ -476,14 +540,22 @@ body.focus #b-focus{border-color:var(--cyan);color:var(--cyan)}
        <div class="in"><div class="cmp" id="cmp"></div>
          <button class="mini" id="b-snap" data-i18n="btn.snap">Store finished run as reference A</button>
          <button class="mini" id="b-restore" data-i18n="btn.restore">Open reference program</button></div></div>
-     <div class="card card-projects"><h3><span data-i18n="panel.projects">Projects</span> <span class="tagx" id="proj-t"></span></h3>
-       <div class="in"><div class="proj" id="proj"></div>
+     </div>
+     <div class="spane" id="sp-ref" hidden>
+       <div class="refbar"><select id="ref-sel" aria-label="What to show"></select></div>
+       <div class="refbody" id="ref-body"></div>
+       <div class="klist" id="klist" hidden></div>
+     </div>
+     <div class="spane" id="sp-progs" hidden>
+       <details class="pgroup" id="up-box"><summary><span id="up-t">Programs</span> <span class="cnt" id="up-n">0</span></summary>
+         <div class="uplist" id="uplist"></div></details>
+       <details class="pgroup" id="pj-box"><summary>Projects <span class="cnt" id="proj-t"></span></summary>
+         <div class="in"><div class="proj" id="proj"></div>
          <div class="pnew"><input id="proj-name" placeholder="New project name" maxlength="40" aria-label="New project name">
            <button id="b-proj-new">Create</button></div>
          <button class="mini" id="b-proj-add" data-i18n="btn.projadd">Add current program to active project</button>
-         <p class="note">New programs you create go into the active project. ZIP downloads every program in it as a .H file.</p></div></div>
-     <div class="card klist-card"><h3 data-i18n="panel.keys">Keys</h3>
-       <div class="in"><div class="klist" id="klist"></div></div></div>
+         <p class="note">A project is a named folder of programs. New programs join the active project automatically; ZIP downloads the whole folder as .H files.</p></div></details>
+     </div>
      <div class="copy">
        <div class="c1">&copy; 2026 TNC 426 Simulator</div>
        <div class="c2">TNC 426 Simulator. Code under the MIT licence; bundles three.js (MIT) and JSZip (MIT).<br>
@@ -507,7 +579,7 @@ body.focus #b-focus{border-color:var(--cyan);color:var(--cyan)}
   <div class="mhead"><span class="mt" id="m-new-t" data-i18n="title.newprogram">New program</span>
     <button class="x" data-close>Close <small>ESC</small></button></div>
   <div class="mbody">
-    <div class="opts" id="new-opts">
+    <div class="opts" id="new-opts" hidden>
       <div class="opt" data-opt="scratch"><span class="on">1 &middot; THE TNC WAY</span><h4>From scratch</h4>
         <p>Answer the control's own dialog &mdash; spindle axis, blank min and max corner, first tool &mdash; and start typing blocks.</p>
         <button class="cbtn pri" data-go="scratch">Start from scratch</button></div>
@@ -520,7 +592,7 @@ body.focus #b-focus{border-color:var(--cyan);color:var(--cyan)}
     </div>
 
     <div id="new-scratch" hidden>
-      <div class="prose"><h4>BEGIN PGM &mdash; the dialog, as on the control</h4></div>
+      <div class="prose"><h4>New program &mdash; name it, then write it block by block</h4></div>
       <div class="fgrid">
         <label class="fld wide"><span>PROGRAM NAME (A&ndash;Z, 0&ndash;9, _ )</span><input id="ns-name" value="MY_PART" maxlength="16"></label>
         <label class="fld"><span>UNIT</span><select id="ns-unit"><option>MM</option><option disabled>INCH (not converted)</option></select></label>
@@ -538,8 +610,8 @@ body.focus #b-focus{border-color:var(--cyan);color:var(--cyan)}
     </div>
 
     <div id="new-ai" hidden>
-      <div class="prose"><h4>Describe the part</h4>
-        <p>Blank size, material, features, tools if you care. The AI writes Klartext for this simulator, the simulator runs every check on it, and anything that fails goes back to the AI once for a fix.</p></div>
+      <div class="prose"><h4 id="ai-title">Describe the part</h4>
+        <p id="ai-lead">Blank size, material, features, tools if you care. The AI writes Klartext for this simulator, the simulator runs every check on it, and anything that fails goes back to the AI once for a fix.</p></div>
       <label class="fld wide"><span>WHAT SHOULD THE PROGRAM MAKE?</span>
         <textarea id="ai-prompt" placeholder="e.g. 120 x 80 x 15 aluminium plate. Face 0.5 mm. A 60 x 30 pocket 6 mm deep in the middle, 4 passes. Four M10 holes 10 mm from each corner, spot drill first."></textarea></label>
       <div class="actrow">

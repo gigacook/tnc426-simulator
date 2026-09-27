@@ -689,6 +689,8 @@ var TNC = (function () {
       tool: st.tool.t,
       toolR: st.tool.r,
       toolDR: st.tool.dr || 0,
+      toolL: (st.tool.l > 0 ? st.tool.l : (st.holder && st.holder.len) || 0),
+      stick: stickOf(st),
       toolName: st.tool.name,
       spindle: st.spindle,
       coolant: st.coolant,
@@ -714,6 +716,11 @@ var TNC = (function () {
     if (st.moves.length >= MAX_MOVES) { st.abort = true; fail(st, bi, 'EXCESSIVE SUBPROGRAM NESTING'); }
   }
 
+  function stickOf(st) {
+    var L = st.tool.l > 0 ? st.tool.l : (st.holder && st.holder.len) || 0;
+    if (!(L > 0) || !st.holder || !st.holder.stack || !st.tool.t) return null;
+    return Math.max(L - st.holder.stack(st.tool.r), 0.35 * L);
+  }
   function mark(st, m) { m.kind = 'mark'; st.moves.push(m); }   // m.len is the APPR/DEP LEN, not a path length
 
   /* M-functions take effect either at block start (M3 M4 M8 M13 M14) or at
@@ -1876,7 +1883,7 @@ var TNC = (function () {
   /* primitive -> move, copying tool / spindle / block data from a template move */
   function moveFrom(p, tpl, extra) {
     var mv = { kind: tpl.kind === 'arc' ? 'feed' : tpl.kind, from: pStart(p), to: pEnd(p), cx: null, cy: null, ccw: false, sweep: null,
-      feed: tpl.feed, tool: tpl.tool, toolR: tpl.toolR, toolDR: tpl.toolDR || 0, toolName: tpl.toolName, spindle: tpl.spindle,
+      feed: tpl.feed, tool: tpl.tool, toolR: tpl.toolR, toolDR: tpl.toolDR || 0, toolL: tpl.toolL, stick: tpl.stick, toolName: tpl.toolName, spindle: tpl.spindle,
       coolant: tpl.coolant, block: tpl.block, cycle: tpl.cycle || null, rc: null, rcAct: false, len: 0,
       rot0: tpl.rot1 || tpl.rot0 || null, rot1: tpl.rot1 || null, dur: null };
     if (p.type === 'arc') {
@@ -2140,6 +2147,9 @@ var TNC = (function () {
        axes, limits {A:[min,max], ...} (MP 910/920), sMax (MP 3515) */
     st.mach = (opts && opts.machine) || {};
     st.arcTol = st.mach.arcTol || ARC_TOL;
+    /* opts.holder: {len, stack(r)} — TOOL HOLDER LENGTH is the gauge length used when a tool has L = 0;
+       stack(r) = holder height below the spindle face, so stick-out = L - stack(r) */
+    st.holder = (opts && opts.holder) || null;
     st.autoTools = !!(opts && opts.autoTools);
 
     // label table

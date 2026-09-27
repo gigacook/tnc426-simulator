@@ -125,19 +125,29 @@ var TNC_TOOLS3D = (function () {
   // SK40 / DIN 69871 steep-taper holder with an ER collet chuck, for shank
   // tools. `gripZ` = local z (holder-local, base at 0) where the collet
   // grips the tool shank -- that is where the cutter's shank should stop.
+  /* steep-taper holder sizes: ISO 50 / SK50 (the operator's machine) and SK40 */
+  var HOLDERS = {
+    ISO50: { label: 'ISO 50 (SK50) · ER COLLET CHUCK', flangeR: 50, taperR0: 34.9, taperR1: 22, taperLen: 70, bodyMin: 26, bodyLen: 44, flangeLen: 11, noseMin: 30 },
+    SK40:  { label: 'SK40 DIN 69871 · ER COLLET CHUCK', flangeR: 31.75, taperR0: 27.3, taperR1: 12.3, taperLen: 48, bodyMin: 17, bodyLen: 34, flangeLen: 8, noseMin: 24 }
+  };
+  var style = 'ISO50';
+  function setHolder(s) { if (HOLDERS[s]) style = s; }
+  /* holder height below the gauge line (spindle face): nut + body + flange */
+  function holderStack(r) { var H = HOLDERS[style]; return Math.max((r || 3) * 3.2, H.noseMin) + H.bodyLen + H.flangeLen; }
+
   function holderSK40Collet(THREE_, opts) {
-    var r = opts.r, gaugeZ = opts.gaugeZ, holdMat = mat(COL.holder, 0.5, 0.75);
+    var r = opts.r, gaugeZ = opts.gaugeZ, holdMat = mat(COL.holder, 0.5, 0.75), H = HOLDERS[style];
     var colletMat = mat(COL.collet, 0.4, 0.7);
     var grp = new THREE.Group(); grp.name = 'holder';
 
     var noseR = Math.max(r * 2.0, 9);          // ER nut nose radius
-    var noseLen = Math.max(r * 3.2, 24);
-    var bodyR = Math.max(noseR * 1.35, 17);
-    var bodyLen = 34;
-    var flangeR = 31.75;                        // SK40 flange ~ 63.5mm dia
-    var flangeLen = 8;
-    var taperR0 = flangeR * 0.86, taperR1 = 12.3; // 7:24 taper, narrow end down
-    var taperLen = 48;
+    var noseLen = Math.max(r * 3.2, H.noseMin);
+    var bodyR = Math.max(noseR * 1.35, H.bodyMin);
+    var bodyLen = H.bodyLen;
+    var flangeR = H.flangeR;                    // SK40 Ø63.5 · ISO 50 Ø100
+    var flangeLen = H.flangeLen;
+    var taperR0 = H.taperR0, taperR1 = H.taperR1; // 7:24 taper
+    var taperLen = H.taperLen;
 
     var stackSum = noseLen + bodyLen + flangeLen + taperLen;
     var maxStack = (opts.maxStack !== undefined) ? opts.maxStack : stackSum;
@@ -541,7 +551,7 @@ var TNC_TOOLS3D = (function () {
     disposeObj(group);
   }
 
-  return { build: build, dispose: dispose };
+  return { build: build, dispose: dispose, setHolder: setHolder, holderStack: holderStack, holderLabel: function () { return HOLDERS[style].label; }, get holder() { return style; } };
 })();
 
 if (typeof module !== 'undefined') module.exports = TNC_TOOLS3D;

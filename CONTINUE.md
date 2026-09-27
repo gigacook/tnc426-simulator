@@ -28,6 +28,26 @@ The Serbian questions for the machinist (pivot lengths, axis limits, which head 
 
 `private/` is gitignored and holds personal material: the question sheet with answer slots (the Q&A .md in there) and `private/.env` (`OPENROUTER_API_KEY=`, read by `build.py` for the local build). Keep all personal names and keys out of tracked files.
 
+## Latest round (2026-09-27, evening)
+- **Operator feedback done:**
+  - PROGRAM mode has CYCL DEF / TOOL DEF / TOOL CALL / path-function soft-key rows with one-question-per-step dialogs (`dialogs.js`).
+  - The tool list opens in the machine view (TOOL LIST button next to PROGRAMS, key T).
+  - Keys: 1–4 modes, 5–9 speed, F focus.
+  - Modes are named PROGRAM / TEST / SINGLE-BLOCK / FULL-RUN.
+  - NC START follows the mode: green/red soft keys; in SINGLE-BLOCK it runs the next block.
+  - A breadcrumb row sits above nested soft keys.
+  - Right pane tabs: Diagnostics / Reference (keys, cycles, tools, machine, manual sections) / <name>'s programs (created, edited, version; projects collapsed).
+  - Position (DRO) is an overlay on the 3D view. Effects live in the "Effects & view" menu. Manual sections are collapsed.
+  - Focus view hides the whole right pane.
+  - Arrows move the machine in the run modes.
+  - `viz.js`: axis vectors from the program zero to the tool (A/B arcs on the 430), and a click-to-pick green marker with coordinates.
+  - Swedish via the profile dialog (`i18n.js`).
+- **TNC 430 machine profile** (`MACHINE_430` in `ui.js`): the operator's parameters, with head pivots ~250 mm.
+  - Cycle 19 is implemented in `core.js`.
+  - Material removal with a tilted tool is still APPROXIMATE (height field stamps a vertical disc).
+  - Radius compensation inside a tilted plane is approximate.
+- **Programs panel:** a program appears in "<name>'s programs" when it's created, changed, uploaded or saved.
+
 ## Next, in order
 1. **`SPINDLE ?` false alarms** (~399 in the corpus). `cycleTap` in `core.js` fails when `st.spinDir` is 0 at the cycle call. Check how those programs start the spindle (M3 on the M99 block starts at block START, but `runCycle` may run before `applyM`?). Fix, then re-run the corpus.
 2. **Stale QA check** in `.tools/qa/qa.mjs` feature 5: it expects `TOOL 27 NOT DEFINED` after upload, but uploads now auto-add tools. Update the expectation.
