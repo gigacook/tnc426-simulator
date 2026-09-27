@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TNC FX test bench</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #1b1e22; color: #d8dde3; font: 13px/1.4 system-ui, sans-serif; overflow: hidden; }
+  canvas { display: block; }
+  #ui { position: absolute; left: 12px; top: 12px; background: rgba(20,23,27,.82); padding: 10px 12px; border-radius: 6px; border: 1px solid #333a42; }
+  #ui label { display: inline-block; margin-right: 10px; cursor: pointer; }
+  #ui .row { margin: 4px 0; }
+  #crash { background: #b3261e; color: #fff; border: 0; padding: 5px 14px; border-radius: 4px; font-weight: 700; cursor: pointer; }
+  #stats { font: 11px/1.3 ui-monospace, monospace; color: #8b96a3; margin-top: 6px; }
+</style>
+</head>
+<body>
+<div id="ui">
+  <div class="row">
+    <label><input type="checkbox" id="chips" checked> chips</label>
+    <label><input type="checkbox" id="sparks" checked> sparks</label>
+    <label><input type="checkbox" id="coolant" checked> coolant</label>
+    <label><input type="checkbox" id="smoke"> smoke</label>
+    <label><input type="checkbox" id="fire"> fire</label>
+  </div>
+  <div class="row">
+    speed <select id="speed"><option>1</option><option>4</option><option>16</option><option>64</option></select>
+    &nbsp;<label><input type="checkbox" id="run" checked> running</label>
+    <label><input type="checkbox" id="m4"> M4</label>
+    &nbsp;<button id="crash">CRASH</button>
+  </div>
+  <div id="stats"></div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="fx.js"></script>
+<script>
+(function () {
+  'use strict';
+  var Q = new URLSearchParams(location.search);
+  var shot = Q.get('shot') || '';
+
+  var renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: !!shot });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.setClearColor(0x1b1e22);
+  document.body.appendChild(renderer.domElement);
+
+  var scene = new THREE.Scene();
+  var camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 1, 5000);
+  camera.up.set(0, 0, 1);
+  camera.position.set(170, -230, 170);
+  var controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.target.set(0, 0, -5);
+  controls.update();
+
+  scene.add(new THREE.HemisphereLight(0xdfe8f2, 0x3a3f46, 0.75));
+  var sun = new THREE.DirectionalLight(0xffffff, 0.7); sun.position.set(120, -160, 300); scene.add(sun);
+
+  // 150 x 100 x 20 blank, top at z = 0
+  var stockTop = 0, BX = 75, BY = 50;
+  var block = new THREE.Mesh(new THREE.BoxGeometry(150, 100, 20),
+    new THREE.MeshLambertMaterial({ color: 0x9aa1a8 }));
+  block.position.z = -10; scene.add(block);
+  var edges = new THREE.LineSegments(new THREE.EdgesGeometry(block.geometry), new THREE.LineBasicMaterial({ color: 0x5d646b }));
+  edges.position.copy(block.position); scene.add(edges);
+  // machine table under the blank
+  var table = new THREE.Mesh(new THREE.BoxGeometry(420, 300, 12), new THREE.MeshLambertMaterial({ color: 0x3c4148 }));
+  table.position.z = -26; scene.add(table);
+  // the slot being cut (just a darker band so the path reads)
+  var R = 5, W = 50, H = 30, Zcut = -2;
+  var slotMat = new THREE.MeshBasicMaterial({ color: 0x70767d });
+  function band(x, y, w, h) { var m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), slotMat); m.position.set(x, y, 0.02); scene.add(m); }
+  band(0, H, 2 * W + 2 * R, 2 * R); band(0, -H, 2 * W + 2 * R, 2 * R); band(W, 0, 2 * R, 2 * H); band(-W, 0, 2 * R, 2 * H);
+
+  // tool: cutter + shank + holder
+  var tool = new THREE.Group();
+  var steel = new THREE.MeshLambertMaterial({ color: 0xc8ccd0 });
+  var dark = new THREE.MeshLambertMaterial({ color: 0x4a4f55 });
+  var cutter = new THREE.Mesh(new THREE.CylinderGeometry(R, R, 22, 24), steel);
+  cutter.rotation.x = Math.PI / 2; cutter.position.z = 11; tool.add(cutter);
+  var flute = new THREE.Mesh(new THREE.BoxGeometry(2 * R + 0.2, 1.2, 20), dark); flute.position.z = 11; tool.add(flute);
+  var shank = new THREE.Mesh(new THREE.CylinderGeometry(R, R, 25, 24), steel);
+  shank.rotation.x = Math.PI / 2; shank.position.z = 34; tool.add(shank);
+  var holder = new THREE.Mesh(new THREE.CylinderGeometry(20, 11, 40, 32), dark);
+  holder.rotation.x = Math.PI / 2; holder.position.z = 66; tool.add(holder);
+  scene.add(tool);
+
+  var fx = TNC_FX.create(THREE, scene, {});
+  fx.surfaceAt = function (x, y) {
+    return (Math.abs(x) <= BX && Math.abs(y) <= BY) ? stockTop : null;   // null = off the part
+  };
+  function resize() {
+    camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth, innerHeight);
+    fx.resize(innerHeight, camera.fov, renderer.getPixelRatio());
+  }
+  addEventListener('resize', resize); resize();
+
+  var $ = function (id) { return document.getElementById(id); };
+  var keys = ['chips', 'sparks', 'coolant', 'smoke', 'fire'];
+
+  // screenshot presets: ?shot=coolant|chips|m4|sparks|smoke|fire|crash|all64|defaults  (&warm=s &t=s-before-shot &ui=0)
+  // off = camera offset from the tool tip (camera follows the tool in that shot)
+  var presets = {
+    coolant: { on: ['coolant'], speed: 1, off: [25, -150, 40], lift: 28 },
+    chips:   { on: ['chips'], speed: 16, off: [80, -110, 80] },
+    m4:      { on: ['chips'], speed: 16, off: [80, -110, 80], m4: true },
+    sparks:  { on: ['sparks'], speed: 16, off: [90, -130, 70] },
+    smoke:   { on: ['chips', 'smoke'], speed: 4, off: [110, -150, 90] },
+    fire:    { on: ['chips', 'fire'], speed: 4, off: [60, -85, 45] },
+    crash:   { on: ['chips', 'sparks', 'coolant', 'smoke'], speed: 4, crash: 0.12, off: [110, -150, 95] },
+    all64:   { on: keys, speed: 64 },
+    defaults:{ on: ['chips', 'sparks', 'coolant'], speed: 4 }
+  };
+  var pr = presets[shot];
+  var crashAt = -1;
+  if (pr) {
+    keys.forEach(function (k) { $(k).checked = pr.on.indexOf(k) >= 0; });
+    $('speed').value = String(pr.speed);
+    if (pr.m4) $('m4').checked = true;
+    // crash: fired this many seconds before the end of the warm-up (i.e. before the screenshot)
+    crashAt = pr.crash ? parseFloat(Q.get('warm') || pr.warm || 3) - parseFloat(Q.get('t') || pr.crash) : -1;
+    $('ui').style.display = Q.get('ui') === '0' ? 'none' : '';
+  }
+  function applyToggles() { var o = {}; keys.forEach(function (k) { o[k] = $(k).checked; }); fx.set(o); }
+  keys.forEach(function (k) { $(k).addEventListener('change', applyToggles); });
+  applyToggles();
+
+  var pathS = 0, per = 4 * W + 4 * H, feed = 1000 / 60;  // F1000 mm/min
+  function pathAt(sv) {
+    sv = ((sv % per) + per) % per;
+    if (sv < 2 * W) return { x: -W + sv, y: -H, dx: 1, dy: 0 };
+    sv -= 2 * W; if (sv < 2 * H) return { x: W, y: -H + sv, dx: 0, dy: 1 };
+    sv -= 2 * H; if (sv < 2 * W) return { x: W - sv, y: H, dx: -1, dy: 0 };
+    sv -= 2 * W; return { x: -W, y: H - sv, dx: 0, dy: -1 };
+  }
+  var toolPos = { x: -W, y: -H, z: Zcut };
+  $('crash').addEventListener('click', function () { fx.crash(toolPos); });
+
+  var last = performance.now(), T = 0, crashed = false;
+  var camOff = null;
+  if (pr && pr.off) camOff = new THREE.Vector3(pr.off[0], pr.off[1], pr.off[2]);
+  if (pr && Q.get('off')) { var qo = Q.get('off').split(',').map(Number); camOff = new THREE.Vector3(qo[0], qo[1], qo[2]); }
+  function step(dt) {
+    T += dt;
+    var speed = +$('speed').value, running = $('run').checked;
+    var rpm = $('m4').checked ? -4000 : 4000;
+    if (running) pathS += feed * speed * dt;
+    var p = pathAt(pathS);
+    toolPos.x = p.x; toolPos.y = p.y;
+    tool.position.set(p.x, p.y, Zcut);
+    if (running) tool.rotation.z -= Math.sign(rpm) * Math.min(Math.abs(rpm) / 60 * speed, 30) * 2 * Math.PI * dt * 0.05;
+    if (crashAt >= 0 && !crashed && T >= crashAt) { crashed = true; fx.crash(toolPos); }
+    fx.update(dt, {
+      running: running, cutting: running, pos: toolPos, dir: { x: p.dx, y: p.dy }, toolR: R,
+      spindle: rpm, coolant: $('coolant').checked, speed: speed, stockTop: stockTop
+    });
+  }
+  // Screenshot mode: headless virtual time only yields a few frames, so warm the
+  // simulation up with fixed 60 Hz steps before the first render.
+  var warm = pr ? parseFloat(Q.get('warm') || pr.warm || 3) : 0;
+  function frame(now) {
+    var dt = Math.min((now - last) / 1000, 0.1); last = now;
+    if (pr) dt = 1 / 60;   // screenshot mode: fixed step (headless virtual time jumps)
+    if (warm > 0) { for (var w = 0; w < warm * 60; w++) step(1 / 60); warm = 0; dt = 1 / 60; }
+    step(dt);
+    if (camOff) { controls.target.set(toolPos.x, toolPos.y, Zcut + (pr.lift || 8)); camera.position.copy(controls.target).add(camOff); }
+    controls.update();
+    renderer.render(scene, camera);
+    var st = fx.stats();
+    $('stats').textContent = 't=' + T.toFixed(2) + 's  chips ' + st.chips + '  sparks ' + st.sparks + '  coolant ' + st.coolant + '  smoke/mist ' + st.smoke + '  glow ' + st.glow;
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

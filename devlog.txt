@@ -1,7 +1,7 @@
 TNC 426 SIMULATOR - DEVELOPER FEATURE LOG
-2026-09-21
+Updated 2026-09-23
 
-LIVE - EARLIER PUSHES
+LIVE - v0.3 AND EARLIER
 ==============================================================================
 37b63a5  TNC 426 Klartext CNC simulator
 e971807  Document interpreter simplifications in README
@@ -35,7 +35,7 @@ BUILD / DOCS:
     INCH not converted, dwell not counted in cycle time, Q213 chip
     breaking approximated, height field cannot show undercuts.
 
-LIVE - THIS PUSH
+LIVE - v0.4 (d3aa945, the current build)
 ==============================================================================
 INTERPRETER:
   - T9 ENDMILL_3 (R1.5) added to the tool table for engraving.
@@ -70,23 +70,64 @@ UI:
   - DEV tab behind the orange button (this log).
   - Program listing shows no block number on Q-parameter lines.
 
-IN PROGRESS
+STILL TO DO - WRITTEN, NOT IN THE BUILD YET
 ==============================================================================
-  - UI: PGM MGT program manager (arrow keys, ENT, ESC); NEW PGM from
-    scratch with the MM and BLK FORM dialog; save as .H with Ctrl+S in
-    numbered TNC listing format; undo/redo per program (Ctrl+Z,
-    Ctrl+Shift+Z / Ctrl+Y); mobile layout with a bottom tab bar
-    (Program / Graphics / Status) and touch-sized controls.
-  - PERSISTENCE: programs and projects in browser storage, user
-    settings in a cookie; projects panel to create a project, append
-    programs, download a project as .zip.
-  - SIMULATOR: safety checks shown during the run, crash alarm that
-    stops the run; chamfer and spot tools rendered as 45-degree cones.
-  - HELP: LEARN (6 lessons), BREAK IT (8 famous ways to wreck a
-    machine, with the fix), power-user MANUAL.
-  - AI PROGRAM GENERATION: the third way to make a program, via
-    OpenRouter with the user's own key, DeepSeek V4.1 Flash by default;
-    the simulator checks the AI's program and sends errors back for
-    one repair pass; setup guide included.
-  - EFFECTS: metal chips that land on the part, sparks, coolant spray on
-    M8, smoke and fire (toggle, off by default), crash burst.
+Every item below is outstanding work, not finished work. These modules exist in
+the repo and pass a syntax check, but build.py does not inline them and the
+bundled UI is still the old ui.js - so none of this is in the page you are
+reading. The remaining work is wiring, not writing. The full task list, with
+priorities, is in TODO.md; nothing leaves that list until it has shipped.
+
+  - ui.new.js - the UI rewrite: PGM MGT program manager, NEW PGM from scratch
+    with the MM and BLK FORM dialog, save as .H, load .H from disk and by
+    drag-drop, undo/redo per program (Ctrl+Z, Ctrl+Shift+Z / Ctrl+Y),
+    programs and projects kept in browser storage, settings in a cookie,
+    projects panel with .zip download, machine profiles so a second control
+    can plug in, mobile layout with a bottom tab bar, boot splash.
+    Never executed in a browser.
+  - ui.new.js - safety checks surfaced live during the run, crash alarm that
+    stops the run with camera shake and a beep; chamfer and spot tools
+    stamped as 45-degree cones; live tool-trace comet showing cut direction.
+  - lessons.js - LEARN (6 lessons), BREAK IT (8 famous ways to wreck a
+    machine, each with the fix), power-user MANUAL (16 sections).
+    Verified by its own test script, all pass.
+  - fx.js - metal chips that land on the part, sparks, coolant spray on M8,
+    smoke and fire (toggle, off by default), crash burst. Has a demo page
+    (fx-demo.html); loads clean outside the browser.
+  - tools3d.js - real tool geometries in their holders.
+  - callouts.js - leader lines with view-aligned labels for TOOL, TOOL
+    HOLDER and PART.
+  - flow.js - the alternative program view: code read row by row and drawn
+    as a top-to-bottom flowchart.
+    tools3d.js, callouts.js and flow.js have had a syntax check and nothing
+    more - no demo, no run. Their author stopped at a session limit.
+
+STILL TO DO - NOT STARTED
+==============================================================================
+  - ai.js - AI program generation, the third way to make a program: OpenRouter
+    with the user's own key, DeepSeek V4.1 Flash by default, the simulator
+    checking the AI's program and sending errors back for one repair pass,
+    setup guide included. The UI already calls it. The file does not exist.
+  - Antialiasing and surface quality: diagonal walls in the height field come
+    out as visible stairs, and the surfaces read as plastic. Wanted: smoothed
+    height-field geometry, a shiny metal look, a material picker for aluminium
+    and titanium, and presets for turbines, aerospace, ground and cast work.
+  - TNC 430 five-axis support as a second machine profile, with its own tool
+    visuals from real dimensions and the same programs, examples, lessons and
+    visual translation as the 426. Manuals have been collected; no code yet.
+  - Live visual translation for both controls: put the cursor on a block and
+    the alternative view draws that block, with the tool trace animating the
+    cut direction. The trace and the flowchart both exist; they have never
+    been connected.
+  - RELEASES.txt - the release plan behind the DEV button's third tab.
+
+KNOWN BUG, NOT YET FIXED
+==============================================================================
+  - Cycle 200: Q208 = 0 should retract at the Q206 plunging feed rate. It
+    currently retracts at rapid.
+
+NOT VERIFIED IN A BROWSER
+==============================================================================
+  Chrome is not installed on the build machine. Every check so far is a syntax
+  check plus booting the built file in node against a stubbed DOM. No build of
+  this simulator has ever been opened in a real browser.

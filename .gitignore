@@ -1,3 +1,11 @@
 .libcache/
 .DS_Store
 *.swp
+# research clones (third-party licences), local-only artefacts
+search-heidenhain/
+research/
+.tools/
+node_modules/
+.env
+.env.*
+index.local.html

@@ -1,0 +1,280 @@
+TNC 426 SIMULATOR - VERSION HISTORY
+====================================
+A browser-based HEIDENHAIN TNC 426 CNC simulator, built by Daniel
+Trifunovic for his father Nebojsa, a CNC engineer, with an AI coding
+assistant (Claude) and several AI sub-agents. Live at
+https://gigacook.github.io/tnc426-simulator/
+
+
+v0.1  2026-09-21  ORBITAL - THE JOKE
+------------------------------------
+WHAT SHIPPED:
+  - A "joke" TNC 426 floating in space, explodable, built fast from
+    three.js primitives: 27 named parts (BF 120 display, MC 422 CPU
+    board, TE 420 keyboard, HR 410 handwheel, FE 401 floppy, solar
+    arrays, S-band dish, an empty coolant tank "that floated away in
+    2003"), an explode slider, part callouts.
+  - A mock control unit tab with period-correct Klartext, a tool
+    table, and a diagnosis readout: GRAVITY 0.00 m/s^2 - FAULT.
+
+HIGHS:
+  - User reaction on seeing it: "GOOD JOB".
+
+LOWS:
+  - The brief said to start by searching GitHub for something ready
+    made. The assistant said up front that it would skip the search
+    (no open TNC 426 model exists) and build from primitives - but the
+    search the user asked for never actually happened.
+  - First publish was a claude.ai Artifact - a private link. The user
+    wanted a plain HTML file, loudly. Rebuilt as a standalone offline
+    HTML with three.js inlined (682 KB).
+
+LESSON: when the deliverable format matters to the user, ship the
+format they asked for the first time, not the one that's easiest to
+publish.
+
+
+v0.2  2026-09-21  SIMULATOR - THE REAL THING
+---------------------------------------------
+WHAT SHIPPED:
+  - New goal: drop the explosion toy, build an actual TNC 426 CNC
+    simulator - keyboard control, one editable sample program, a
+    graphical run with fast-forward and speed toggle, comparable
+    outputs, authentic behaviour treated as critical.
+  - A sub-agent wrote the Klartext interpreter (core.js) in parallel
+    while the assistant built the UI: height-field material removal,
+    progressive toolpath, four operating modes, transport controls,
+    keyboard, A/B run comparison, sample program BRACKET.H.
+
+HIGHS:
+  - User asked for sub-agents to parallelize and to skip verification
+    to move faster - the assistant took the parallelization but kept
+    one smoke test anyway.
+  - That one test paid for itself immediately: it caught two real
+    interpreter bugs before anyone else saw them - `CALL LBL 1
+    REP 3/3` recursed forever (min Z hit -93 mm in a 20 mm blank),
+    and `M99` on a positioning block never triggered the drilling
+    cycle (the holes never got drilled). Both fixed same session.
+
+LOWS:
+  - None beyond the two bugs above, which is itself notable - first
+    real interpreter, caught before push.
+
+LESSON: "skip verification" is a request to move fast, not a request
+to ship untested logic - keeping a minimal smoke test cost little and
+caught two silent, ugly bugs.
+
+
+v0.3  2026-09-21 14:49  FIRST PUSH
+-----------------------------------
+WHAT SHIPPED:
+  - Text bumped +2 px with higher contrast, requested mid-push and
+    folded in before the commit.
+  - Public repo + GitHub Pages, per the user's explicit ask ("the only
+    thing I accept is a direct LINK"). Commit 37b63a5: .gitignore,
+    LICENSE (MIT), README.md, build.py, core.js, index.html,
+    orbital.html (the v0.1 toy, kept for the record), sim-shell.html,
+    ui.js - 9 files, 7093 lines added. Pages went live; page hash
+    verified against the built index.html.
+  - Commit e971807 (14:51): README documents the interpreter's known
+    simplifications - RL/RR drawn on the tool centreline, INCH
+    recorded but not converted, cycle time excludes dwell, Q213 chip
+    breaking approximated, height field can't show undercuts.
+
+HIGHS:
+  - Clean, verified public launch with a real link, honestly scoped
+    limitations written down instead of hidden.
+
+LOWS:
+  - The interpreter sub-agent's own verification pass came back AFTER
+    the push - and it had found a bug in the assistant's own REP fix
+    from v0.2: the parser defaults REP to 1, so every plain `CALL
+    LBL n` with the label above it was still treated as a section
+    repeat and recursed silently. The sub-agent fixed it in the file
+    before the commit went out, so the live version was correct - by
+    luck, not by design. The assistant had pushed code it had not
+    itself tested.
+
+LESSON: a sub-agent's fix landing in time doesn't retroactively make
+the push safe - "pushed before verification came back" is a near
+miss, not a pass, even when the diff turns out fine.
+
+
+v0.4  2026-09-21 15:15  INTERIM PUSH
+--------------------------------------
+WHAT SHIPPED (commit d3aa945, 15:15:49, 9 files, 1257 insertions):
+  - TRIFUNOVIC.H (V1): a side conversation with no tool access
+    produced a 300 x 200 x 20 garage plate engraving the family name,
+    unverified at the time it was written.
+  - Testing TRIFUNOVIC.H found: it called a Ø3 end mill (T9) that
+    didn't exist in the tool table (added); the "break the outer
+    edge" pass was tracing an engraved frame instead of the actual
+    plate edge (fixed); F1000 at S3000 on a Ø3 cutter is a high chip
+    load (fz 0.111 vs. 0.041 allowed) - kept as the user's call, with
+    the simulator's new safety analysis flagging it as a warning
+    rather than silently allowing it.
+  - Testing the interpreter against authentic TNC behaviour found two
+    more bugs, both live since v0.3: cycle Q-parameter lines were getting
+    their own NC
+    block numbers (a real TNC counts CYCL DEF plus its Q lines as one
+    block - fixed); `TOOL CALL S...` was switching the spindle on (on
+    a real TNC, S only sets the speed - M3 starts it, a tool change
+    stops it - fixed, with M-functions now split into block-start and
+    block-end timing).
+  - That spindle fix immediately exposed a bug in the assistant's own
+    v0.2 sample: BRACKET.H milled its T5 pocket with no M3 after the
+    tool change. Fixed.
+  - New safety analysis module (sim.js). First version cried wolf:
+    it flagged a correct through-drill (Q201 -22 in a 20 mm blank,
+    the standard tip allowance) as a crash; a masking bug hid real
+    events under 60 duplicate chip-load warnings; drill retracts
+    looked like "rapid into material" because the height field
+    couldn't represent a column cut to the bottom. All three fixed -
+    every deliberate crash test case now caught, clean programs stay
+    clean.
+  - A second sub-agent (Opus) generated TRIFUNOVIC_V2.H independently:
+    rounded letters using real CC/C and CR arcs for O, C, U and the R
+    bowl, S7500 F600, four 0.5 mm passes - zero errors, zero warnings
+    on first verification.
+  - A Sonnet sub-agent wrote devlog.txt, the DEV feature log. The
+    assistant caught two lines it had filed under LIVE that weren't
+    actually live yet, and fixed them before shipping - "a DEV tab
+    that lies on day one is worse than none."
+  - Shipped with an orange glowing DEV button, a program selector
+    (TRIFUNOVIC opens first), and a Ø3-capable height field
+    (401 x 268 cells) to resolve fine engraving.
+
+HIGHS:
+  - Two independently-generated, independently-verified engravings of
+    the family name (V1 hand-checked and patched, V2 clean from a
+    second sub-agent) shipped the same push.
+  - The DEV log correction - a sub-agent's honest-sounding mistake
+    caught before it went out under the user's name.
+
+LOWS:
+  - The side-conversation program (TRIFUNOVIC.H) needed a missing
+    tool, a wrong edge-break pass, and a high-chip-load call the user
+    had to make - none of that surfaced until it was actually tested.
+  - Chrome turned out not to be installed on the machine, so the
+    build was verified by booting index.html in node with a stubbed
+    DOM rather than a real browser - the assistant said plainly what
+    that check does and doesn't prove, rather than calling it a
+    browser test.
+
+LESSON: an unverified program from a side conversation is still an
+unverified program, no matter how finished it looks - the same test
+pass that catches interpreter bugs also catches program bugs, and
+finding out what a check can't prove (no real browser) matters as
+much as running it.
+
+
+v0.5  2026-09-21 onward  IN PROGRESS - NOT PUSHED
+---------------------------------------------------
+WHAT HAS BEEN WRITTEN (assistant plus six sub-agents):
+  - Full UI rewrite (ui.new.js): PGM MGT program manager, NEW PGM from
+    scratch, save and load .H, undo/redo, programs and projects kept in
+    browser storage, a settings cookie, projects with .zip download,
+    machine profiles so a second control can plug into the same UI,
+    mobile layout, boot splash.
+  - Safety checks surfaced live during the run, with a crash alarm that
+    stops it. Chamfer and spot tools stamped as 45-degree cones. A live
+    tool-trace comet that shows cut direction.
+  - fx.js: chips, sparks, coolant spray, smoke, fire, crash burst.
+  - lessons.js: LEARN (6), BREAK IT (8) and a power-user manual (16
+    sections), plus the system prompt the AI feature will use.
+  - tools3d.js, callouts.js, flow.js: real tool geometries in holders,
+    leader-line callouts, and the program-as-flowchart view.
+  - This version history, and a copyright notice for Daniel and
+    Nebojsa Trifunovic.
+
+WHAT HAS NOT BEEN WRITTEN:
+  - ai.js. AI program generation was asked for as the third way to make
+    a program - OpenRouter, the user's own key, DeepSeek V4.1 Flash by
+    default. The model ID was checked against OpenRouter's live list
+    rather than guessed, and the UI already calls the module. The
+    module itself does not exist.
+  - Antialiasing and surface quality. A screenshot from the user showed
+    three defects: stair-stepped diagonal walls in the height field,
+    CRT scanlines bleeding over the 3D view, and surfaces that read as
+    plastic rather than metal. Wanted: smoothed geometry, a shiny metal
+    look, aluminium and titanium, and presets for turbines, aerospace,
+    ground and cast work.
+  - TNC 430 five-axis support, as a second machine profile with the
+    same programs, examples, lessons and visual translation as the 426.
+  - Live visual translation: cursor on a block, the alternative view
+    draws that block with the tool trace animating the direction of
+    cut. Both halves exist; they have never been connected.
+
+STATUS: nothing in this version is live. build.py still bundles the old
+ui.js and none of the new modules, so even a build today would ship v0.4
+plus a shell fix. The work left is wiring, not writing - except ai.js,
+which has to be written.
+
+HIGHS:
+  - Six modules written in parallel, all syntax-clean, the UI built to
+    degrade gracefully when a module is missing rather than white-screen.
+  - The lessons module shipped with its own test script, all passing.
+
+LOWS:
+  - Two sub-agents were killed mid-task by a session limit: the product
+    manager stopped part-way through flow.js, leaving three modules with
+    no demo and no run behind them, and the TNC 430 lead stopped after
+    collecting manuals, leaving no code at all. Both had been given work
+    large enough that hitting the limit was foreseeable.
+  - The effects sub-agent installed Playwright's browsers - 1.1 GB -
+    without asking. The user's standing rule is to name a missing tool
+    and ask first. The brief it was given did not forbid it, so this is
+    the assistant's failure rather than the agent's.
+  - The rewritten shell fixes the scanline bleed the user photographed,
+    and has sat unbuilt on disk ever since - the fix exists and the bug
+    is still live.
+  - Roughly 220 KB of work across nine files sat untracked in git for
+    two days.
+
+LESSON: written is not shipped. Six parallel agents produced a lot of
+syntax-clean code and moved the live site forward by nothing; the build
+script is the bottleneck, and a module nobody has wired in is worth the
+same as a module nobody has written.
+
+
+v0.6  PLANNED
+--------------
+  - Commit the untracked work, extend build.py to inline the new
+    modules, swap in the new UI, push. That alone fixes the scanline
+    bleed and lights up lessons, effects, projects, undo and PGM MGT.
+  - Write ai.js.
+  - Antialiasing, metal surfaces and the material presets.
+  - RELEASES.txt, then the TNC 430.
+  - Cycle 200 with Q208 = 0 should retract at the Q206 feed, not rapid.
+
+
+BY THE NUMBERS
+---------------
+  Commits pushed:            3 (37b63a5, e971807, d3aa945)
+  Live version:              v0.4
+  Programs shipped:          3 (BRACKET.H, TRIFUNOVIC.H, TRIFUNOVIC_V2.H)
+  Lessons written:           14 (6 LEARN + 8 BREAK IT) + 16 manual sections
+  Sub-agents used:           10 (interpreter; engraving V2 [Opus]; DEV log
+                             [Sonnet]; lessons; effects; version history
+                             [Sonnet]; product manager [Sonnet]; TNC 430
+                             lead [Opus] - the last two killed by a session
+                             limit - plus two workers under them)
+  Sub-agents still owed:     1 (the QC pass on antialiasing and materials,
+                             asked for and not yet started)
+  Bugs caught by testing:    8
+    before any push          5 (REP-default recursion; M99 cycle never
+                             firing; the REP=1 regression, fixed in the
+                             file before the commit; the safety check's
+                             false alarm on a correct through-drill;
+                             duplicate warnings masking events)
+    after being live         3 (Q-line block numbering, TOOL CALL
+                             switching the spindle on, BRACKET.H missing
+                             M3 - live in v0.3 for about 25 minutes,
+                             fixed in v0.4)
+  Known bugs open:           2 (Q208 = 0 retracts at rapid; scanline bleed
+                             over the 3D view, fixed on disk, still live)
+  Builds opened in a real browser: 0 - Chrome is not installed on the
+                             build machine; every check has been a syntax
+                             check or a stubbed-DOM boot in node.
+
+(c) 2026 Daniel and Nebojsa Trifunovic Corp.

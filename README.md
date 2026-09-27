@@ -21,9 +21,14 @@ with live material removal. One self-contained HTML file — no build step, no s
 - **Run comparison.** Store a finished run as reference A, change the program, run again, and read
   the delta on cycle time, feed path, rapid path, move count, min Z and removed volume.
 
-## The sample program
+## The programs
 
-`BRACKET.H` — a 120 × 80 × 20 mm blank:
+Three ship on the control, chosen from the selector in the Program header.
+`TRIFUNOVIC.H` opens first — a 300 × 200 × 20 mm garage plate engraving the family name,
+with a 1 × 45° edge break and four mounting holes. `TRIFUNOVIC_V2.H` is the same idea on a
+220 × 60 × 10 mm blank, drawn with real `CC`+`C` and `CR` arcs, for A/B comparison.
+
+`BRACKET.H` is the teaching one — a 120 × 80 × 20 mm blank:
 
 | Step | What it exercises |
 |---|---|
@@ -68,15 +73,24 @@ These are deliberate, and they are why the disclaimer at the bottom matters.
 `index.html` is generated — it inlines three.js, the interpreter and the UI into one file.
 
 ```sh
-python3 build.py      # sim-shell.html + core.js + ui.js  ->  index.html
+python3 build.py      # sim-shell.html + core.js + sim.js + programs.js + ui.js  ->  index.html
 ```
 
 | File | |
 |---|---|
 | `core.js` | Klartext parser, interpreter and cycle library. No DOM, no dependencies. |
+| `sim.js` | Shared timing and arc tessellation, plus the safety analysis. |
+| `programs.js` | The programs that ship on the control. |
 | `ui.js` | Graphics, material removal, transport, keyboard, comparison. |
 | `sim-shell.html` | Markup and stylesheet. |
+| `devlog.txt`, `history.txt` | Feature log and version history, shown behind the DEV button. |
 | `orbital.html` | An earlier, unrelated toy: the control unit as an explodable 3-D model. |
+
+## Where the work stands
+
+The task list is [TODO.md](TODO.md) — every outstanding item, whether started or not.
+See [HANDOFF.md](HANDOFF.md) for what is built, what is written but not yet wired into the
+build, and what has not been started. `devlog.txt` is the same picture as a feature list.
 
 ## Licence
 
