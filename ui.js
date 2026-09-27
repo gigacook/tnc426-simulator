@@ -182,9 +182,10 @@ const scene=new THREE.Scene(); scene.background=new THREE.Color(0x04070d);
 const camera=new THREE.PerspectiveCamera(40,1,1,6000); camera.up.set(0,0,1);
 const controls=new THREE.OrbitControls(camera,renderer.domElement);
 controls.enableDamping=true; controls.dampingFactor=.09;
-scene.add(new THREE.HemisphereLight(0x9fc4ff,0x0a0f18,.6));
-const keyL=new THREE.DirectionalLight(0xffffff,1.35); keyL.position.set(180,-140,260); scene.add(keyL);
-const fillL=new THREE.DirectionalLight(0x6fa8ff,.5); fillL.position.set(-200,160,120); scene.add(fillL);
+const LK=(+THREE.REVISION>=155)?Math.PI:1;       // r155+: physical light units; x PI keeps the r128 brightness
+scene.add(new THREE.HemisphereLight(0x9fc4ff,0x0a0f18,.6*LK));
+const keyL=new THREE.DirectionalLight(0xffffff,1.35*LK); keyL.position.set(180,-140,260); scene.add(keyL);
+const fillL=new THREE.DirectionalLight(0x6fa8ff,.5*LK); fillL.position.set(-200,160,120); scene.add(fillL);
 
 /* ================= plugin bus: optional modules (materials.js, look.js, …) wire in here, never by editing ui.js =================
    A plugin does:  (window.TNC_UI_PLUGINS=window.TNC_UI_PLUGINS||[]).push(ui=>{ ui.on('scene',…) });

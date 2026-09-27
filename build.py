@@ -9,18 +9,23 @@ A new module is one line in MODULES. Missing optional files are skipped, never f
 import pathlib, urllib.request, json, re, sys
 d = pathlib.Path(__file__).parent
 cache = d / '.libcache'; cache.mkdir(exist_ok=True)
-T128 = 'https://cdn.jsdelivr.net/npm/three@0.128.0/'
+T_VER = '0.186.1'   # three.js; bundled with its addons and three.quarks by esbuild (vendor/three-entry.mjs)
+
+def vendor():
+    """three + addons + three.quarks as one classic script (window.THREE, window.QUARKS)."""
+    out = cache / f'three-vendor-{T_VER}.js'
+    if not out.exists():
+        import subprocess
+        esb = d / '.tools' / 'node_modules' / '.bin' / 'esbuild'
+        if not esb.exists():
+            sys.exit('build: esbuild missing — run: (cd .tools && npm i three@%s three.quarks@0.17.1 esbuild@0.28.2)' % T_VER)
+        subprocess.run([str(esb), str(d / 'vendor' / 'three-entry.mjs'), '--bundle', '--format=iife', '--minify',
+                        '--legal-comments=none', '--log-level=warning', f'--outfile={out}'], check=True, cwd=d / '.tools',
+                       env=dict(__import__('os').environ, NODE_PATH=str(d / '.tools' / 'node_modules')))
+    return out.read_text()
 
 # (cache file, url, label) — fetched once into .libcache/
 LIBS = [
-    ('three.js',          T128 + 'build/three.min.js',                              'three.js r128 — MIT, three.js authors'),
-    ('orbit.js',          T128 + 'examples/js/controls/OrbitControls.js',           'OrbitControls — MIT, three.js authors'),
-    ('room-env.js',       T128 + 'examples/js/environments/RoomEnvironment.js',     'RoomEnvironment — MIT, three.js authors'),
-    ('copy-shader.js',    T128 + 'examples/js/shaders/CopyShader.js',               'CopyShader — MIT, three.js authors'),
-    ('fxaa-shader.js',    T128 + 'examples/js/shaders/FXAAShader.js',               'FXAAShader — MIT, three.js authors'),
-    ('effect-composer.js',T128 + 'examples/js/postprocessing/EffectComposer.js',    'EffectComposer — MIT, three.js authors'),
-    ('render-pass.js',    T128 + 'examples/js/postprocessing/RenderPass.js',        'RenderPass — MIT, three.js authors'),
-    ('shader-pass.js',    T128 + 'examples/js/postprocessing/ShaderPass.js',        'ShaderPass — MIT, three.js authors'),
     ('jszip.js',          'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js', 'JSZip 3.10.1 — MIT, Stuart Knightley'),
     ('idb-keyval.js',     'https://cdn.jsdelivr.net/npm/idb-keyval@6.2.2/dist/umd.js',   'idb-keyval 6.2.2 — Apache-2.0, Jake Archibald'),
 ]
@@ -70,7 +75,8 @@ split = '<div class="app">'
 head, body = shell.split(split, 1)
 body = split + body
 
-scripts = ''.join(tag(label, lib(n, u)) for n, u, label in LIBS)
+scripts = tag('three.js r186 + addons (MIT, three.js authors) + three.quarks (MIT, Alchemist0823)', vendor())
+scripts += ''.join(tag(label, lib(n, u)) for n, u, label in LIBS)
 for name, var in TEXTS:
     f = d / name
     if f.exists():

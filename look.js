@@ -21,7 +21,8 @@ var TNC_LOOK = (function () {
 
       /* ---- color pipeline ---- */
       try {
-        if (THREE.sRGBEncoding !== undefined) renderer.outputEncoding = THREE.sRGBEncoding;
+        if ('outputColorSpace' in renderer) renderer.outputColorSpace = THREE.SRGBColorSpace;   // r152+
+        else if (THREE.sRGBEncoding !== undefined) renderer.outputEncoding = THREE.sRGBEncoding;
         if (THREE.ACESFilmicToneMapping !== undefined) {
           renderer.toneMapping = THREE.ACESFilmicToneMapping;
           renderer.toneMappingExposure = 1.05;
@@ -45,6 +46,7 @@ var TNC_LOOK = (function () {
         if (THREE.EffectComposer && THREE.RenderPass && THREE.ShaderPass && THREE.FXAAShader) {
           composer = new THREE.EffectComposer(renderer);
           composer.addPass(new THREE.RenderPass(scene, camera));
+          if (THREE.OutputPass) composer.addPass(new THREE.OutputPass());   // tone mapping + sRGB before FXAA (r152+)
           fxaaPass = new THREE.ShaderPass(THREE.FXAAShader);
           fxaaPass.renderToScreen = true;
           composer.addPass(fxaaPass);

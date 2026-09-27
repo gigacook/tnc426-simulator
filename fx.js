@@ -246,7 +246,8 @@ var TNC_FX = (function () {
 
     // Crash flash light: lives in the scene permanently at intensity 0 so that
     // flashing it never changes the light count (no shader recompiles / hitches).
-    var light = new THREE.PointLight(0xffb060, 0, 600, 2);
+    var LK = (+THREE.REVISION >= 155) ? Math.PI : 1;   // r155+: physical units; decay 0 ~ the r128 falloff inside 600
+    var light = new THREE.PointLight(0xffb060, 0, 600, LK > 1 ? 0 : 2);
     root.add(light);
 
     // Coolant nozzle (segmented "Loc-Line" hose + orange tip), follows the tool.
@@ -639,7 +640,7 @@ var TNC_FX = (function () {
       /* crash light */
       if (flashAge < 9) {
         flashAge += dt;
-        light.intensity = flashAge < 0.35 ? 7 * Math.exp(-flashAge / 0.09) : 0;
+        light.intensity = flashAge < 0.35 ? LK * 7 * Math.exp(-flashAge / 0.09) : 0;
         if (flashAge >= 0.35) flashAge = 9;
       }
 
@@ -663,7 +664,7 @@ var TNC_FX = (function () {
         glow.add(x, y, z + 4, 0, 0, 0, 0.25, 55, 1, 0.82, 0.55, 0.85, 1);
         glow.add(x, y, z + 4, 0, 0, 0, 0.12, 22, 1, 1, 0.9, 1, 1);
         light.position.set(x, y, z + 15);
-        light.intensity = 7; flashAge = 0;
+        light.intensity = 7 * LK; flashAge = 0;
       }
       if (en.chips) {
         for (j = 0; j < 16; j++) {                 // heavy debris chunks
