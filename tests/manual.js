@@ -2,7 +2,7 @@
    chapter 6 "Programming contours". Expected tool-centre geometry is derived from the
    manual's rules: RL/RR offset by R, transitional arcs at outside corners, APPR/DEP on
    the tool-centre path.   Run:  node tests/manual.js                                  */
-const TNC = require('../core.js');
+const TNC = require('../core.js'), TNC_DIALOGS = require('../dialogs.js');
 let fails = 0;
 const ok = (c, msg) => { if (!c) { fails++; console.log('  FAIL ' + msg); } };
 const near = (a, b, e = 1e-3) => Math.abs(a - b) <= e;
@@ -404,6 +404,74 @@ console.log('CYCLES — 212/213/214/215 finishing, 210/211 slots, 220/221 patter
   ok(!r.errors.length && passes.length === 7 && near(Math.max(...passes.map(m => m.to.y)), 72), '230: 7 passes from Y12 to Y72');
   r = R('CYCL DEF 231 RULED SURFACE\n Q225=+0\n Q226=+5\n Q227=-2\n Q228=+100\n Q229=+15\n Q230=+5\n Q231=+15\n Q232=+125\n Q233=+25\n Q234=+15\n Q235=+125\n Q236=+25\n Q240=40\n Q207=500\nCYCL CALL');
   ok(!r.errors.length && r.moves.some(m => m.cycle && near(m.to.z, 25)), '231: reaches the 3rd/4th point height Z+25');
+}
+
+console.log('THREAD MILLING — 262 263 264 265 267: radius, pitch, depth, Q351 x Q239 direction table, Q355; tapping hand by Q239');
+{ const hdr = 'BEGIN PGM T MM\nBLK FORM 0.1 Z X+0 Y+0 Z-40\nBLK FORM 0.2 X+100 Y+100 Z+0\nTOOL DEF 1 L+0 R+3\nTOOL CALL 1 Z S2000\nL Z+50 R0 FMAX M3\n';
+  const R = (def, call = 'L X+50 Y+50 R0 FMAX M99') => TNC.run(hdr + def + '\n' + call + '\nEND PGM T MM');
+  const T262 = (p, d, n, c) => `CYCL DEF 262 THREAD MILLING\n Q335=16\n Q239=${p}\n Q201=${d}\n Q355=${n}\n Q253=750\n Q351=${c}\n Q200=2\n Q203=+0\n Q204=50\n Q207=500`;
+  const rad = (q, x = 50, y = 50) => Math.hypot(q.x - x, q.y - y);
+  const hel = (r, rr) => r.moves.filter(m => m.kind === 'arc' && Math.abs(m.sweep) > Math.PI + 0.1 && near(rad(m.from), rr) && near(rad(m.to), rr));
+  const turns = m => m.sweep / (2 * Math.PI);
+  /* manual table, inside thread, M3 tool: RH +1 Z+ | LH -1 Z+ | RH -1 Z- | LH +1 Z-; climb = RL = ccw inside */
+  [['+1.5', '+1', true, true], ['-1.5', '-1', false, true], ['+1.5', '-1', false, false], ['-1.5', '+1', true, false]].forEach(([p, c, ccw, up]) => {
+    const r = R(T262(p, -20, 0, c)), h = hel(r, 5);
+    ok(!r.errors.length && h.length === 1, `262 Q239=${p} Q351=${c}: one helix on R = 16/2 - 3 = 5 ` + JSON.stringify(r.errors));
+    if (!h.length) return;
+    ok((h[0].sweep > 0) === ccw && near(Math.abs(turns(h[0])), 1), `262 Q239=${p} Q351=${c}: one 360° turn ${ccw ? 'ccw' : 'cw'}`);
+    ok(near(h[0].to.z - h[0].from.z, up ? 1.5 : -1.5), `262 Q239=${p} Q351=${c}: works ${up ? 'Z+' : 'Z-'} one pitch, dz ${(h[0].to.z - h[0].from.z).toFixed(3)}`);
+    ok(near(Math.min(h[0].from.z, h[0].to.z), -20), `262 Q239=${p} Q351=${c}: thread reaches the depth Z-20`);
+    ok(near(h[0].from.x, 55) && near(h[0].from.y, 50) && near(h[0].to.x, 55), `262: starts and ends on the reference axis X+55`);
+  });
+  let r = R(T262('+1.5', -20, 0, '+1')), h = hel(r, 5)[0];
+  ok(h && near(h.feed, 500 * 5 / 8), '262: Q207 is the feed at the cutting edge: centre runs 500 x 5 / 8 = 312.5, got ' + (h && h.feed));
+  const last = r.moves[r.moves.length - 1];
+  ok(near(last.to.x, 50) && near(last.to.y, 50) && near(last.to.z, 50), '262: back at the hole centre, 2nd set-up clearance Z+50');
+  r = R(T262('+1.5', -20, 1, '+1')); h = hel(r, 5);
+  ok(!r.errors.length && h.length === 1 && near(turns(h[0]), 14) && near(h[0].from.z, -20) && near(h[0].to.z, 1), 'Q355=1: one continuous helix, ceil(20 / 1.5) = 14 turns, Z-20 -> Z+1');
+  r = R(T262('+1.5', -20, 3, '-1')); h = hel(r, 5);
+  ok(!r.errors.length && h.length === 5 && h.every(m => near(turns(m), -1)), 'Q355=3: ceil(20 / 4.5) = 5 separate 360° paths, got ' + h.length);
+  ok(h.length === 5 && h.map(m => +m.to.z.toFixed(3)).join() === '-2,-6.5,-11,-15.5,-20', 'Q355=3, up-cut: paths offset 3 x 1.5, top first, the last ends at Z-20: ' + h.map(m => +m.to.z.toFixed(3)));
+  r = R(T262('+1.5', 0, 0, '+1'));
+  ok(!r.errors.length && !r.moves.some(m => m.cycle), '262: thread depth 0 -> the cycle is not executed');
+  r = R(T262('+1.5', -20, 0, '+1').replace('Q335=16', 'Q335=6'));
+  ok(r.errors.some(e => e.msg === 'TOOL RADIUS TOO LARGE'), '262: tool R3 in a 6 mm thread -> TOOL RADIUS TOO LARGE');
+  r = R('CYCL DEF 267 OUTSIDE THREAD MLLNG\n Q335=16\n Q239=+1.5\n Q201=-20\n Q355=0\n Q253=750\n Q351=+1\n Q200=2\n Q358=+0\n Q359=+0\n Q203=+0\n Q204=50\n Q254=150\n Q207=500');
+  h = hel(r, 11);
+  ok(!r.errors.length && h.length === 1 && h[0].sweep < 0 && near(h[0].to.z - h[0].from.z, -1.5) && near(h[0].to.z, -20), '267 RH climb: outside on R = 8 + 3 = 11, cw, works Z- to Z-20');
+  ok(r.moves.some(m => m.cycle && m.kind === 'rapid' && near(m.to.x, 62.5) && near(m.to.y, 50) && m.to.z > 0), '267: starts on the reference axis');
+  ok(h[0] && near(h[0].feed, 500 * 11 / 8), '267: centre feed 500 x 11 / 8 outside');
+  r = R('CYCL DEF 267 OUTSIDE THREAD MLLNG\n Q335=16\n Q239=+1.5\n Q201=-20\n Q355=0\n Q253=750\n Q351=-1\n Q200=2\n Q358=+0\n Q359=+0\n Q203=+0\n Q204=50\n Q254=150\n Q207=500');
+  h = hel(r, 11);
+  ok(h.length === 1 && h[0].sweep > 0 && near(h[0].to.z - h[0].from.z, 1.5), '267 RH up-cut: ccw, works Z+');
+  r = R('CYCL DEF 265 HEL.THREAD DRLG/MLG\n Q335=16\n Q239=+1.5\n Q201=-16\n Q253=750\n Q358=+0\n Q359=+0\n Q360=0\n Q200=2\n Q203=+0\n Q204=50\n Q254=150\n Q207=500');
+  h = hel(r, 5);
+  ok(!r.errors.length && h.length === 1 && near(turns(h[0]), -11) && near(h[0].to.z, -16) && near(h[0].from.z, 0.5), '265 RH: one continuous cw helix downward, 11 turns to Z-16');
+  r = R('CYCL DEF 265 HEL.THREAD DRLG/MLG\n Q335=16\n Q239=-1.5\n Q201=-16\n Q253=750\n Q358=+0\n Q359=+0\n Q360=0\n Q200=2\n Q203=+0\n Q204=50\n Q254=150\n Q207=500');
+  h = hel(r, 5);
+  ok(h.length === 1 && h[0].sweep > 0 && h[0].to.z < h[0].from.z, '265 LH: ccw, still downward');
+  r = R('CYCL DEF 264 THREAD DRILLNG/MLLNG\n Q335=16\n Q239=+1.5\n Q201=-16\n Q356=-20\n Q253=750\n Q351=+1\n Q202=5\n Q258=0.2\n Q257=0\n Q256=0.2\n Q358=+0\n Q359=+0\n Q200=2\n Q203=+0\n Q204=50\n Q206=150\n Q207=500');
+  h = hel(r, 5);
+  const drill = r.moves.filter(m => m.cycle && m.kind === 'feed' && m.feed === 150 && m.from.z - m.to.z > 1).map(m => +m.to.z.toFixed(3));
+  ok(!r.errors.length && drill.join() === '-5,-10,-15,-20', '264: drills Q356 -20 in pecks of Q202 5 at Q206: ' + drill);
+  ok(h.length === 1 && near(h[0].from.z, -16) && near(h[0].to.z, -14.5), '264: then one 360° thread path from the thread depth Z-16');
+  r = R('CYCL DEF 263 THREAD MLLNG/CNTSNKG\n Q335=16\n Q239=+1.5\n Q201=-16\n Q356=-20\n Q253=750\n Q351=+1\n Q200=2\n Q357=0\n Q358=-1\n Q359=2\n Q203=+0\n Q204=50\n Q254=150\n Q207=500');
+  h = hel(r, 5);
+  const sink = r.moves.find(m => m.cycle && m.kind === 'feed' && near(m.to.z, -20));
+  const ring = r.moves.find(m => m.kind === 'arc' && near(Math.abs(m.sweep), 2 * Math.PI) && near(rad(m.from), 2) && near(m.to.z, -1));
+  ok(!r.errors.length && sink && sink.feed === 150 && near(sink.from.z, -18), '263: countersinking: F750 to Q356 + set-up clearance, F150 (Q254) to Z-20');
+  ok(ring && ring.feed === 150, '263: countersinking at front: full circle Q359 = 2 at Q358 = Z-1, F150');
+  ok(h.length === 1 && near(h[0].from.z, -16), '263: one 360° thread path from Z-16');
+  const dlg = TNC_DIALOGS.cycleSpec(262), dv = {}; dlg.steps.forEach(s => dv[s.k] = s.dflt);
+  r = R(dlg.build(dv));
+  ok(!r.errors.length && hel(r, 2).length === 1, 'dialog: CYCL DEF 262 built from the manual\'s example values runs clean');
+  ok([263, 264, 265, 267].every(n => { const s = TNC_DIALOGS.cycleSpec(n), v = {}; s.steps.forEach(t => v[t.k] = t.dflt); return !R(s.build(v)).errors.length; }), 'dialog: 263 264 265 267 with the example values run clean');
+  r = R('CYCL DEF 207 RIGID TAPPING NEW\n Q200=2\n Q201=-20\n Q239=-1.5\n Q203=+0\n Q204=50');
+  const tin = r.moves.find(m => m.cycle && m.kind === 'feed' && m.to.z < m.from.z);
+  ok(tin && tin.spindle < 0, '207 Q239 -1.5 = left-hand: the spindle turns M4 on the way in');
+  r = TNC.run(hdr + 'L X+50 Y+50 R0 FMAX M5\nL Z-5 R0 FMAX\nCYCL DEF 18.0 THREAD CUTTING\nCYCL DEF 18.1 DEPTH -20\nCYCL DEF 18.2 PITCH +1\nCYCL CALL\nL Z+5 R0 FMAX\nEND PGM T MM');
+  const c18 = r.moves.filter(m => m.cycle);
+  ok(!r.errors.length && c18.length === 1 && c18[0].spindle > 0 && near(c18[0].to.z, -25) && r.moves[r.moves.length - 1].spindle === 0, 'cycle 18: starts M3 itself (pitch +, depth -), cuts to depth, stops the spindle, no retract');
 }
 
 console.log('TNC 430 (operator\'s machine) — limits, arc tolerance 0.006, F cap 1500, cycle 19 tilts the head');
