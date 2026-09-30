@@ -474,6 +474,60 @@ console.log('THREAD MILLING — 262 263 264 265 267: radius, pitch, depth, Q351 
   ok(!r.errors.length && c18.length === 1 && c18[0].spindle > 0 && near(c18[0].to.z, -25) && r.moves[r.moves.length - 1].spindle === 0, 'cycle 18: starts M3 itself (pitch +, depth -), cuts to depth, stops the spindle, no retract');
 }
 
+console.log('Touch probe cycles (iTNC 530 manual ch. 13/15/19; results Q150-Q162 per 426/430 manual 10.10) — ideal blank, nominal results');
+{ const hdr = 'BEGIN PGM P MM\nBLK FORM 0.1 Z X+0 Y+0 Z-20\nBLK FORM 0.2 X+100 Y+100 Z+0\nTOOL CALL 11 Z\nL Z+50 R0 FMAX\n', end = '\nEND PGM P MM';
+  const R = (s, o) => TNC.run(hdr + s + end, o), last = r => r.moves[r.moves.length - 1];
+  const P412 = (q301, q365, q305, q303) => 'TCH PROBE 412 DATUM INSIDE CIRCLE ~\n Q321=+50 ;CENTER IN 1ST AXIS ~\n Q322=+50 ;CENTER IN 2ND AXIS ~\n Q262=75 ;NOMINAL DIAMETER ~\n Q325=+0 ;STARTING ANGLE ~\n Q247=+60 ;STEPPING ANGLE ~\n Q261=-5 ;MEASURING HEIGHT ~\n Q320=0 ;SETUP CLEARANCE ~\n Q260=+20 ;CLEARANCE HEIGHT ~\n Q301=' + q301 + ' ;MOVE TO CLEARANCE ~\n Q305=' + q305 + ' ;NO. IN TABLE ~\n Q331=+0 ;DATUM ~\n Q332=+0 ;DATUM ~\n Q303=' + q303 + ' ;MEAS. VALUE TRANSFER ~\n Q381=0 ;PROBE IN TS AXIS ~\n Q382=+85 ;1ST CO. FOR TS AXIS ~\n Q383=+50 ;2ND CO. FOR TS AXIS ~\n Q384=+0 ;3RD CO. FOR TS AXIS ~\n Q333=+1 ;DATUM ~\n Q423=4 ;NO. OF MEAS. POINTS ~\n Q365=' + q365 + ' ;TYPE OF TRAVERSE';
+  let r = R(P412(0, 1, 12, 1) + '\nL X+Q151 Y+Q152 Z+Q153 R0 FMAX');
+  const t = r.moves.filter(m => m.touch), all = r.moves.filter(m => m.cycle === 'TCH PROBE 412');
+  ok(!r.errors.length && t.length === 4 && t.every(m => m.kind === 'feed' && m.feed === 500 && near(Math.hypot(m.to.x - 50, m.to.y - 50), 37.5 - 3) && near(m.to.z, -8)),
+    '412 manual example: 4 touches at MP 6120 F500, ball centre stops R3 short of the D75 wall, tip at Q261 - R = -8');
+  ok(t.map(m => Math.round(Math.atan2(m.to.y - 50, m.to.x - 50) * 180 / Math.PI)).join() === '0,60,120,180', '412: touch points from Q325 = 0 in steps of Q247 = 60°');
+  ok(all.every(m => m.probe) && all.filter(m => m.kind === 'arc').length === 3 && all.filter(m => m.kind === 'arc').every(m => near(m.to.z, -8) && m.ccw), '412 Q301 = 0: between points on an arc at measuring height (Q247 + = ccw), every move tagged probe');
+  ok(all[0].kind === 'rapid' && near(all[0].from.z, 50) && near(all[0].to.z, 50) && near(all[all.length - 1].to.z, 20), '412: positioning logic — above Q260 it moves in the plane first; ends at the clearance height Q260');
+  ok(near(last(r).to.x, 50) && near(last(r).to.y, 50) && near(last(r).to.z, 75), '412: Q151/Q152 = nominal centre, Q153 = nominal diameter; Q305 = 12, Q303 = 1 writes the preset table only — the datum stays');
+  r = R(P412(1, 0, 0, 1));
+  const a2 = r.moves.filter(m => m.probe && !m.touch && Math.hypot(m.to.x - m.from.x, m.to.y - m.from.y) > 5);
+  ok(a2.length === 4 && a2.slice(1).every(m => m.kind === 'rapid' && near(m.to.z, 20)), '412 Q301 = 1, Q365 = 0: between points straight at the clearance height');
+  ok(!R(P412(1, 1, 0, 1)).moves.some(m => m.kind === 'arc' && !near(m.to.z, 20) && m.probe), '412 Q301 = 1, Q365 = 1: arcs at the clearance height');
+  r = R(P412(0, 1, 0, 1).replace('Q331=+0', 'Q331=+5').replace('Q332=+0', 'Q332=-7') + '\nL X+0 Y+0 R0 FMAX');
+  ok(!r.errors.length && near(last(r).to.x, 45) && near(last(r).to.y, 57), '412 Q305 = 0: the display is set, centre (50,50) now reads (5,-7): X+0 Y+0 goes to machine (45,57)');
+  r = R(P412(0, 1, 0, 1).replace('Q262=75', 'Q262=8') + '\n');
+  const cent = r.moves.filter(m => m.cycle === 'TCH PROBE 412' && !m.touch && m.kind !== 'rapid');
+  ok(!r.errors.length && !cent.length && r.moves.filter(m => m.touch).every(m => near(m.from.x, 50) && near(m.from.y, 50)), '412 D8 with R3 + MP 6140 2: no room — every point probed from the centre, no moves between');
+  /* manual 15.13 example CYC413: 413 + Q381, display X0 Y10, Z0 on the top */
+  r = R('TCH PROBE 413 DATUM OUTSIDE CIRCLE\n Q321=+25\n Q322=+25\n Q262=30\n Q325=+90\n Q247=+45\n Q261=-5\n Q320=2\n Q260=+10\n Q301=0\n Q305=0\n Q331=+0\n Q332=+10\n Q303=+0\n Q381=1\n Q382=+25\n Q383=+25\n Q384=+25\n Q333=+0\n Q423=4\n Q365=1\nL X+0 Y+10 Z+0 R0 FMAX');
+  const t3 = r.moves.filter(m => m.touch);
+  ok(!r.errors.length && t3.length === 5 && t3.slice(0, 4).every(m => near(Math.hypot(m.to.x - 25, m.to.y - 25), 18) && near(Math.hypot(m.from.x - 25, m.from.y - 25), 22)), '413: 4 touches from outside, start on R 15 + 3 + 2 + Q320 2, contact on R 18');
+  ok(near(t3[4].to.x, 25) && near(t3[4].to.y, 25) && near(t3[4].to.z, 25) && near(t3[4].from.z, 29), '413 Q381 = 1: then down onto Q384 at (Q382, Q383) from Q384 + clearance');
+  ok(near(last(r).to.x, 25) && near(last(r).to.y, 25) && near(last(r).to.z, 25), '413 example: centre (25,25) reads X0 Y10, top Z25 reads Z0 -> X+0 Y+10 Z+0 = machine (25,25,25)');
+  /* manual 15.13 example CYC416 (417 part): Z into preset row 1, cycle 247 Q339 = 1 activates it */
+  const P417 = 'TCH PROBE 417 DATUM IN TS AXIS\n Q263=+7.5\n Q264=+7.5\n Q294=+25\n Q320=0\n Q260=+50\n Q305=1\n Q333=+0\n Q303=+1\n';
+  r = R(P417 + 'L X+0 Y+0 Z+0 R0 FMAX\nCYCL DEF 247 DATUM SETTING\n Q339=1\nL X+0 Y+0 Z+0 R0 FMAX');
+  const t7 = r.moves.find(m => m.touch), zs = r.moves.filter(m => !m.probe).map(m => m.to.z);
+  ok(!r.errors.length && t7 && near(t7.to.z, 25) && near(t7.from.z, 27) && near(t7.to.x, 7.5), '417: one touch down from Q294 + MP 6140 onto Q294 at (Q263, Q264)');
+  ok(near(zs[zs.length - 2], 0) && near(zs[zs.length - 1], 25), '417 Q305 = 1, Q303 = 1: preset row only; cycle 247 Q339 = 1 then puts Z0 on the probed top');
+  r = R('L X-55 Y+0 R0 FMAX\nTCH PROBE 419 DATUM IN ONE AXIS ~\n Q263=-55 ~\n Q264=+0 ~\n Q261=-4 ~\n Q320=+12 ~\n Q260=+5 ~\n Q272=+1 ~\n Q267=+1 ~\n Q305=+0 ~\n Q333=-40 ~\n Q303=+1\nL X-40 Y+0 R0 FMAX');
+  const t9 = r.moves.find(m => m.touch);
+  ok(!r.errors.length && near(t9.from.x, -72) && near(t9.to.x, -58) && near(t9.to.z, -7), '419 X, direction +: start Q263 - (R + MP 6140 + Q320), ball centre stops R short');
+  ok(near(last(r).to.x, -55), '419: X-55 now reads X-40');
+  r = R('TCH PROBE 411 DATUM OUTS. RECTAN.\n Q321=+22.5\n Q322=+0\n Q323=+35\n Q324=+60\n Q261=-4\n Q320=+12\n Q260=+5\n Q301=0\n Q305=+0\n Q331=+22.5\n Q332=+0\n Q303=+1\n Q381=+0\n Q382=+0\n Q383=+0\n Q384=+0\n Q333=+0');
+  const s11 = r.moves.filter(m => m.probe && !m.touch && near(m.to.z, -7) && Math.hypot(m.to.x - m.from.x, m.to.y - m.from.y) > 1e-6);
+  ok(!r.errors.length && r.moves.filter(m => m.touch).length === 4 && s11.every(m => near(m.to.x, m.from.x) || near(m.to.y, m.from.y)), '411 Q301 = 0: paraxial moves at measuring height around the stud');
+  ok(s11.every(m => Math.abs(m.to.x - 22.5) > 17.5 + 3 - 1e-6 || Math.abs(m.to.y) > 30 + 3 - 1e-6), '411: the paraxial path rounds the corners outside the stud');
+  r = R('CYCL DEF 200 DRILLING\n Q200=2\n Q201=-10\n Q206=150\n Q202=5\n Q210=0\n Q203=+0\n Q204=50\n Q211=0\n' + P417.replace('Q305=1', 'Q305=0') + 'L X+50 Y+50 R0 FMAX M3\nCYCL CALL');
+  ok(!r.errors.length && r.moves.some(m => m.cycle === 'DRILLING 200'), 'a TCH PROBE does not replace the last CYCL DEF');
+  r = R('TOOL CALL 4 Z\nTCH PROBE 31.0 TOOL LENGTH\nTCH PROBE 31.1 CHECK: 1 Q5\nTCH PROBE 31.2 HEIGHT: +120\nTCH PROBE 31.3 PROBING THE TEETH: 1\nQ5 = Q5 + 1\nTCH PROBE 481 TOOL LENGTH\n Q340=1 ;CHECK\n Q260=+100 ;CLEARANCE HEIGHT\n Q341=1 ;PROBING THE TEETH\nTCH PROBE 562 TOOL SETTING L ~\n Q350=+0 ;MEASURING TYPE ~\n Q361=+2 ;NUMBER OF MEASUREMEN ~\n Q362=+0.005 ;DISPERSION TOLERANCE\nL X+Q5 Y+Q199 Z+Q115 R0 FMAX');
+  ok(!r.errors.length && !r.moves.some(m => m.probe) && near(last(r).to.x, 1) && near(last(r).to.y, 0) && near(last(r).to.z, 0), 'TT 31 (dotted) / 481 / 562: no motion; status Q5 / Q199 = 0 (in tolerance), deviation Q115 = 0');
+  const pb = TNC.parse('TCH PROBE 31.0 TOOL LENGTH\nTCH PROBE 31.1 CHECK: 0\nTCH PROBE 412 DATUM INSIDE CIRCLE ~\n Q321=+50 ;CENTER ~\n Q322=+50\nL X+0').blocks;
+  ok(pb.map(b => b.kind + b.n).join() === 'TCHPROBE0,CYCLPARM1,TCHPROBE2,CYCLPARM2,CYCLPARM2,L3', 'numbering: dotted TCH PROBE lines are blocks; Q lines belong to their TCH PROBE');
+  r = R('TCH PROBE 400 BASIC ROTATION\n Q263=+10\n Q264=+3.5');
+  ok(r.errors.some(e => e.msg === 'TCH PROBE 400 NOT IMPLEMENTED IN SIMULATOR'), 'a probe cycle not simulated parses and says so');
+  const ps = TNC_DIALOGS.probeSpec(412), pv = {}; ps.steps.forEach(s => pv[s.k] = s.dflt);
+  ok(/^TCH PROBE 412 DATUM INSIDE CIRCLE\n/.test(ps.build(pv)) && !R(ps.build(pv)).errors.length, 'dialog: TCH PROBE 412 from the manual\'s example values runs clean');
+  ok(TNC_DIALOGS.probeList().every(c => { const s = TNC_DIALOGS.probeSpec(c.num), v = {}; s.steps.forEach(t => v[t.k] = t.dflt); return !R(s.build(v)).errors.length; }), 'dialog: every TCH PROBE spec with its example values runs clean');
+}
+
 console.log('TNC 430 (operator\'s machine) — limits, arc tolerance 0.006, F cap 1500, cycle 19 tilts the head');
 { const M430 = { arcTol: 0.006, pocketK: 1.1, fMax: 1500, accel: 0.4, sMax: 2500, rapid: { x: 9000, y: 10000, z: 5000, a: 4000, b: 1000 },
     axes: ['X', 'Y', 'Z', 'B', 'A'], limits: { B: [-180.1, 0.1], A: [-195, 15] } };
