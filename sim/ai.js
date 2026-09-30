@@ -4,7 +4,12 @@
    The key lives in this browser (sessionStorage, or localStorage if the
    operator ticks Remember), or comes from .env in the gitignored local build.
 
-   TNC_AI.DEFAULT_MODEL
+   TNC_AI.DEFAULT_MODEL, TNC_AI.RECOMMENDED — the recommended model (DeepSeek V4.1 Flash)
+   TNC_AI.listModels() -> Promise {live, models:[{id,name,provider,context,pin,pout,created}], frontier:[...]}
+     the ONE model catalogue: OpenRouter's live list (or the server's filtered copy); pin/pout = US$ per million
+     tokens in/out. frontier = newest flagship per major provider, computed from that list. Never rejects: when
+     the list can't be fetched it resolves the small OFFLINE list with live:false.
+   TNC_AI.providerName(slug) -> 'Anthropic', 'xAI', ...
    TNC_AI.generate({key, model, prompt, system, tools, verify, onStep, signal, maxRepairs, timeoutMs}) -> {src, report, cost}
      onStep phases: 'request' {attempt}, 'progress' {attempt, secs, chars, reasoningChars, stage:'thinking'|'writing'}
      (fired about once a second while the model streams), 'checked' {attempt, report, src}.
@@ -15,9 +20,73 @@
 var TNC_AI = (function () {
   'use strict';
   var API = 'https://openrouter.ai/api/v1';
-  // checked against https://openrouter.ai/api/v1/models on 2026-09-27: $0.035 / M in, $0.29 / M out
   var DEFAULT_MODEL = 'deepseek/deepseek-v4.1-flash';
-  var MODELS = ['deepseek/deepseek-v4.1-flash', 'deepseek/deepseek-v4-pro-0813', 'google/gemini-3.8-flash', 'openai/gpt-5.6-luna'];
+
+  /* ---------- the model catalogue: the only model list in the app ---------- */
+  var FRONTIER_PROVIDERS = ['anthropic', 'openai', 'google', 'x-ai', 'deepseek', 'qwen', 'meta-llama', 'mistralai'];
+  var PROVIDERS = { anthropic: 'Anthropic', openai: 'OpenAI', google: 'Google', 'x-ai': 'xAI', deepseek: 'DeepSeek', qwen: 'Qwen',
+    'meta-llama': 'Meta', mistralai: 'Mistral', moonshotai: 'Moonshot', 'z-ai': 'Z.ai', cohere: 'Cohere', perplexity: 'Perplexity',
+    amazon: 'Amazon', microsoft: 'Microsoft', nvidia: 'NVIDIA', minimax: 'MiniMax', openrouter: 'OpenRouter', baidu: 'Baidu',
+    tencent: 'Tencent', bytedance: 'ByteDance', 'ibm-granite': 'IBM', inception: 'Inception', liquid: 'Liquid', 'arcee-ai': 'Arcee' };
+  function providerName(slug) { return PROVIDERS[slug] || slug; }
+  /* Offline fallback ONLY (the live list could not be fetched): ids that were on OpenRouter on 2026-09-27.
+     Only DeepSeek V4.1 Flash's price was checked then ($0.035 / $0.29 per M); the rest show as unknown. */
+  var OFFLINE = [
+    { id: DEFAULT_MODEL, name: 'DeepSeek V4.1 Flash', pin: 0.035, pout: 0.29 },
+    { id: 'anthropic/claude-opus-5.5', name: 'Claude Opus 5.5' },
+    { id: 'openai/gpt-5.6-luna', name: 'GPT-5.6 Luna' },
+    { id: 'google/gemini-3.8-flash', name: 'Gemini 3.8 Flash' },
+    { id: 'deepseek/deepseek-v4-pro-0813', name: 'DeepSeek V4 Pro' },
+    { id: 'qwen/qwen3.8-flash', name: 'Qwen 3.8 Flash' }
+  ].map(function (m) { return { id: m.id, name: m.name, provider: m.id.split('/')[0], context: null,
+    pin: m.pin == null ? null : m.pin, pout: m.pout == null ? null : m.pout, created: 0 }; });
+  var RECOMMENDED = OFFLINE[0];
+
+  function perM(x) { var v = parseFloat(x); return isFinite(v) && v >= 0 ? v * 1e6 : null; }   // OpenRouter: US$ per token; -1 = variable
+  function normalize(m) {
+    var pr = m.pricing || {}, out = (m.architecture || {}).output_modalities, n = String(m.name || m.id), c = n.indexOf(': ');
+    return { id: m.id, name: c > 0 && c < 30 ? n.slice(c + 2) : n, provider: String(m.id).split('/')[0],
+      context: +m.context_length || (m.top_provider && +m.top_provider.context_length) || null,
+      pin: perM(pr.prompt), pout: perM(pr.completion), created: +m.created || 0,
+      text: !out || (out.indexOf('text') >= 0 && out.indexOf('image') < 0), variant: /:/.test(m.id) };
+  }
+  /* Frontier quick picks: per major provider, drop the small / fast / special-purpose models and the premium
+     "pro" tier (> $60 per M out), keep the ones released within 120 days of that provider's newest, and take the
+     top-tier name first (opus / pro / max / large / ultra), then the highest output price, then the newest.
+     A heuristic over names and prices, not a benchmark. */
+  var TOP_TIER = /(^|[-_.])(opus|pro|max|large|ultra|premier)(?=[-_.\d]|$)/i;
+  var NOT_FLAGSHIP = /(^|[-_.])(mini|nano|lite|tiny|small|micro|flash|fast|haiku|air|turbo|instant|embed\w*|guard|moderation|audio|tts|image|realtime|search|research|ocr|vl|vision|codex|coder|devstral|codestral|distill|oss|ministral|saba)(?=[-_.\d]|$)/i;
+  function frontier(models) {
+    var out = [];
+    FRONTIER_PROVIDERS.forEach(function (p) {
+      var c = models.filter(function (m) { return m.provider === p && m.pout > 0 && m.pout <= 60 && !NOT_FLAGSHIP.test(m.id.slice(p.length + 1)); });
+      if (!c.length) return;
+      var newest = Math.max.apply(null, c.map(function (m) { return m.created; }));
+      c = c.filter(function (m) { return newest - m.created <= 120 * 86400; });
+      var top = function (m) { return TOP_TIER.test(m.id.slice(p.length + 1)) ? 1 : 0; };
+      c.sort(function (a, b) { return (top(b) - top(a)) || (b.pout - a.pout) || (b.created - a.created); });
+      out.push(c[0]);
+    });
+    return out;
+  }
+  var catalogue = null;
+  function listModels() {
+    var base = api();
+    if (catalogue && catalogue.base === base) return catalogue.p;
+    var p = fetch(base + '/models', { headers: { Accept: 'application/json' } }).then(function (res) {
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return res.json();
+    }).then(function (j) {
+      var L = (j.data || []).map(normalize).filter(function (m) { return m.id && !m.variant && m.text; });
+      if (!L.length) throw new Error('empty model list');
+      return { live: true, models: L, frontier: frontier(L) };
+    }).catch(function (e) {
+      catalogue = null;                                   // try again next time the picker opens
+      return { live: false, error: String(e && e.message || e), models: OFFLINE.slice(), frontier: OFFLINE.slice(1) };
+    });
+    catalogue = { base: base, p: p };
+    return p;
+  }
 
   /* window.TNC_AI_API: set by bridge.js when the page is served by the TNC server, which holds the
      OpenRouter key and forwards to OpenRouter. The browser then sends its session cookie, never a key. */
@@ -268,7 +337,8 @@ toolLine(tools),
     return step();
   }
 
-  return { DEFAULT_MODEL: DEFAULT_MODEL, MODELS: MODELS, FALLBACK_SYSTEM: FALLBACK_SYSTEM,
+  return { DEFAULT_MODEL: DEFAULT_MODEL, RECOMMENDED: RECOMMENDED, FRONTIER_PROVIDERS: FRONTIER_PROVIDERS, FALLBACK_SYSTEM: FALLBACK_SYSTEM,
+    listModels: listModels, providerName: providerName, _normalize: normalize, _frontier: frontier,
     generate: generate, testKey: testKey, extract: extract, system: system,
     _sseLine: sseLine, _sseFeed: sseFeed /* internal: exposed only so tests can drive the SSE parser without a network call */ };
 })();
