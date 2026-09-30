@@ -403,7 +403,7 @@ use axum::response::IntoResponse;
 async fn ai_proxy_keeps_the_key_and_the_budget() {
     let (base, seen) = fake_openrouter().await;
     let t = setup_with(|c| {
-        c.openrouter_api_key = Some("sk-or-server-secret".into());
+        c.openrouter_api_key = Some("test-server-secret".into());
         c.openrouter_base = base;
         c.ai_models = vec!["deepseek/deepseek-v4.1-flash".into()];
         c.ai_max_tokens = 1000;
@@ -412,7 +412,7 @@ async fn ai_proxy_keeps_the_key_and_the_budget() {
     .await;
     let info = t.call(Method::GET, "/api/v1/info", None, None).await.json();
     assert_eq!(info["ai"]["enabled"], true);
-    assert!(!info.to_string().contains("sk-or-server-secret"));
+    assert!(!info.to_string().contains("test-server-secret"));
 
     assert_eq!(t.call(Method::POST, "/api/ai/v1/chat/completions", None, Some(json!({}))).await.status, StatusCode::UNAUTHORIZED);
     let tok = t.signup("a@shop.test").await;
@@ -427,7 +427,7 @@ async fn ai_proxy_keeps_the_key_and_the_budget() {
     assert!(r.text().contains("BEGIN PGM A MM") && r.text().contains("[DONE]"));
     {
         let s = seen.lock().unwrap();
-        assert_eq!(s[0].0.as_deref(), Some("Bearer sk-or-server-secret"));
+        assert_eq!(s[0].0.as_deref(), Some("Bearer test-server-secret"));
         assert_eq!(s[0].1["max_tokens"], 1000);
         assert_eq!(s[0].1["usage"]["include"], true);
     }

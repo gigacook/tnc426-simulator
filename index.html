@@ -16281,7 +16281,7 @@ function aiSetupHTML(){
 <li>Create an account at <code>openrouter.ai</code>.</li>
 <li>Buy a little credit on the <strong>Credits</strong> page. $5 is thousands of programs.</li>
 <li>On the <strong>Keys</strong> page, create a key and <strong>give it a credit limit</strong> (say $2). If the key ever leaks, that is all it can spend.</li>
-<li>Copy the key — it starts with <code>sk-or-v1-</code> — paste it below and press <strong>Test key</strong>.</li>
+<li>Copy the key, paste it below and press <strong>Test key</strong>.</li>
 <li>Press <strong>+ New</strong> → <strong>Describe a part</strong>, say what you want, press <strong>Generate</strong>. The simulator checks the result; if it fails, the errors go back to the AI once for a fix.</li>
 </ol>
 <h4>Where your key and your words go</h4>
@@ -16294,7 +16294,7 @@ function aiSetupHTML(){
 <p>The AI's program is <strong>simulator output</strong>. Never run it on a real machine without proving it out the normal way.</p>
 </div>
 <div class="fgrid" style="max-width:760px">
-<label class="fld wide"><span>OPENROUTER API KEY</span><input id="ai-key" type="password" autocomplete="off" spellcheck="false" placeholder="sk-or-v1-…" value="${esc(k)}"></label>
+<label class="fld wide"><span>OPENROUTER API KEY</span><input id="ai-key" type="password" autocomplete="off" spellcheck="false" placeholder="your OpenRouter key" value="${esc(k)}"></label>
 <label class="fld wide"><span>MODEL</span><input id="ai-model" list="ai-models" spellcheck="false" value="${esc(getModel())}">
 <datalist id="ai-models">${(AI?AI.MODELS:[]).map(m=>`<option value="${esc(m)}">`).join('')}</datalist></label>
 <label class="fld chk wide"><input type="checkbox" id="ai-remember"${rem?' checked':''}> Remember the key in this browser</label>
