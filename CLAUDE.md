@@ -1,66 +1,63 @@
-# CLAUDE.md — TNC 426/430 Simulator
+# CLAUDE.md — TNC 426/430 Simulator (rules; state lives in CONTINUE.md)
 
 ## North star
+A program written here must run **the same** on a real HEIDENHAIN TNC 426/430: same moves, same errors, same timing.
+Authority order:
+1. `research/tnc426_430_280476_manual_en.txt` (426/430, NC SW 280 476; gitignored)
+2. the programming-station oracle (`docs/PROGRAMMING-STATION.md`)
+3. the operator's answers (`private/`)
+4. nothing else
 
-A program written here must run **the same** on a real HEIDENHAIN TNC 426/430 — same moves,
-same errors, same timing. Not "close enough." Where that can't be verified yet (no oracle,
-no manual citation), say so plainly in the closing report instead of implying parity.
-Authority order: `research/tnc426_430_280476_manual_en.txt` (426/430, NC SW 280 476) →
-programming-station oracle (`tnc-programstation/instruct.md`, TODO.md P10) → nothing else.
-The iTNC 530 station is a *timing/dialog/error-text* oracle only — never a *syntax* oracle
-(it accepts a superset the 426/430 rejects).
+The iTNC 530 manual/station counts only where the 426/430 sources are silent, and it is then labelled as such in code comments.
+Where parity isn't verified, say so. Never present a guess as a fact. Placeholders are marked in code and listed in CONTINUE.md → OPEN.
 
-## End-of-run report — every run, every agent
+## Stack — LOCKED (user decision 2026-09-30)
+| Layer | What | Where |
+|---|---|---|
+| Interpreter + checks | plain JS: core.js, stock.js, sim.js, machines.js. **One implementation**, run in the browser AND in the server (QuickJS, `include_str!`) | `sim/` |
+| Simulator UI + 3D | classic-script modules + three.js r186 (bundled by esbuild), one offline HTML via `python3 build.py` → `index.html` (GitHub Pages) | `sim/`, `build.py` |
+| Server | Rust: axum, sqlx/SQLite, argon2, reqwest (OpenRouter proxy) | `server/` |
+| Web app | React + Vite + CodeMirror; hosts the simulator in an iframe (`sim/bridge.js`). The React choice is still being reasoned about — see CONTINUE.md D-REACT | `web/` |
+| Desktop | Tauri 2 (mac, Linux, Windows) — not started | — |
 
-Close every run with this, soldier-style — terse, no re-narration of the tool trail:
+Not C#. Never port the interpreter out of JS: the server runs the same file.
 
+## Rules that don't change
+1. Authentic TNC behaviour. Not "close enough".
+2. Keyboard-first and fully interactive.
+3. The simulator always also ships as one plain HTML file that works offline without the server.
+4. AI = OpenRouter only. Never Anthropic direct. Keys only in `private/.env` (gitignored) or on the server, never in tracked files.
+5. Name any install and ask before running it. Never rebuild what exists: search GitHub, brew and npm first.
+6. A DEV tab that lies is worse than none: keep `docs/FEATURES.txt` true.
+7. No personal names or data in tracked files; personal material goes in `private/`.
+8. Commits end with `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
+
+## How the user works
+- Opus (main thread): priority work (interpreter, I/O, profiles, AI, server).
+- Subagents:
+  - Sonnet for cheap docs and content.
+  - Opus for anything the user will judge by eye or by parity.
+  - Worktree isolation and non-overlapping file scopes.
+- Reason back and forth. Do not build further on an unconfirmed interpretation. Explain plainly: no riddles, no jargon walls.
+- Test priority features (Playwright suite `.tools/qa/qa.mjs`, `tests/manual.js`, `cargo test`). Don't test low-priority visuals beyond a look.
+
+## Layout
+- `sim/`: simulator sources
+- `server/`, `web/`: fullstack
+- `tests/`:
+  - `manual.js`: 426/430 manual examples
+  - `corpus.js`: 2,806 real programs, `AUTOTOOLS=1`
+- `docs/`: FEATURES (DEV tab), HISTORY, PROGRAMMING-STATION
+- Gitignored:
+  - `research/`, `search-heidenhain/`: manuals, GitHub clones
+  - `.tools/`: node_modules, QA suite
+  - `.libcache/`
+  - `private/`
+  - `local/`: scratch, logs
+
+## End-of-run report (every agent, every run)
 ```
-SOLVED
-- <what> — <why it mattered>
-RISK / NOT VERIFIED
-- <anything not checked against manual or oracle — or "none" if genuinely covered>
-NEXT
-- <single next item closest to 1:1 parity — cite the TODO.md P# it comes from>
+SOLVED   - <what> — <why it mattered>
+RISK     - <not verified against manual/oracle, or "none">
+NEXT     - <one item, cite its CONTINUE.md id>
 ```
-
-One screen, max. Diffs, file paths, triangle counts, screenshots — that's what the transcript
-is for. The closing report is the "so what," not a second copy of the work.
-
-## Phase before Rust + React (now — this is where all current work happens)
-
-Single offline HTML file, `python3 build.py`, plain ES5-ish browser JS, three.js r186 bundled.
-Everything in TODO.md P0–P10 lives here:
-
-- Klartext interpreter correctness — parser, cycles, Q-params, error register (P0/P1). **This
-  is the parity-critical code.**
-- Programming-station oracle work (P10) — the actual parity *gate*, not a nice-to-have.
-- UI, profiles, program I/O, effects, AI generation, visual quality, tools/callouts, flowchart
-  (P2, P4–P8) — all ship inside the one HTML file, no server, no build step for the user.
-- TNC 430 multi-axis (P9) — a `window.TNC_MACHINES['430']` kinematics config, still inside the
-  same file, never a UI fork.
-
-Nothing here needs Rust or React. Don't touch either while a P0/P1 item is open — that's scope
-leak, not future-proofing.
-
-## Phase after Rust + React (later — gated, not started)
-
-This is TODO.md P11 ("future-proofing — backend service + Windows/Mac desktop app"), now named:
-a Rust backend/core + React frontend, replacing the single-file delivery model.
-
-- **Gate to start:** P0/P1 closed out and P10's golden set is oracle-verified. Porting an
-  interpreter whose correctness is still unverified just ports the bugs faster.
-- **What moves:** the interpreter core (parser / cycles / Q-params / error register) — it's the
-  part parity actually depends on.
-- **What probably doesn't move:** the three.js renderer and most of the UI. Don't rewrite what
-  isn't the bottleneck for parity.
-- **What doesn't happen now:** no JS in this repo gets restructured "to be Rust-ready." That's
-  speculative work against a phase the user hasn't un-deferred. YAGNI.
-- Explicitly deferred per TODO.md P11 until the user says otherwise. This section exists so
-  scope doesn't drift either direction — phase-1 work sliding into rewrite-prep, or phase-2 work
-  starting before phase-1 has earned it.
-
-## Everything else
-
-TODO.md's "RULES THAT DON'T CHANGE" is the source of truth for behavioural rules (authentic TNC
-behaviour, keyboard-first, ship a direct HTML link, ask before installing, a DEV tab that lies
-is worse than none). Not duplicated here — read it before touching interpreter behaviour.
