@@ -96,6 +96,9 @@ var TNC_TOOLS3D = (function () {
   function latheZ(points, segs) {
     var pts = [];
     for (var i = 0; i < points.length; i++) pts.push(new THREE.Vector2(Math.max(0.02, points[i][0]), points[i][1]));
+    // close the solid: run the profile in from the axis and back to it, or the part is an open tube you see through
+    if (pts[0].x > 0.03) pts.unshift(new THREE.Vector2(0.02, pts[0].y));
+    if (pts[pts.length - 1].x > 0.03) pts.push(new THREE.Vector2(0.02, pts[pts.length - 1].y));
     var g = new THREE.LatheGeometry(pts, segs || 24);
     g.rotateX(Math.PI / 2);
     return g;
@@ -156,6 +159,52 @@ var TNC_TOOLS3D = (function () {
       var f = mesh(g, material);
       group.add(f);
     }
+  }
+
+  // Box with chamfered edges (bevelled vertical edges; enough to catch the highlight on an insert)
+  function chamferedBox(w, h, d, c) {
+    var sh = new THREE.Shape(), x = w / 2, y = h / 2;
+    sh.moveTo(-x + c, -y); sh.lineTo(x - c, -y); sh.lineTo(x, -y + c); sh.lineTo(x, y - c); sh.lineTo(x - c, y);
+    sh.lineTo(-x + c, y); sh.lineTo(-x, y - c); sh.lineTo(-x, -y + c); sh.lineTo(-x + c, -y);
+    var g = new THREE.ExtrudeGeometry(sh, { depth: d, bevelEnabled: true, bevelThickness: c * 0.6, bevelSize: c * 0.6, bevelSegments: 1 });
+    g.translate(0, 0, -d / 2); return g;
+  }
+
+  // Real fluted body: a cross-section (N lands + N curved gullets) swept up Z with a helix twist.
+  // opts: helix (deg, 0 = straight flutes), core (web radius share), land (share of each pitch that is full Ø),
+  //       point (half-angle deg: 59 = 118° drill point, 0 = flat end), segs (profile points per flute).
+  function flutedGeo(r, len, n, opts) {
+    opts = opts || {};
+    var helix = (opts.helix === undefined ? 30 : opts.helix) * Math.PI / 180, core = opts.core || 0.58, land = opts.land || 0.32;
+    var per = opts.segs || 16, M = n * per, pitch = 2 * Math.PI / n;
+    var ptLen = opts.point ? r / Math.tan(opts.point * Math.PI / 180) : 0;
+    var rings = Math.min(160, Math.max(12, Math.ceil(len / Math.max(0.25, r * 0.12)))) + 1;
+    var twist = Math.tan(helix) / r;                      // rad per mm: the flute winds at the helix angle on the OD
+    function rho(a) {                                     // profile radius at angle a: land at full Ø, gullet dips to the core
+      var u = ((a % pitch) + pitch) % pitch / pitch;
+      if (u < land) return r;
+      var v = (u - land) / (1 - land);                    // 0..1 across the gullet: steep cutting face, long heel
+      var d = v < 0.35 ? Math.sin(v / 0.35 * Math.PI / 2) : Math.cos((v - 0.35) / 0.65 * Math.PI / 2);
+      return r - (r - r * core) * Math.pow(Math.max(0, d), 0.8);
+    }
+    var pos = [], uv = [], idx = [];
+    for (var k = 0; k < rings; k++) {
+      var z = len * k / (rings - 1), cap = ptLen && z < ptLen ? Math.max(0.02, z * Math.tan(opts.point * Math.PI / 180)) : Infinity;
+      for (var j = 0; j < M; j++) {
+        var a = j / M * 2 * Math.PI, rr = Math.min(rho(a), cap), ang = a + z * twist;
+        pos.push(rr * Math.cos(ang), rr * Math.sin(ang), z);
+        uv.push(j / M, z / len);                            // turned/brushed textures run along the axis
+      }
+    }
+    for (k = 0; k < rings - 1; k++) for (j = 0; j < M; j++) {
+      var a0 = k * M + j, a1 = k * M + (j + 1) % M, b0 = a0 + M, b1 = a1 + M;
+      idx.push(a0, a1, b1, a0, b1, b0);
+    }
+    var c0 = pos.length / 3; pos.push(0, 0, 0); var c1 = c0 + 1; pos.push(0, 0, len); uv.push(0, 0, 0, 1);   // end caps (flat end / shank side)
+    for (j = 0; j < M; j++) { idx.push(c0, (j + 1) % M, j); idx.push(c1, (rings - 1) * M + j, (rings - 1) * M + (j + 1) % M); }
+    var g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
+    return g;
   }
 
   // Estimated cutter length (tip to end of flutes/body) per tool type -- used
@@ -346,10 +395,10 @@ var TNC_TOOLS3D = (function () {
       if (labelStr) grp.add(labelDecal(labelStr, flangeR + 0.05, z + flangeLen * 0.5, Math.min(7, flangeLen * 0.7), 1.25, 1.7, 20));
       z += flangeLen;
     }
-    var taper = mesh(chamferedCyl(taperR1, taperR0, taperLen, Math.min(1.1, taperLen * 0.05), 28), taperMat);
+    var gaugeZ = z;   // flange top = spindle face (gauge line); the 7:24 taper goes up into the spindle from here
+    var taper = mesh(chamferedCyl(taperR0, taperR1, taperLen, Math.min(1.1, taperLen * 0.05), 28), taperMat);
     taper.position.z = z; taper.name = 'taper'; grp.add(taper);
     z += taperLen;
-    var gaugeZ = z;
     // retention knob: shouldered pull stud with a small groove near the tip
     var kpts = [[0.02, 0], [6.2, 0], [6.2, 3.5], [4.6, 4.2], [4.6, 8.5], [3.6, 9.2], [3.6, 12.5], [2.2, 14]];
     var knob = mesh(latheZ(kpts, 16), knobMat);
@@ -363,13 +412,12 @@ var TNC_TOOLS3D = (function () {
     var holdMat = steelMat(COL.holder, 0.42, tex);
     var taperMat = steelMat(COL.holderHi, 0.40, tex);
     var knobMat = steelMat(COL.holder, 0.38, null);
-    var knurlTex = knurlTexture();
-    var colletMat = mat(COL.collet, 0.52, 0.7, { clearcoat: 0.08, flatShading: true, map: knurlTex, roughnessMap: knurlTex });
+    var colletMat = steelMat(COL.holderHi, 0.36, tex);   // ER nut: plain ground steel, lead-in cone at the front
     var slotsTex = flangeSlotsTexture();
     var shortLabel = (style === 'SK40' ? 'SK40' : 'ISO50') + ' ER32';
     var grp = new THREE.Group(); grp.name = 'holder';
 
-    var noseR = Math.max(r * 2.0, 9);          // ER nut nose radius
+    var noseR = Math.max(25, r + 6);           // ER32 clamping nut: Ø50 whatever the tool (standard nut OD)
     var noseLen = Math.max(r * 3.2, H.noseMin);
     var bodyR = Math.max(noseR * 1.35, H.bodyMin);
     var bodyLen = H.bodyLen;
@@ -378,16 +426,16 @@ var TNC_TOOLS3D = (function () {
     var taperR0 = H.taperR0, taperR1 = H.taperR1; // 7:24 taper
     var taperLen = H.taperLen;
 
-    var stackSum = noseLen + bodyLen + flangeLen + taperLen;
+    var stackSum = noseLen + bodyLen + flangeLen;
     var maxStack = (opts.maxStack !== undefined) ? opts.maxStack : stackSum;
     var scale = Math.min(1, Math.max(0.12, maxStack / stackSum));
     noseLen *= scale; bodyLen *= scale; flangeLen *= scale; taperLen *= scale;
 
-    var gripZ = gaugeZ - noseLen - bodyLen - flangeLen - taperLen; // bottom of holder stack
+    var gripZ = gaugeZ - noseLen - bodyLen - flangeLen; // bottom of holder stack
     var z = gripZ;
 
     // ER collet nut: 12-flat faceted body (flatShaded) with a knurl band
-    var nose = mesh(chamferedCyl(noseR * 0.72, noseR, noseLen, Math.min(0.8, noseLen * 0.08), 12), colletMat);
+    var nose = mesh(latheZ([[r + 0.6, 0], [noseR * 0.78, 0], [noseR * 0.9, 3], [noseR, 6], [noseR, noseLen - 1.5], [noseR - 1.5, noseLen]], 48), colletMat);
     nose.position.z = z; nose.name = 'collet-nut'; grp.add(nose); z += noseLen;
 
     var body = mesh(chamferedCyl(bodyR, bodyR, bodyLen, Math.min(1, bodyLen * 0.06), 24), holdMat);
@@ -413,12 +461,12 @@ var TNC_TOOLS3D = (function () {
     var flangeR = 31.75, flangeLen = 8;
     var taperR0 = flangeR * 0.86, taperR1 = 12.3, taperLen = 48;
 
-    var stackSum = hubLen + flangeLen + taperLen;
+    var stackSum = hubLen + flangeLen;
     var maxStack = (opts.maxStack !== undefined) ? opts.maxStack : stackSum;
     var scale = Math.min(1, Math.max(0.12, maxStack / stackSum));
     hubLen *= scale; flangeLen *= scale; taperLen *= scale;
 
-    var gripZ = gaugeZ - hubLen - flangeLen - taperLen;
+    var gripZ = gaugeZ - hubLen - flangeLen;
     var z = gripZ;
 
     var hub = mesh(chamferedCyl(hubR, hubR, hubLen, Math.min(1, hubLen * 0.08), 24), bodyMat);
@@ -450,12 +498,12 @@ var TNC_TOOLS3D = (function () {
     var flangeR = 31.75, flangeLen = 8;
     var taperR0 = flangeR * 0.86, taperR1 = 12.3, taperLen = 48;
 
-    var stackSum = housingLen + flangeLen + taperLen;
+    var stackSum = housingLen + flangeLen;
     var maxStack = (opts.maxStack !== undefined) ? opts.maxStack : stackSum;
     var scale = Math.min(1, Math.max(0.12, maxStack / stackSum));
     housingLen *= scale; flangeLen *= scale; taperLen *= scale;
 
-    var gripZ = gaugeZ - housingLen - flangeLen - taperLen;
+    var gripZ = gaugeZ - housingLen - flangeLen;
     var z = gripZ;
 
     var housing = mesh(chamferedCyl(housingR, housingR, housingLen, Math.min(1.2, housingLen * 0.05), 20), bodyMat);
@@ -483,12 +531,12 @@ var TNC_TOOLS3D = (function () {
     var flangeR = 31.75, flangeLen = 8;
     var taperR0 = flangeR * 0.86, taperR1 = 12.3, taperLen = 48;
 
-    var stackSum = headLen + flangeLen + taperLen;
+    var stackSum = headLen + flangeLen;
     var maxStack = (opts.maxStack !== undefined) ? opts.maxStack : stackSum;
     var scale = Math.min(1, Math.max(0.12, maxStack / stackSum));
     headLen *= scale; flangeLen *= scale; taperLen *= scale;
 
-    var gripZ = gaugeZ - headLen - flangeLen - taperLen;
+    var gripZ = gaugeZ - headLen - flangeLen;
     var z = gripZ;
 
     var head = mesh(chamferedCyl(headR, headR, headLen, Math.min(1, headLen * 0.05), 24), bodyMat);
@@ -520,9 +568,8 @@ var TNC_TOOLS3D = (function () {
     var shankTop = gripZ;               // shank rises to where the holder grips it
 
     // flute body (solid cylinder, chamfered edge) + helical groove tubes for the look
-    var body = mesh(chamferedCyl(r, r, fluteLen, Math.min(0.6, r * 0.12), 20), cutMat);
-    grp.add(body);
-    addFlutes(THREE_, grp, r, 0, fluteLen, opts.flutes || 2, 0.05, opts.fluteMat || mat(0x6d7178, 0.5, 0.5));
+    var body = mesh(flutedGeo(r, fluteLen, opts.flutes || 2, { helix: opts.helix === undefined ? 35 : opts.helix, core: opts.core || 0.6, segs: opts.flutes > 3 ? 12 : 18 }), cutMat);
+    body.name = 'flutes'; grp.add(body);
 
     // shank from end of flutes up to the collet grip line
     if (shankTop > fluteLen) {
@@ -560,12 +607,10 @@ var TNC_TOOLS3D = (function () {
     var tex = turnedTexture(0.78);
     var body = steelMat(COL.hss, 0.3, tex);
     var pointLen = r / Math.tan(59 * Math.PI / 180); // 118 deg included -> half 59
-    var tip = mesh(tipCone(r, pointLen, 18), body);
-    grp.add(tip);
     var fluteLen = Math.min(tool.l * 0.55, Math.max(r * 7, 20));
-    var shaft = mesh(chamferedCyl(r, r, fluteLen, Math.min(0.5, r * 0.1), 18), body);
-    shaft.position.z = pointLen; grp.add(shaft);
-    addFlutes(THREE, grp, r, pointLen, fluteLen, 2, 0.09, mat(0x5c6067, 0.55, 0.45));
+    var ground = mat(COL.hss, 0.22, 0.9, { clearcoat: 0.1 });                    // ground HSS: the flutes are ground, not turned
+    var fl = mesh(flutedGeo(r, pointLen + fluteLen, 2, { helix: 30, core: 0.3, land: 0.42, point: 59, segs: 22 }), ground);
+    fl.name = 'flutes'; grp.add(fl);
     var necked = mesh(chamferedCyl(r * 0.86, r * 0.86, 4, 0.4, 14), body);
     necked.position.z = pointLen + fluteLen; grp.add(necked);
     var shankTop = gripZ, top = pointLen + fluteLen + 4;
@@ -624,20 +669,26 @@ var TNC_TOOLS3D = (function () {
     var tex = turnedTexture(0.60);
     var bodyMat = steelMat(COL.steel, 0.4, tex);
     var discLen = Math.max(18, r * 0.5);
-    var body = mesh(chamferedCyl(r * 0.94, r, discLen, Math.min(1.4, r * 0.06), 32), bodyMat);
-    grp.add(body);
-    var nInserts = 6;
-    var insMat = mat(COL.insert, 0.28, 0.25, { clearcoat: 0.08 });
-    var screwMat = mat(0x24262a, 0.35, 0.6);
-    var insGeo = new THREE.BoxGeometry(6, 8, 3);
-    var screwGeo = new THREE.CylinderGeometry(1.15, 1.0, 1.2, 8);
-    screwGeo.rotateX(Math.PI / 2);
+    var nInserts = Math.max(4, Math.min(10, Math.round(r / 5)));                 // Ø50: 5 inserts
+    var land = 0.62, pitch = 2 * Math.PI / nInserts;
+    var body = mesh(flutedGeo(r * 0.93, discLen, nInserts, { helix: 0, core: 0.72, land: land, segs: 16 }), bodyMat);   // chip pockets
+    body.name = 'body'; body.position.z = 0.8; grp.add(body);   // inserts stand 0.8 mm proud of the body face
+    // square 45° inserts (SEKT-style), seated on each pocket's cutting face, corner at the cutter Ø at z = 0
+    var s = Math.max(6, Math.min(12.7, r * 0.3)), th = s * 0.38;
+    var insMat = mat(0x3b3e44, 0.3, 0.55, { clearcoat: 0.35, clearcoatRoughness: 0.2 });   // TiAlN-coated carbide: dark anthracite
+    var screwMat = mat(0x8a8f96, 0.3, 0.9);
+    var insGeo = chamferedBox(s, s, th, s * 0.06);
+    var screwGeo = new THREE.CylinderGeometry(s * 0.17, s * 0.17, th * 0.3, 12); screwGeo.rotateX(Math.PI / 2);
+    screwGeo.translate(0, 0, th / 2 + th * 0.15);
     for (var i = 0; i < nInserts; i++) {
-      var a = (i / nInserts) * Math.PI * 2, cxp = Math.cos(a) * r * 0.97, cyp = Math.sin(a) * r * 0.97;
-      var ins = mesh(insGeo, insMat);
-      ins.position.set(cxp, cyp, discLen * 0.5); ins.rotation.z = a; grp.add(ins);
-      var screw = mesh(screwGeo, screwMat);
-      screw.position.set(cxp, cyp, discLen * 0.5 + 1.6); grp.add(screw);
+      var a = i * pitch + land * pitch + 0.01;
+      var seat = new THREE.Group();
+      seat.rotation.z = a;                                   // local X = radial, local Y = tangential (into the pocket)
+      var ins = new THREE.Group(); ins.add(mesh(insGeo, insMat)); ins.add(mesh(screwGeo, screwMat));
+      ins.rotation.set(-Math.PI / 2, 0, Math.PI / 4);        // Euler XYZ = Rx·Rz: turned 45° in its own plane (lead angle), then face -> tangential
+      var hd = s * Math.SQRT1_2;
+      ins.position.set(r - hd, th / 2, hd);
+      seat.add(ins); grp.add(seat);
     }
     var shankTop = gripZ, top = discLen;
     if (shankTop > top) {
@@ -672,9 +723,8 @@ var TNC_TOOLS3D = (function () {
     var r = tool.r, grp = new THREE.Group(); grp.name = 'cutter';
     var cutMat = mat(COL.carbide, 0.35, 0.55, { clearcoat: 0.06 });
     var coneLen = r; // 90deg included, half-angle 45
-    var cone = mesh(tipCone(r, coneLen, 18), cutMat);
-    grp.add(cone);
-    addFlutes(THREE, grp, r * 0.7, coneLen * 0.15, coneLen * 0.8, 4, 0.25, mat(0x5c6067, 0.55, 0.45));
+    var cone = mesh(flutedGeo(r, coneLen, 4, { helix: 0, core: 0.55, land: 0.3, point: 45, segs: 14 }), cutMat);   // 90° countersink with 4 straight flutes
+    cone.name = 'flutes'; grp.add(cone);
     var neckLen = Math.max(4, r);
     var neckTex = turnedTexture(0.75);
     var neck = mesh(chamferedCyl(r * 0.35, r * 0.35, neckLen, Math.min(0.3, r * 0.08), 14), steelMat(COL.hss, 0.3, neckTex));
@@ -690,7 +740,7 @@ var TNC_TOOLS3D = (function () {
   function buildReamer(tool, gripZ) {
     var r = tool.r;
     var res = shankCutter(THREE, r, tool.l, gripZ, {
-      color: COL.hss, rough: 0.3, metal: 0.6, matExtra: { clearcoat: 0.12 }, flutes: 6,
+      color: COL.hss, rough: 0.3, metal: 0.6, matExtra: { clearcoat: 0.12 }, flutes: 6, helix: 0, core: 0.8,
       fluteLen: Math.min(tool.l * 0.45, Math.max(r * 5, 16))
     });
     // slight lead chamfer at the very tip
