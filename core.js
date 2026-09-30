@@ -32,7 +32,7 @@ var TNC = (function () {
     { t: 42, name: 'REAMER_H7',     l: 101.30,  r: 5.000  }
   ];
 
-  var IMPLEMENTED_CYCLES = { 1: 1, 2: 1, 4: 1, 17: 1, 18: 1, 200: 1, 201: 1, 202: 1, 203: 1, 204: 1, 205: 1, 206: 1, 207: 1, 208: 1, 209: 1, 210: 1, 211: 1, 212: 1, 213: 1, 214: 1, 215: 1, 230: 1, 231: 1 };
+  var IMPLEMENTED_CYCLES = { 1: 1, 2: 1, 4: 1, 17: 1, 18: 1, 200: 1, 201: 1, 202: 1, 203: 1, 204: 1, 205: 1, 206: 1, 207: 1, 208: 1, 209: 1, 210: 1, 211: 1, 212: 1, 213: 1, 214: 1, 215: 1, 230: 1, 231: 1, 262: 1, 263: 1, 264: 1, 265: 1, 267: 1 };
   var PATTERN_CYCLES = { 220: 1, 221: 1 };
   // definition-only cycles with no tool motion in this simulator (9 dwell, 32 tolerance)
   var NOMOTION_CYCLES = { 7: 1, 8: 1, 9: 1, 10: 1, 11: 1, 19: 1, 32: 1, 247: 1 };
@@ -1028,7 +1028,7 @@ var TNC = (function () {
     /* 206 (floating tap holder) needs the spindle running. 207/209 are rigid: the control drives the spindle itself,
        so a repeated M99 after the spindle stopped at the end of the previous hole is legal (CAM posts rely on it). */
     if (!keep && kind === 206) { fail(st, bi, 'SPINDLE ?'); }
-    var dir = keep || 1;
+    var dir = kind === 206 ? (keep || 1) : (pitch < 0 ? -1 : 1);  // 206: M3/M4 as programmed; 207/209: Q239 + = right-hand (M3 in)
     emit(st, 'rapid', { x: x, y: y, z: surf + clr }, RAPID_RATE, bi, lab);
     spin(st, dir);                                                // the cycle runs the spindle for the tap
     if (kind === 209) {                                         // infeed Q257, reverse, retract Q256 (0: to set-up clearance)
@@ -1071,17 +1071,83 @@ var TNC = (function () {
     emit(st, 'rapid', { x: x, y: y, z: surf + clr2 }, RAPID_RATE, bi, lab);
   }
 
+  /* --- thread milling 262 263 264 265 267 (manual 8.3, "Fundamentals of thread milling") ---
+     Helix of the tool centre: R = Q335/2 - (R+DR) inside, + (R+DR) outside (267); |Q239| per turn.
+     Manual table for a right-hand (M3) tool: inside, Q351 +1 climb = RL = ccw, -1 up-cut = RR = cw; outside the reverse.
+     The helix climbs when its sense matches the hand (right-hand = ccw climbing):
+       inside  RH+1 Z+  LH-1 Z+  RH-1 Z-  LH+1 Z-      outside  RH+1 Z-  LH-1 Z-  RH-1 Z+  LH+1 Z+
+     265 always works downward; its sense follows the hand only (RH cw).  Q207 is the feed at the cutting edge; the
+     centre runs Q207 x R / (Q335/2) (manual: "the displayed value does not match the programmed value").
+     Where the manual gives no numbers, the simulator: runs whole turns anchored at the thread depth, starts on the
+     reference axis (+X), approaches on a semicircle that also covers half a pitch in Z (the "compensating motion",
+     iTNC 530: at most half the pitch), departs on a semicircle in the plane, starts 267 at R + |pitch|. */
+  function semi(st, cx, cy, r0, r1, z1, ccw, f, bi, lab) {        // semicircle along +X from radius r0 to r1
+    if (Math.abs(r1 - r0) <= EPS) { emit(st, 'feed', { x: cx + r1, y: cy, z: z1 }, f, bi, lab); return; }
+    emit(st, 'arc', { x: cx + r1, y: cy, z: z1 }, f, bi, lab, { cx: cx + (r0 + r1) / 2, cy: cy, ccw: ccw, sweep: ccw ? Math.PI : -Math.PI });
+  }
+  function cycleThread(st, cy, bi) {
+    var n = cy.num, clr = qp(cy, 200, 2), surf = qp(cy, 203, 0), clr2 = qp(cy, 204, clr), D = Math.abs(qp(cy, 335, 0)), pit = qp(cy, 239, 0), P = Math.abs(pit);
+    var dep = Math.abs(qp(cy, 201, 0)), fpre = qp(cy, 253, st.feed) || st.feed, fm = qp(cy, 207, st.feed) || st.feed, fcs = qp(cy, n === 264 ? 206 : 254, fm) || fm;
+    var x = st.pos.x, y = st.pos.y, lab = cy.label, rt = st.tool.r + (+st.tool.dr || 0), ext = n === 267, R = D / 2 + (ext ? rt : -rt);
+    var RH = pit >= 0, clb = qp(cy, 351, 1) >= 0, ccw = n === 265 ? !RH : ext ? !clb : clb, up = n !== 265 && ccw === RH, sz = up ? 1 : -1;
+    var zb = surf - dep, Rs = ext ? R + P : 0, fs = Math.abs(qp(cy, 358, 0)), off = Math.abs(qp(cy, 359, 0));
+    if (n === 262 && dep <= EPS) return;                           // thread depth 0: the cycle is not executed (manual)
+    if (D <= EPS || (dep > EPS && P <= EPS)) { fail(st, bi, 'CYCL DEF INCOMPLETE'); return; }
+    if (R <= EPS) { fail(st, bi, 'TOOL RADIUS TOO LARGE'); return; }
+    function front(fz) {                                           // countersinking at front: Q358 depth, circle Q359 about the centre
+      if (fs <= EPS) return;
+      emit(st, 'feed', { x: x + Rs, y: y, z: surf - fs }, fz, bi, lab);
+      if (off <= EPS) return;
+      var sn = ccw !== (Rs > off);
+      semi(st, x, y, Rs, off, surf - fs, sn, fcs, bi, lab);
+      emit(st, 'arc', { x: x + off, y: y, z: surf - fs }, fcs, bi, lab, { cx: x, cy: y, ccw: ccw, sweep: ccw ? 2 * Math.PI : -2 * Math.PI });
+      semi(st, x, y, off, Rs, surf - fs, sn, fcs, bi, lab);
+    }
+    emit(st, 'rapid', { x: x, y: y, z: surf + clr }, RAPID_RATE, bi, lab);
+    if (ext) emit(st, 'rapid', { x: x + Rs, y: y, z: surf + clr }, RAPID_RATE, bi, lab);   // along the reference axis to the start
+    if (n === 264 && Math.abs(qp(cy, 356, 0)) > EPS)               // drilling: the 205 peck engine, Q356 total hole depth
+      cyclePeck205(st, { label: lab, params: { 200: clr, 201: qp(cy, 356, 0), 206: qp(cy, 206, st.feed), 202: qp(cy, 202, 0), 203: surf, 204: clr,
+        258: qp(cy, 258, 0.2), 259: qp(cy, 258, 0.2), 257: qp(cy, 257, 0), 256: qp(cy, 256, 0.2) } }, bi);
+    var cs = n === 263 ? Math.abs(qp(cy, 356, 0)) : 0;
+    if (cs > EPS) {                                                // 263 countersinking: plunge to Q356 (the circle at the core diameter: not simulated)
+      if (!(Math.abs(qp(cy, 357, 0)) > EPS)) emit(st, 'feed', { x: x, y: y, z: surf - cs + clr }, fpre, bi, lab);
+      emit(st, 'feed', { x: x, y: y, z: surf - cs }, Math.abs(qp(cy, 357, 0)) > EPS ? fpre : fcs, bi, lab);
+    }
+    var q360 = n === 265 && Math.round(qp(cy, 360, 0)) === 1;
+    if (n !== 262 && !q360) front(n === 265 ? fcs : fpre);
+    if (dep > EPS) {
+      var q355 = Math.round(Math.abs(qp(cy, 355, 0))), N = Math.ceil(dep / P - 1e-9), passes = [], i;
+      if (n === 265 || ((n === 262 || ext) && q355 === 1)) passes.push({ z: up ? zb : zb + N * P, t: N });          // continuous
+      else if ((n === 262 || ext) && q355 > 1) {                   // several 360° paths, offset Q355 x pitch
+        var k = Math.ceil(dep / (q355 * P) - 1e-9);
+        for (i = 0; i < k; i++) passes.push({ z: zb + (up ? i : k - 1 - i) * q355 * P + (up ? 0 : P), t: 1 });
+      } else passes.push({ z: up ? zb : zb + P, t: 1 });          // one 360° path at the thread depth
+      var fh = fm * R / (D / 2), sa = ccw !== (Rs > R);
+      for (i = 0; i < passes.length; i++) {
+        var zs = passes[i].z, ze = zs + sz * P * passes[i].t;
+        emit(st, 'feed', { x: x + Rs, y: y, z: zs }, fpre, bi, lab);                   // to the starting plane
+        emit(st, 'feed', { x: x + Rs, y: y, z: zs - sz * P / 2 }, fpre, bi, lab);      // compensating motion
+        semi(st, x, y, Rs, R, zs, sa, fm, bi, lab);                                     // tangential helical approach
+        emit(st, 'arc', { x: x + R, y: y, z: ze }, fh, bi, lab, { cx: x, cy: y, ccw: ccw, sweep: (ccw ? 2 : -2) * Math.PI * passes[i].t });
+        semi(st, x, y, R, Rs, ze, sa, fm, bi, lab);                                     // tangential departure, back to the start
+      }
+    }
+    if (q360) front(fpre);
+    emit(st, 'rapid', { x: st.pos.x, y: st.pos.y, z: surf + clr }, RAPID_RATE, bi, lab);
+    emit(st, 'rapid', { x: st.pos.x, y: st.pos.y, z: surf + clr2 }, RAPID_RATE, bi, lab);
+  }
+
   /* --- old dotted cycles, started from set-up clearance above the surface (tool already there) ---
      1 PECKING: 1.1 SET UP, 1.2 DEPTH, 1.3 PECKG, 1.4 DWELL, 1.5 F
      2 TAPPING: 2.1 SET UP, 2.2 DEPTH, 2.3 DWELL, 2.4 F       17 RIGID TAPPING: 17.1 SET UP, 17.2 DEPTH, 17.3 PITCH
      18 THREAD CUTTING: 18.1 DEPTH, 18.2 PITCH (from the current position) */
   function cycleOld(st, cy, bi) {
     var x = st.pos.x, y = st.pos.y, z0 = st.pos.z, lab = cy.label, keep = st.spinDir || 1, n = cy.num;
-    if (n === 18) {
-      var d18 = sub(cy, 1, 0, 0), p18 = Math.abs(sub(cy, 2, 0, 0)), f18 = p18 * st.sRpm;
+    if (n === 18) {                                               // the TNC switches the spindle on and off itself (manual)
+      var d18 = sub(cy, 1, 0, 0), p18 = sub(cy, 2, 0, 0), f18 = Math.abs(p18) * st.sRpm, s18 = (p18 < 0 ? -1 : 1) * (d18 < 0 ? 1 : -1);
       if (!d18 || !(f18 > 0)) { fail(st, bi, 'CYCL DEF INCOMPLETE'); return; }
-      emit(st, 'feed', { x: x, y: y, z: z0 + d18 }, f18, bi, lab); spin(st, -keep);
-      emit(st, 'feed', { x: x, y: y, z: z0 }, f18, bi, lab); spin(st, keep); return;
+      spin(st, s18);                                              // pitch + = right-hand: M3 with a negative depth
+      emit(st, 'feed', { x: x, y: y, z: z0 + d18 }, f18, bi, lab); spin(st, 0); return;   // stops at the end of thread
     }
     var set = Math.abs(sub(cy, 1, 0, 2)), dep = -Math.abs(sub(cy, 2, 0, 0)), surf = z0 - set;
     if (Math.abs(dep) <= EPS) { fail(st, bi, 'CYCL DEF INCOMPLETE'); return; }
@@ -1097,7 +1163,7 @@ var TNC = (function () {
     }
     var f = n === 2 ? (sub(cy, 4, 0, st.feed) || st.feed) : Math.abs(sub(cy, 3, 0, 0)) * st.sRpm;
     if (!(f > 0)) { fail(st, bi, 'CYCL DEF INCOMPLETE'); return; }
-    if (n === 17) spin(st, keep);                                 // rigid: spindle under cycle control, no M3 needed
+    if (n === 17) spin(st, keep = sub(cy, 3, 0, 0) < 0 ? -1 : 1); // rigid: spindle under cycle control, PITCH + = right-hand
     emit(st, 'feed', { x: x, y: y, z: surf + dep }, f, bi, lab); spin(st, -keep);
     emit(st, 'feed', { x: x, y: y, z: z0 }, f, bi, lab); spin(st, n === 17 ? 0 : keep);
   }
@@ -1300,6 +1366,7 @@ var TNC = (function () {
     else if (cy.num === 205) cyclePeck205(st, cy, bi);
     else if (cy.num === 206 || cy.num === 207 || cy.num === 209) cycleTap(st, cy, bi, cy.num);
     else if (cy.num === 208) cycleBoreMill(st, cy, bi);
+    else if (cy.num >= 262 && cy.num <= 267 && cy.num !== 266) cycleThread(st, cy, bi);
     else if (cy.num >= 212 && cy.num <= 215) cycleFinish(st, cy, bi, at);
     else if (cy.num === 210 || cy.num === 211) cycleSlot(st, cy, bi, at);
     else if (cy.num === 230 || cy.num === 231) cycleSurface(st, cy, bi);
