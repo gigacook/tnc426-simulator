@@ -39,7 +39,8 @@ export const SimFrame = forwardRef<SimHandle, Props>(function SimFrame({ program
       if (e.origin !== location.origin || e.source !== frame.current?.contentWindow) return;
       const m = e.data as SimMessage;
       if (!m || typeof m !== 'object' || typeof m.type !== 'string') return;
-      if (m.type === 'tnc:ready') setReady(true);
+      // any answer proves the bridge is listening (covers a 'tnc:ready' sent before we were)
+      if (m.type === 'tnc:ready' || m.type === 'tnc:program') setReady(true);
       if (m.type === 'tnc:program') {
         pending.current.get(m.id)?.(m);
         pending.current.delete(m.id);
@@ -72,7 +73,13 @@ export const SimFrame = forwardRef<SimHandle, Props>(function SimFrame({ program
   return (
     <div className="simframe">
       {!ready && <div className="simframe-loading">Loading the simulator…</div>}
-      <iframe ref={frame} src="/sim/" title="TNC simulator" allow="fullscreen; clipboard-read; clipboard-write" />
+      <iframe
+        ref={frame}
+        src="/sim/"
+        title="TNC simulator"
+        allow="fullscreen; clipboard-read; clipboard-write"
+        onLoad={() => post({ type: 'tnc:get', id: 'hello' })}
+      />
     </div>
   );
 });

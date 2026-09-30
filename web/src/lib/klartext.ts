@@ -1,8 +1,8 @@
 // HEIDENHAIN Klartext highlighting and diagnostics for CodeMirror.
 import { StreamLanguage, HighlightStyle, syntaxHighlighting } from '@codemirror/language';
-import { linter, type Diagnostic as CmDiagnostic } from '@codemirror/lint';
+import type { Diagnostic as CmDiagnostic } from '@codemirror/lint';
 import { tags as t } from '@lezer/highlight';
-import type { Extension } from '@codemirror/state';
+import type { Extension, Text } from '@codemirror/state';
 import type { Report } from './types';
 
 const KEYWORDS = /^(BEGIN|END|PGM|MM|INCH|BLK|FORM|TOOL|DEF|CALL|CYCL|LBL|REP|FN|APPR|DEP|LCT|LT|LN|TCH|PROBE|STOP|PLANE|M\d+)\b/;
@@ -57,26 +57,15 @@ const style = HighlightStyle.define([
 
 export const klartextHighlight: Extension = syntaxHighlighting(style);
 
-/** A linter that shows the interpreter's report (fetched elsewhere) on the lines it names. */
-export function reportLinter(get: () => Report | null): Extension {
-  return linter(
-    (view) => {
-      const r = get();
-      if (!r) return [];
-      const doc = view.state.doc;
-      const out: CmDiagnostic[] = [];
-      const at = (line: number) => {
-        const n = Math.min(Math.max(line, 1), doc.lines);
-        const l = doc.line(n);
-        return { from: l.from, to: l.to };
-      };
-      for (const e of r.errors) out.push({ ...at(e.line), severity: 'error', message: e.msg, source: 'interpreter' });
-      for (const e of r.events) {
-        const sev = e.sev === 'crash' || e.sev === 'error' ? 'error' : e.sev === 'warn' || e.sev === 'warning' ? 'warning' : 'info';
-        out.push({ ...at(e.line), severity: sev, message: e.msg, source: 'simulation' });
-      }
-      return out;
-    },
-    { delay: 50 },
-  );
+/** The interpreter's report (fetched elsewhere) as editor diagnostics on the lines it names. */
+export function reportDiagnostics(doc: Text, r: Report | null): CmDiagnostic[] {
+  if (!r) return [];
+  const out: CmDiagnostic[] = [];
+  const at = (line: number) => {
+    const l = doc.line(Math.min(Math.max(line, 1), doc.lines));
+    return { from: l.from, to: l.to };
+  };
+  for (const e of r.errors) out.push({ ...at(e.line), severity: 'error', message: e.msg, source: 'interpreter' });
+  for (const e of r.events) out.push({ ...at(e.line), severity: e.sev === 'crash' ? 'error' : 'warning', message: e.msg, source: 'simulation' });
+  return out;
 }

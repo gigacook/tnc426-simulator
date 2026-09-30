@@ -2,8 +2,8 @@ import { useEffect, useRef } from 'react';
 import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter, drawSelection } from '@codemirror/view';
 import { EditorState, Compartment } from '@codemirror/state';
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
-import { forceLinting, lintGutter } from '@codemirror/lint';
-import { klartextHighlight, klartextLanguage, reportLinter } from '../lib/klartext';
+import { lintGutter, setDiagnostics } from '@codemirror/lint';
+import { klartextHighlight, klartextLanguage, reportDiagnostics } from '../lib/klartext';
 import type { Report } from '../lib/types';
 
 interface Props {
@@ -20,7 +20,6 @@ interface Props {
 export function Editor({ value, onChange, report = null, readOnly = false, onSave, jump }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
-  const reportRef = useRef(report);
   const onChangeRef = useRef(onChange);
   const onSaveRef = useRef(onSave);
   const ro = useRef(new Compartment());
@@ -41,7 +40,6 @@ export function Editor({ value, onChange, report = null, readOnly = false, onSav
           klartextLanguage,
           klartextHighlight,
           lintGutter(),
-          reportLinter(() => reportRef.current),
           ro.current.of([EditorState.readOnly.of(readOnly), EditorView.editable.of(!readOnly)]),
           keymap.of([
             { key: 'Mod-s', preventDefault: true, run: () => (onSaveRef.current?.(), true) },
@@ -73,10 +71,11 @@ export function Editor({ value, onChange, report = null, readOnly = false, onSav
     view.current?.dispatch({ effects: ro.current.reconfigure([EditorState.readOnly.of(readOnly), EditorView.editable.of(!readOnly)]) });
   }, [readOnly]);
 
+  // push the report in directly: a linter source would only re-run after a document change
   useEffect(() => {
-    reportRef.current = report;
-    if (view.current) forceLinting(view.current);
-  }, [report]);
+    const v = view.current;
+    if (v) v.dispatch(setDiagnostics(v.state, reportDiagnostics(v.state.doc, report)));
+  }, [report, value]);
 
   useEffect(() => {
     const v = view.current;
