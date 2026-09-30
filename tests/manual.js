@@ -2,7 +2,7 @@
    chapter 6 "Programming contours". Expected tool-centre geometry is derived from the
    manual's rules: RL/RR offset by R, transitional arcs at outside corners, APPR/DEP on
    the tool-centre path.   Run:  node tests/manual.js                                  */
-const TNC = require('../core.js'), TNC_DIALOGS = require('../dialogs.js');
+const TNC = require('../sim/core.js'), TNC_DIALOGS = require('../sim/dialogs.js');
 let fails = 0;
 const ok = (c, msg) => { if (!c) { fails++; console.log('  FAIL ' + msg); } };
 const near = (a, b, e = 1e-3) => Math.abs(a - b) <= e;

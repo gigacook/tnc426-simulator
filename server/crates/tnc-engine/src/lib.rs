@@ -18,10 +18,10 @@ use rquickjs::{Context, Function, Runtime};
 use serde::{Deserialize, Serialize};
 use tnc_formats::Tool;
 
-const CORE_JS: &str = include_str!("../../../../core.js");
-const MACHINES_JS: &str = include_str!("../../../../machines.js");
-const STOCK_JS: &str = include_str!("../../../../stock.js");
-const SIM_JS: &str = include_str!("../../../../sim.js");
+const CORE_JS: &str = include_str!("../../../../sim/core.js");
+const MACHINES_JS: &str = include_str!("../../../../sim/machines.js");
+const STOCK_JS: &str = include_str!("../../../../sim/stock.js");
+const SIM_JS: &str = include_str!("../../../../sim/sim.js");
 const SHIM_JS: &str = include_str!("shim.js");
 
 /// Version of the interpreter source compiled in: a hash of `core.js`, `machines.js`, `stock.js`, `sim.js`.

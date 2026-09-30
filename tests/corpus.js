@@ -1,7 +1,7 @@
 /* Parse + run every .H under a folder, histogram the errors by line shape.
    AUTOTOOLS=1: tools missing from the table are created (as an import would), to see what else fails.
    node tests/corpus.js [dir]   (default: search-heidenhain/clones — local research, gitignored) */
-const fs = require('fs'), T = require('../core.js');
+const fs = require('fs'), T = require('../sim/core.js');
 const dir = process.argv[2] || __dirname + '/../search-heidenhain/clones';
 const files = require('child_process').execSync(`find "${dir}" -iname '*.h' -type f`).toString().trim().split('\n').filter(Boolean);
 let clean = 0, crash = 0; const H = {};

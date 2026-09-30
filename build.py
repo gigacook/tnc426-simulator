@@ -9,6 +9,7 @@ A new module is one line in MODULES. Missing optional files are skipped, never f
 import pathlib, urllib.request, json, re, sys
 d = pathlib.Path(__file__).parent
 cache = d / '.libcache'; cache.mkdir(exist_ok=True)
+src = d / 'sim'          # simulator sources (the single-file build's modules + shell)
 T_VER = '0.186.1'   # three.js; bundled with its addons and three.quarks by esbuild (vendor/three-entry.mjs)
 
 def vendor():
@@ -19,7 +20,7 @@ def vendor():
         esb = d / '.tools' / 'node_modules' / '.bin' / 'esbuild'
         if not esb.exists():
             sys.exit('build: esbuild missing — run: (cd .tools && npm i three@%s three.quarks@0.17.1 esbuild@0.28.2)' % T_VER)
-        subprocess.run([str(esb), str(d / 'vendor' / 'three-entry.mjs'), '--bundle', '--format=iife', '--minify',
+        subprocess.run([str(esb), str(src / 'vendor' / 'three-entry.mjs'), '--bundle', '--format=iife', '--minify',
                         '--legal-comments=none', '--log-level=warning', f'--outfile={out}'], check=True, cwd=d / '.tools',
                        env=dict(__import__('os').environ, NODE_PATH=str(d / '.tools' / 'node_modules')))
     return out.read_text()
@@ -54,8 +55,8 @@ MODULES = [
 ]
 
 # text files exposed as window globals for the DEV modal
-TEXTS = [('devlog.txt', 'TNC_DEVLOG'), ('history.txt', 'TNC_HISTORY'),
-         ('RELEASES.txt', 'TNC_RELEASES'), ('ROADMAP.txt', 'TNC_ROADMAP')]
+TEXTS = [('docs/FEATURES.txt', 'TNC_DEVLOG'), ('docs/HISTORY.txt', 'TNC_HISTORY'),
+         ('docs/RELEASES.txt', 'TNC_RELEASES'), ('docs/ROADMAP.txt', 'TNC_ROADMAP')]
 
 def lib(name, url):
     f = cache / name
@@ -77,7 +78,7 @@ def env_key():
             if m: return m.group(1)
     return None
 
-shell = (d / 'sim-shell.html').read_text()
+shell = (src / 'sim-shell.html').read_text()
 split = '<div class="app">'
 head, body = shell.split(split, 1)
 body = split + body
@@ -90,7 +91,7 @@ for name, var in TEXTS:
         scripts += tag('text: ' + name, f'window.{var} = {json.dumps(f.read_text())};')
 included = []
 for name, label in MODULES:
-    f = d / name
+    f = src / name
     if f.exists():
         scripts += tag(label, f.read_text()); included.append(name)
 
