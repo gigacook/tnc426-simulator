@@ -59,7 +59,7 @@ async fn app(State(st): State<AppState>, req: Request) -> Response {
             .into_response();
     }
     let is_asset = req.uri().path().starts_with("/assets/");
-    let res = ServeDir::new(dir).not_found_service(tower::service_fn({
+    let res = ServeDir::new(dir).fallback(tower::service_fn({
         let index = index.clone();
         move |_req: Request| {
             let index = index.clone();

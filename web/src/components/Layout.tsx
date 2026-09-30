@@ -14,7 +14,7 @@ export function Layout() {
           <NavLink to="/" end>
             Programs
           </NavLink>
-          <NavLink to="/sim">Simulator</NavLink>
+          <NavLink to="/simulator">Simulator</NavLink>
           <NavLink to="/tools">Tool tables</NavLink>
           <NavLink to="/account">Account</NavLink>
           {user?.role === 'admin' && <NavLink to="/admin">Users</NavLink>}

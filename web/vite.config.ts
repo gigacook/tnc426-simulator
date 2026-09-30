@@ -11,7 +11,7 @@ export default defineConfig({
     port: 5426,
     proxy: {
       '/api': { target: SERVER, changeOrigin: false },
-      '/sim': { target: SERVER, changeOrigin: false },
+      '^/sim(/|$)': { target: SERVER, changeOrigin: false },
     },
   },
   build: { outDir: 'dist', sourcemap: true },
