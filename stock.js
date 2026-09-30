@@ -28,7 +28,7 @@ var TNC_STOCK = (function () {
      All defaults are guesses to confirm with the operator (see the report / CONTINUE.md).
      Switch off: TNC_STOCK.VICE.on = false (no UI toggle yet — add one in the Effects & view menu if wanted). */
   var VICE = {
-    on: true,
+    on: false,       // OFF until the operator confirms the vice layout: ON flagged 24% of real programs as vice crashes
     axis: 'Y',       // jaws close along Y: one jaw on the Y- face, one on the Y+ face of the blank
     drop: 5,         // jaw top this far below the blank top (mm) …
     minGrip: 0.5,    // … but never more than this share of the blank height (thin plates: jaw top at mid-height)
