@@ -112,7 +112,8 @@ var TNC_SIM = (function () {
         var u = i / n, t = s.t0 + (s.t1 - s.t0) * u;
         var p = { x: s.a.x + (s.b.x - s.a.x) * u, y: s.a.y + (s.b.y - s.a.y) * u, z: s.a.z + (s.b.z - s.a.z) * u };
         var ax = STOCK.axis(s, u);                         // null = vertical tool (the old checks, unchanged)
-        if (jaws.length) {                                 // vice: steel, never cut — the tool or the holder in it is a crash
+        if (jaws.length && idx > 0) {                      // vice: steel, never cut — the tool or the holder in it is a crash
+                                                           // (not the first move: it starts at the program zero, a stand-in for 'wherever the tool was')
           var vh = STOCK.viceHit(st, s, p, ax, jaws);
           if (vh === 'tool') { add('VICE_TOOL', 'crash', s, idx, t, p); break; }
           if (vh === 'holder') { add('VICE_HOLDER', 'crash', s, idx, t, p, holderX(s)); break; }

@@ -24,14 +24,15 @@
 var TNC_STOCK = (function () {
   'use strict';
 
-  /* ---------- vice: the part is clamped in a machine vice, jaws hugging the blank in Y ----------
-     All defaults are guesses to confirm with the operator (see the report / CONTINUE.md).
-     Switch off: TNC_STOCK.VICE.on = false (no UI toggle yet — add one in the Effects & view menu if wanted). */
+  /* ---------- vice: a standard machine vice (160 mm jaws), part on parallels, jaws on the Y faces ----------
+     The jaws grip the bottom GRIP mm of the blank (a third of a thin part): cutting the part's sides lower
+     than that, or a holder reaching them, is a crash, as it would be on the machine. Through the bottom
+     inside the part (drilling, tapping) is not. Off (UI "Vice" toggle) = part on a fixture plate. */
   var VICE = {
-    on: false,       // OFF until the operator confirms the vice layout: ON flagged 24% of real programs as vice crashes
+    on: true,
     axis: 'Y',       // jaws close along Y: one jaw on the Y- face, one on the Y+ face of the blank
-    drop: 5,         // jaw top this far below the blank top (mm) …
-    minGrip: 0.5,    // … but never more than this share of the blank height (thin plates: jaw top at mid-height)
+    grip: 6,         // jaw top this far above the blank bottom (mm) …
+    minGrip: 1 / 3,  // … but never more than this share of the blank height (thin plates)
     jawT: 25,        // jaw thickness along Y (mm)
     jawW: 160,       // jaw width along X (mm) — a 160 mm vice, centred on the blank; never narrower than the blank
     below: 40        // jaw depth below the blank bottom, drawn only (mm)
@@ -188,7 +189,7 @@ var TNC_STOCK = (function () {
   /* ---------- vice ---------- */
   function vice(st) {
     if (!VICE.on) return [];
-    var H = st.z1 - st.z0, top = st.z1 - Math.min(VICE.drop, H * VICE.minGrip), bot = st.z0 - VICE.below;
+    var H = st.z1 - st.z0, top = st.z0 + Math.min(VICE.grip, H * VICE.minGrip), bot = st.z0 - VICE.below;
     var cx = (st.x0 + st.x1) / 2, hw = Math.max(VICE.jawW, st.x1 - st.x0) / 2;
     if (VICE.axis === 'X') {
       var cy = (st.y0 + st.y1) / 2, hy = Math.max(VICE.jawW, st.y1 - st.y0) / 2;

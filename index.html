@@ -539,6 +539,7 @@ body.focus .fxmenu,body.focus .lgd,body.focus #callouts,body.focus .sub-ttl{disp
          <button class="tb fx" id="b-cool"><span data-i18n="btn.cool">Coolant</span><small>K</small></button>
          <button class="tb fx" id="b-fire"><span data-i18n="btn.fire">Smoke &amp; fire</span><small>B</small></button>
          <button class="tb fx" id="b-labels"><span data-i18n="btn.labels">Labels</span><small>L</small></button>
+         <button class="tb fx" id="b-vice"><span data-i18n="btn.vice">Vice</span></button>
          <button class="tb fx" id="b-sound" data-i18n="btn.sound">Sound</button>
        </div></details>
      </div>
@@ -8702,14 +8703,15 @@ if (typeof module !== 'undefined') module.exports = TNC;
 var TNC_STOCK = (function () {
   'use strict';
 
-  /* ---------- vice: the part is clamped in a machine vice, jaws hugging the blank in Y ----------
-     All defaults are guesses to confirm with the operator (see the report / CONTINUE.md).
-     Switch off: TNC_STOCK.VICE.on = false (no UI toggle yet — add one in the Effects & view menu if wanted). */
+  /* ---------- vice: a standard machine vice (160 mm jaws), part on parallels, jaws on the Y faces ----------
+     The jaws grip the bottom GRIP mm of the blank (a third of a thin part): cutting the part's sides lower
+     than that, or a holder reaching them, is a crash, as it would be on the machine. Through the bottom
+     inside the part (drilling, tapping) is not. Off (UI "Vice" toggle) = part on a fixture plate. */
   var VICE = {
-    on: false,       // OFF until the operator confirms the vice layout: ON flagged 24% of real programs as vice crashes
+    on: true,
     axis: 'Y',       // jaws close along Y: one jaw on the Y- face, one on the Y+ face of the blank
-    drop: 5,         // jaw top this far below the blank top (mm) …
-    minGrip: 0.5,    // … but never more than this share of the blank height (thin plates: jaw top at mid-height)
+    grip: 6,         // jaw top this far above the blank bottom (mm) …
+    minGrip: 1 / 3,  // … but never more than this share of the blank height (thin plates)
     jawT: 25,        // jaw thickness along Y (mm)
     jawW: 160,       // jaw width along X (mm) — a 160 mm vice, centred on the blank; never narrower than the blank
     below: 40        // jaw depth below the blank bottom, drawn only (mm)
@@ -8866,7 +8868,7 @@ var TNC_STOCK = (function () {
   /* ---------- vice ---------- */
   function vice(st) {
     if (!VICE.on) return [];
-    var H = st.z1 - st.z0, top = st.z1 - Math.min(VICE.drop, H * VICE.minGrip), bot = st.z0 - VICE.below;
+    var H = st.z1 - st.z0, top = st.z0 + Math.min(VICE.grip, H * VICE.minGrip), bot = st.z0 - VICE.below;
     var cx = (st.x0 + st.x1) / 2, hw = Math.max(VICE.jawW, st.x1 - st.x0) / 2;
     if (VICE.axis === 'X') {
       var cy = (st.y0 + st.y1) / 2, hy = Math.max(VICE.jawW, st.y1 - st.y0) / 2;
@@ -9022,7 +9024,8 @@ var TNC_SIM = (function () {
         var u = i / n, t = s.t0 + (s.t1 - s.t0) * u;
         var p = { x: s.a.x + (s.b.x - s.a.x) * u, y: s.a.y + (s.b.y - s.a.y) * u, z: s.a.z + (s.b.z - s.a.z) * u };
         var ax = STOCK.axis(s, u);                         // null = vertical tool (the old checks, unchanged)
-        if (jaws.length) {                                 // vice: steel, never cut — the tool or the holder in it is a crash
+        if (jaws.length && idx > 0) {                      // vice: steel, never cut — the tool or the holder in it is a crash
+                                                           // (not the first move: it starts at the program zero, a stand-in for 'wherever the tool was')
           var vh = STOCK.viceHit(st, s, p, ax, jaws);
           if (vh === 'tool') { add('VICE_TOOL', 'crash', s, idx, t, p); break; }
           if (vh === 'holder') { add('VICE_HOLDER', 'crash', s, idx, t, p, holderX(s)); break; }
@@ -11996,10 +11999,18 @@ if (typeof module !== 'undefined') module.exports = TNC_FLOW;
  * TNC_FX - machining visual effects for the TNC 426 simulator.
  * Metal chips, sparks, coolant jet + splash + mist, smoke, fire, crash burst.
  *
- * Targets three.js r128 (classic global build). No textures, no network:
- * every sprite shape is drawn procedurally in the fragment shader.
- * One THREE.Points draw call per particle pool (5 pools), CPU physics in
- * typed arrays, partial GPU uploads (updateRange), pools skip upload when empty.
+ * Two back ends, same public API (create/update/crash/set/setMaterial/resize/
+ * clear/dispose/stats/object3d):
+ *   - createQuarks: chips/sparks/coolant/smoke/fire spawned onto
+ *     window.QUARKS (three.quarks) ParticleSystems, one BatchedRenderer draw
+ *     call per shared material. Per-particle motion (gravity, drag, surface
+ *     bounce/rest, the coolant jet's ballistic arc, smoke growth, flame
+ *     ramp) is done with small custom Behavior objects (see "QUARKS back
+ *     end" below) - three.quarks owns the instancing/GPU upload, we own the
+ *     physics, exactly like the legacy pools did with raw typed arrays.
+ *   - createLegacy: the original CPU-typed-array / procedural-shader engine,
+ *     used whenever window.QUARKS isn't present (used to be the only path;
+ *     kept verbatim as the fallback and reference).
  *
  * World: millimetres, Z up.
  *
@@ -12014,6 +12025,20 @@ var TNC_FX = (function () {
 
   function rnd(a, b) { return a + Math.random() * (b - a); }
   function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
+
+  // Tunable knobs for the QUARKS back end, kept as data so the look can be
+  // retuned later without touching the spawn/behavior code below. Pool caps
+  // mirror the legacy pool sizes; opts.maxChips etc still override maxChips.
+  var Q_EFFECTS = {
+    maxChips: 1800, maxSparks: 900, maxDrops: 2400, maxSoft: 700, maxGlow: 700,
+    rate: { chip: 70, spark: 3.5, smoke: 12, fire: 130, jet: 800 },
+    chip:  { life: [3.5, 6.5], drag: 3.5, restKick: [250, 800], kickPad: 1.2 },
+    spark: { drag: 2.5 },
+    jet:   { life: 0.11, jitter: 22 },
+    splash:{ life: [0.22, 0.6], drag: 1.5 },
+    soft:  { drag: 0.8 },
+    crash: { sparks: 420, chipsHeavy: 16, chipsShatter: 45, smoke: 22 }
+  };
 
   /* ---------------------------------------------------------------- shaders */
   // MODE 0 soft puff (smoke / mist / flame / flash), 1 chip, 2 droplet streak, 3 spark streak.
@@ -12222,8 +12247,11 @@ var TNC_FX = (function () {
     out[o] = r; out[o + 1] = g; out[o + 2] = b;
   }
 
-  /* ---------------------------------------------------------------- create */
-  function create(THREE, scene, opts) {
+  /* --------------------------------------------------------- LEGACY back end
+   * CPU typed arrays + procedural shaders. Unchanged from the original
+   * single-implementation version of this file; used as the fallback when
+   * window.QUARKS is missing. */
+  function createLegacy(THREE, scene, opts) {
     opts = opts || {};
     var root = new THREE.Group();
     root.name = 'TNC_FX';
@@ -12737,8 +12765,659 @@ var TNC_FX = (function () {
     };
 
     fx.object3d = root;   // addition: the group holding everything (e.g. to toggle visibility)
-    api.instance = fx;    // addition: last-created instance, so a sibling plugin (materials.js)
-                           // can reach fx.setMaterial() without ui.js having to hand it out
+    return fx;
+  }
+
+  /* --------------------------------------------------------- QUARKS back end
+   * Same spawn geometry / physics decisions as the legacy pools above, but
+   * the particles are window.QUARKS (three.quarks) ParticleSystems rendered
+   * through one shared BatchedRenderer. three.quarks owns per-particle GPU
+   * buffers + instanced draw calls; small custom Behavior objects (one per
+   * pool) own the physics, using the exact same closures over `s` / `cool` /
+   * `surf()` the legacy pools used. */
+  function createQuarks(THREE, Q, scene, opts) {
+    opts = opts || {};
+    var EF = Q_EFFECTS;
+    var root = new THREE.Group();
+    root.name = 'TNC_FX';
+    scene.add(root);
+
+    var renderer = new Q.BatchedRenderer();
+    root.add(renderer);
+
+    // material tint: same hook as the legacy back end (materials.js calls
+    // fx.setMaterial() with a preset's chip/spark colours).
+    var chipTint = { r: 1, g: 1, b: 1 }, sparkTint = { r: 1, g: 1, b: 1 };
+    function hexOf(v, d) {
+      if (typeof v === 'number') return v;
+      if (typeof v === 'string') { var n = parseInt(v.replace('#', ''), 16); return isNaN(n) ? d : n; }
+      return d;
+    }
+    function setTint(out, hex) { out.r = ((hex >> 16) & 255) / 255; out.g = ((hex >> 8) & 255) / 255; out.b = (hex & 255) / 255; }
+
+    // One soft round sprite, procedurally drawn (no network, no asset file);
+    // tinted per pool by vertex colour + blending mode.
+    var dotTex = (function () {
+      var cv = document.createElement('canvas');
+      cv.width = cv.height = 64;
+      var c2 = cv.getContext('2d');
+      var g = c2.createRadialGradient(32, 32, 0, 32, 32, 32);
+      g.addColorStop(0, 'rgba(255,255,255,1)');
+      g.addColorStop(0.5, 'rgba(255,255,255,0.8)');
+      g.addColorStop(1, 'rgba(255,255,255,0)');
+      c2.fillStyle = g;
+      c2.fillRect(0, 0, 64, 64);
+      var tex = new THREE.CanvasTexture(cv);
+      tex.needsUpdate = true;
+      return tex;
+    })();
+
+    var ownMats = [];
+    function mat(blending) {
+      var m = new THREE.MeshBasicMaterial({
+        map: dotTex, transparent: true, depthWrite: false, depthTest: true,
+        side: THREE.DoubleSide, blending: blending
+      });
+      ownMats.push(m);
+      return m;
+    }
+
+    function makeSystem(order, blending) {
+      var sys = new Q.ParticleSystem({
+        material: mat(blending),
+        worldSpace: true,
+        looping: true,
+        autoDestroy: false,
+        emissionOverTime: new Q.ConstantValue(0),   // we spawn manually; no automatic emission
+        emissionBursts: [],
+        behaviors: []
+      });
+      sys.renderOrder = order;
+      root.add(sys.emitter);
+      renderer.addSystem(sys);
+      return sys;
+    }
+
+    var maxChips = opts.maxChips || EF.maxChips;
+    var chipsSys  = makeSystem(1, THREE.NormalBlending);
+    var dropsSys  = makeSystem(2, THREE.NormalBlending);
+    var sparksSys = makeSystem(5, THREE.AdditiveBlending);
+    var softSys   = makeSystem(3, THREE.NormalBlending);
+    var glowSys   = makeSystem(4, THREE.AdditiveBlending);
+    var systems = [chipsSys, dropsSys, sparksSys, softSys, glowSys];
+
+    // Crash flash light: always in the scene at intensity 0, same trick as
+    // the legacy back end (no shader recompiles from toggling a light count).
+    var LK = (+THREE.REVISION >= 155) ? Math.PI : 1;
+    var light = new THREE.PointLight(0xffb060, 0, 600, LK > 1 ? 0 : 2);
+    root.add(light);
+
+    // Coolant nozzle mesh: identical to the legacy back end (plain THREE
+    // meshes, nothing quarks-specific).
+    var nozzle = null, nozzleGeos = [], nozzleMats = [];
+    if (opts.nozzle !== false) {
+      nozzle = new THREE.Group();
+      var segGeo = new THREE.CylinderGeometry(2.4, 3.3, 5.6, 12);
+      var tipGeo = new THREE.CylinderGeometry(1.1, 2.4, 6, 12);
+      var hoseMat = new THREE.MeshLambertMaterial({ color: 0x2f6db3 });
+      var tipMat = new THREE.MeshLambertMaterial({ color: 0xe0782a });
+      nozzleGeos.push(segGeo, tipGeo); nozzleMats.push(hoseMat, tipMat);
+      var tip = new THREE.Mesh(tipGeo, tipMat); tip.position.y = -3; nozzle.add(tip);
+      for (var sgi = 0; sgi < 9; sgi++) {
+        var seg = new THREE.Mesh(segGeo, hoseMat);
+        seg.position.y = -8.5 - sgi * 5.4;
+        nozzle.add(seg);
+      }
+      nozzle.visible = false;
+      root.add(nozzle);
+    }
+    var Y = new THREE.Vector3(0, 1, 0), tmpV = new THREE.Vector3();
+
+    var en = { chips: true, sparks: true, coolant: true, smoke: false, fire: false };
+    var acc = { chip: 0, spark: 0, cool: 0, smoke: 0, fire: 0 };
+    var flashAge = 9;
+
+    var fx = { surfaceAt: null };
+
+    function surf(x, y, st) {
+      var f = fx.surfaceAt;
+      if (typeof f !== 'function') return st;
+      var z = f(x, y);
+      return (typeof z === 'number' && z === z && z > -1e9 && z < 1e9) ? z : NaN;
+    }
+
+    // Per-frame state the behaviors read (mutated once at the top of
+    // fx.update, same values the legacy per-particle loops closed over).
+    var ctx = { st: 0, hasPos: false, spin: 0, sgn: 1, R: 3, cutting: false, s: null,
+      toolX: 1e9, toolY: 1e9, toolZ: 0, kickR2: 0 };
+
+    // Places a particle at an absolute (x,y,z) for THIS frame, compensating
+    // for the position += velocity*dt integration three.quarks performs
+    // right after behaviors run, so the final on-screen position is exactly
+    // (x,y,z) regardless of what velocity is left on the particle (which
+    // still matters for e.g. later frames / rendering).
+    function place(p, dt, x, y, z) {
+      p.position.set(x - p.velocity.x * dt, y - p.velocity.y * dt, z - p.velocity.z * dt);
+    }
+    function kill(p) { p.age = p.life + 1; }
+
+    function spawnInto(sys, maxN) {
+      var n = sys.particleNum, particle;
+      if (n < maxN) {
+        sys.particleNum = n + 1;
+        while (sys.particles.length < sys.particleNum) sys.particles.push(new Q.SpriteParticle());
+        particle = sys.particles[n];
+      } else {
+        particle = sys.particles[(Math.random() * maxN) | 0];
+      }
+      particle.reset();
+      particle.rotation = 0; particle.uvTile = 0; particle.speedModifier = 1;
+      return particle;
+    }
+
+    /* --------------------------------------------------------- spawners */
+    var per = { x: 0, y: 0, ox: 0, oy: 0 };
+    function periphery(s, rFrac) {
+      var dx = (s.dir && s.dir.x) || 0, dy = (s.dir && s.dir.y) || 0, dl = Math.sqrt(dx * dx + dy * dy);
+      var ox, oy;
+      if (dl > 0.1) {
+        dx /= dl; dy /= dl;
+        var side = Math.random() < 0.5 ? 1 : -1;
+        var fw = rnd(-0.15, 0.7);
+        ox = -dy * side + dx * fw; oy = dx * side + dy * fw;
+      } else {
+        var an = Math.random() * TAU; ox = Math.cos(an); oy = Math.sin(an);
+      }
+      var ol = Math.sqrt(ox * ox + oy * oy) || 1;
+      ox /= ol; oy /= ol;
+      var R = (s.toolR || 3) * rFrac;
+      per.ox = ox; per.oy = oy; per.x = s.pos.x + ox * R; per.y = s.pos.y + oy * R;
+      return per;
+    }
+
+    function advanceParticle(p, pre, grav) {
+      if (!(pre > 0)) return;
+      p.velocity.z -= grav * pre;
+      p.position.x += p.velocity.x * pre; p.position.y += p.velocity.y * pre; p.position.z += p.velocity.z * pre;
+      p.age = pre;
+    }
+
+    function spawnChip(s, st, sgn, R, pre) {
+      var o = periphery(s, 0.9);
+      var z = s.pos.z + rnd(0.2, Math.max(0.4, Math.min(4, st - s.pos.z)));
+      var sz = surf(o.x, o.y, st);
+      if (sz === sz && z < sz + 0.1) z = sz + 0.1;
+      var tx = o.oy * sgn, ty = -o.ox * sgn;
+      var vPer = TAU * R * Math.abs(s.spindle) / 60000 * 1000;
+      var fast = Math.random() < 0.4;
+      var spd = fast ? clamp(vPer * rnd(0.3, 0.8), 350, 1600) : rnd(50, 260);
+      var rad = spd * rnd(0.05, 0.35);
+      var up = fast ? rnd(150, 750) : rnd(120, 420);
+      var gr = rnd(0.58, 0.86);
+      var size = clamp(0.7 + R * 0.07, 0.8, 2.0) * rnd(0.75, 1.25);
+      var p = spawnInto(chipsSys, maxChips);
+      p._rest = false; p._bounced = false; p._s0 = size; p._spin = rnd(-6, 6);
+      p.position.set(o.x, o.y, z);
+      p.velocity.set(tx * spd + o.ox * rad, ty * spd + o.oy * rad, up);
+      p.life = rnd(EF.chip.life[0], EF.chip.life[1]); p.age = 0;
+      p.size.set(size, size, size);
+      p.color.set(gr * 0.97 * chipTint.r, gr * 0.99 * chipTint.g, gr * 1.03 * chipTint.b, 1);
+      p.rotation = Math.random() * TAU;
+      advanceParticle(p, pre * 0.5, G);
+    }
+
+    function spawnSpark(x, y, z, vx, vy, vz, life, size) {
+      var p = spawnInto(sparksSys, EF.maxSparks);
+      p.position.set(x, y, z); p.velocity.set(vx, vy, vz);
+      p.life = life; p.age = 0; p._s0 = size;
+      p.size.set(size, size, size);
+      p.color.set(1, 0.95, 0.72, 1);
+      return p;
+    }
+
+    function cuttingSparks(s, sgn) {
+      var o = periphery(s, 1.0);
+      var n = 1 + ((Math.random() * 3) | 0);
+      var tx = o.oy * sgn, ty = -o.ox * sgn;
+      for (var j = 0; j < n; j++) {
+        var spd = rnd(700, 2000);
+        spawnSpark(o.x, o.y, s.pos.z + rnd(0.3, 2),
+          tx * spd + o.ox * spd * rnd(0, 0.3) + rnd(-150, 150),
+          ty * spd + o.oy * spd * rnd(0, 0.3) + rnd(-150, 150),
+          rnd(150, 800), rnd(0.12, 0.32), rnd(0.5, 0.75));
+      }
+    }
+
+    var cool = { nx: 0, ny: 0, nz: 0, ax: 0, ay: 0, az: 0 };
+    function coolGeom(s) {
+      var R = s.toolR || 3, hx = 0.78, hy = 0.625, off = R + 36;
+      cool.nx = s.pos.x + hx * off; cool.ny = s.pos.y + hy * off; cool.nz = s.pos.z + 60;
+      cool.ax = s.pos.x + hx * R * 0.9; cool.ay = s.pos.y + hy * R * 0.9; cool.az = s.pos.z + 3;
+    }
+
+    var JEV = { x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0 };
+    function jetEval(T, t, jx, jy, jz) {
+      var sag = 0.5 * G * t * (T - t), u = t / T;
+      JEV.x = cool.nx + (cool.ax - cool.nx) * u + jx * t;
+      JEV.y = cool.ny + (cool.ay - cool.ny) * u + jy * t;
+      JEV.z = cool.nz + (cool.az - cool.nz) * u + jz * t + sag;
+      JEV.vx = (cool.ax - cool.nx) / T + jx;
+      JEV.vy = (cool.ay - cool.ny) / T + jy;
+      JEV.vz = (cool.az - cool.nz) / T + jz + 0.5 * G * (T - 2 * t);
+      return JEV;
+    }
+
+    function spawnJet(pre) {
+      var j = EF.jet.jitter;
+      var p = spawnInto(dropsSys, EF.maxDrops);
+      p._kind = 0; p._jx = rnd(-j, j); p._jy = rnd(-j, j); p._jz = rnd(-j, j);
+      p._s0 = rnd(1.2, 1.8);
+      p.life = EF.jet.life * rnd(0.97, 1.03); p.age = pre || 0;
+      var b = rnd(0.9, 1.0);
+      p.color.set(0.72 * b, 0.86 * b, 1.0 * b, 0.36);
+      p.size.set(p._s0, p._s0, p._s0);
+      var ev = jetEval(p.life, p.age, p._jx, p._jy, p._jz);
+      p.position.set(ev.x, ev.y, ev.z);
+      p.velocity.set(ev.vx, ev.vy, ev.vz);
+    }
+
+    function splash(x, y, z, s, cutting, sgn) {
+      var px = s.pos.x, py = s.pos.y;
+      var ox = x - px, oy = y - py, ol = Math.sqrt(ox * ox + oy * oy) || 1;
+      ox /= ol; oy /= ol;
+      var tx = oy * sgn, ty = -ox * sgn;
+      var n = cutting ? 2 : 1;
+      for (var j = 0; j < n; j++) {
+        var ts = s.spindle ? rnd(120, 650) : 0, rs = rnd(80, 420);
+        var a = Math.random() * TAU, rr = rnd(0, 120);
+        var b = rnd(0.85, 1.0);
+        var p = spawnInto(dropsSys, EF.maxDrops);
+        p._kind = 1; p._s0 = rnd(0.45, 1.0);
+        p.position.set(x, y, z);
+        p.velocity.set(tx * ts + ox * rs + Math.cos(a) * rr, ty * ts + oy * rs + Math.sin(a) * rr, rnd(40, 420));
+        p.life = rnd(EF.splash.life[0], EF.splash.life[1]); p.age = 0;
+        p.size.set(p._s0, p._s0, p._s0);
+        p.color.set(0.78 * b, 0.9 * b, 1.0 * b, 0.55);
+      }
+      if (Math.random() < (cutting ? 0.06 : 0.015)) {
+        var m = Math.random() * TAU, ms = rnd(30, 110);
+        var sp = spawnInto(softSys, EF.maxSoft);
+        sp._kind = 1; sp._s0 = rnd(3, 5);
+        sp.position.set(x, y, z + rnd(0, 2));
+        sp.velocity.set(Math.cos(m) * ms, Math.sin(m) * ms, rnd(15, 60));
+        sp.life = rnd(0.6, 1.1); sp.age = 0;
+        sp.size.set(sp._s0, sp._s0, sp._s0);
+        sp.color.set(0.86, 0.92, 1.0, 0);
+      }
+    }
+
+    function spawnSmoke(s, dark) {
+      var R = s.toolR || 3, an = Math.random() * TAU, r = R * rnd(0.3, 1.2);
+      var gr = dark ? rnd(0.2, 0.3) : rnd(0.5, 0.66);
+      var p = spawnInto(softSys, EF.maxSoft);
+      p._kind = dark ? 2 : 0;
+      p._growth = rnd(3.5, 5.5);
+      p._s0 = (4 + R * 0.6) * rnd(0.8, 1.2) * (dark ? 1.4 : 1);
+      p.position.set(s.pos.x + Math.cos(an) * r, s.pos.y + Math.sin(an) * r, s.pos.z + rnd(0, 2.5));
+      p.velocity.set(rnd(-8, 8), rnd(-8, 8), dark ? rnd(40, 90) : rnd(16, 38));
+      p.life = dark ? rnd(1.2, 2.0) : rnd(2.2, 3.6); p.age = 0;
+      p.size.set(p._s0, p._s0, p._s0);
+      p.color.set(gr * 1.02, gr, gr * 0.97, 0);
+    }
+
+    function spawnFlame(s) {
+      var R = s.toolR || 3, an = Math.random() * TAU, r = R * rnd(0.6, 1.2);
+      var core = Math.random() < 0.35;
+      var p = spawnInto(glowSys, EF.maxGlow);
+      p._kind = 0; p._rampSpeed = core ? 0.45 : 1;
+      p._s0 = (3 + R * 0.45) * rnd(0.8, 1.2) * (core ? 0.55 : 1);
+      p.position.set(s.pos.x + Math.cos(an) * r, s.pos.y + Math.sin(an) * r, s.pos.z + rnd(0, 1.5));
+      p.velocity.set(rnd(-12, 12), rnd(-12, 12), core ? rnd(20, 50) : rnd(30, 90));
+      p.life = core ? rnd(0.12, 0.22) : rnd(0.18, 0.36); p.age = 0;
+      p.size.set(p._s0, p._s0, p._s0);
+      p.color.set(1, 0.9, 0.55, 0.5);
+    }
+
+    /* --------------------------------------------------------- behaviors
+     * One per pool; mirrors the corresponding per-particle loop of the
+     * legacy back end almost line for line, just addressed through
+     * particle.position/velocity/age/life/size/color instead of typed
+     * arrays. See place()/kill() above for the two bits of glue this needs. */
+    var noop = function () {};
+    function behavior(type, update) {
+      return { type: type, update: update, initialize: noop, frameUpdate: noop, reset: noop,
+        clone: function () { return this; }, toJSON: function () { return {}; } };
+    }
+
+    var chipBehavior = behavior('tncChip', function (p, dt) {
+      var left = p.life - p.age, al = left < 0.8 ? Math.max(left, 0) / 0.8 : 1;
+      p.color.w = al;
+      var sz = p._s0 * (0.55 + 0.45 * al); p.size.set(sz, sz, sz);
+      p.rotation += p._spin * dt;
+      if (p._rest) {
+        if (ctx.spin !== 0) {
+          var kx = p.position.x - ctx.toolX, ky = p.position.y - ctx.toolY, kd = kx * kx + ky * ky;
+          if (kd < ctx.kickR2 && p.position.z > ctx.toolZ - 1 && p.position.z < ctx.toolZ + 60) {
+            kd = Math.sqrt(kd) || 1; kx /= kd; ky /= kd;
+            var ks = rnd(EF.chip.restKick[0], EF.chip.restKick[1]);
+            p.velocity.set(ky * ctx.sgn * ks + kx * 150, -kx * ctx.sgn * ks + ky * 150, rnd(150, 450));
+            p._bounced = false; p._rest = false;
+          }
+        }
+        if (p._rest && Math.random() < 0.125) {
+          var rz = surf(p.position.x, p.position.y, ctx.st);
+          if (rz !== rz || rz < p.position.z - 0.3) { p._rest = false; p.velocity.set(0, 0, 0); p._bounced = true; }
+        }
+        if (p._rest) return;
+      }
+      p.velocity.z -= G * dt;
+      var drag = Math.exp(-EF.chip.drag * dt);
+      p.velocity.x *= drag; p.velocity.y *= drag; p.velocity.z *= drag;
+      var ox = p.position.x, oy = p.position.y, oz = p.position.z;
+      var nx = ox + p.velocity.x * dt, ny = oy + p.velocity.y * dt, nz = oz + p.velocity.z * dt;
+      var szf = surf(nx, ny, ctx.st);
+      if (szf !== szf) {
+        if (nz < ctx.st - 200) { kill(p); place(p, dt, nx, ny, nz); return; }
+      } else if (nz < szf) {
+        if (oz >= szf - 0.05) {
+          if (p.velocity.z < -260 && !p._bounced) {
+            nz = szf + 0.01; p.velocity.z *= -0.25; p.velocity.x *= 0.45; p.velocity.y *= 0.45; p._bounced = true;
+          } else { nz = szf + 0.03; p._rest = true; p.velocity.set(0, 0, 0); }
+        } else {
+          nx = ox; ny = oy; p.velocity.x *= -0.3; p.velocity.y *= -0.3;
+          var so = surf(ox, oy, ctx.st);
+          if (so === so && nz < so) { nz = so + 0.03; p._rest = true; p.velocity.set(0, 0, 0); }
+        }
+      }
+      place(p, dt, nx, ny, nz);
+    });
+
+    var HC = [0, 0, 0];
+    var sparkBehavior = behavior('tncSpark', function (p, dt) {
+      var t = p.age / p.life;
+      heat(t, HC, 0);
+      p.color.set(HC[0] * sparkTint.r, HC[1] * sparkTint.g, HC[2] * sparkTint.b, Math.pow(1 - t, 1.3));
+      var sz = p._s0 * (1 - 0.4 * t); p.size.set(sz, sz, sz);
+      p.velocity.z -= G * 0.6 * dt;
+      var drag = Math.exp(-EF.spark.drag * dt);
+      p.velocity.x *= drag; p.velocity.y *= drag; p.velocity.z *= drag;
+      var nx = p.position.x + p.velocity.x * dt, ny = p.position.y + p.velocity.y * dt, nz = p.position.z + p.velocity.z * dt;
+      if (p.velocity.z < 0) {
+        var ssz = surf(nx, ny, ctx.st);
+        if (ssz === ssz && nz < ssz && nz > ssz - 6) { nz = ssz + 0.01; p.velocity.z *= -0.35; p.velocity.x *= 0.6; p.velocity.y *= 0.6; }
+      }
+      place(p, dt, nx, ny, nz);
+    });
+
+    var dropsBehavior = behavior('tncDrops', function (p, dt) {
+      if (p._kind === 0) {                              // jet: ballistic arc pinned to nozzle -> aim
+        var T = p.life, tNew = p.age + dt;
+        if (tNew < T) {
+          var ev = jetEval(T, tNew, p._jx, p._jy, p._jz);
+          var dz = surf(ev.x, ev.y, ctx.st);
+          if (dz === dz && ev.z < dz) {
+            if (ctx.hasPos) splash(ev.x, ev.y, dz + 0.05, ctx.s, ctx.cutting, ctx.sgn);
+            kill(p); place(p, dt, ev.x, ev.y, dz + 0.05); return;
+          }
+          p.velocity.set(ev.vx, ev.vy, ev.vz);
+          p.color.w = 0.3 + 0.12 * (tNew / T);
+          place(p, dt, ev.x, ev.y, ev.z);
+          return;
+        }
+        if (ctx.hasPos) splash(p.position.x, p.position.y, p.position.z, ctx.s, ctx.cutting, ctx.sgn);
+        kill(p);
+        return;
+      }
+      // splash droplet
+      var t = p.age / p.life;
+      if (t >= 1) return;
+      var dragS = Math.exp(-EF.splash.drag * dt);
+      p.velocity.z -= G * dt;
+      p.velocity.x *= dragS; p.velocity.y *= dragS; p.velocity.z *= dragS;
+      var nx = p.position.x + p.velocity.x * dt, ny = p.position.y + p.velocity.y * dt, nz = p.position.z + p.velocity.z * dt;
+      p.color.w = 0.55 * (1 - t * t);
+      if (p.velocity.z < 0) {
+        var sd = surf(nx, ny, ctx.st);
+        if (sd === sd && nz < sd) {
+          if (p._s0 > 0.7 && Math.random() < 0.3) {
+            nz = sd + 0.02; p.velocity.z *= -0.3; p.velocity.x *= 0.5; p.velocity.y *= 0.5;
+            p._s0 *= 0.6; p.size.set(p._s0, p._s0, p._s0);
+          } else { kill(p); place(p, dt, nx, ny, nz); return; }
+        } else if (sd !== sd && nz < ctx.st - 200) { kill(p); place(p, dt, nx, ny, nz); return; }
+      }
+      place(p, dt, nx, ny, nz);
+    });
+
+    var softBehavior = behavior('tncSoft', function (p, dt) {
+      var t = p.age / p.life;
+      if (t >= 1) return;
+      if (p._kind === 1) {                              // mist puff
+        var decay = Math.exp(-2.5 * dt);
+        p.velocity.x *= decay; p.velocity.y *= decay; p.velocity.z *= decay;
+        var sz = p._s0 * (1 + 2.4 * t); p.size.set(sz, sz, sz);
+        p.color.w = 0.16 * Math.min(1, t * 6) * (1 - t);
+      } else {                                          // cutting / crash smoke
+        p.velocity.z += (p._kind === 2 ? 30 : 12) * dt;
+        var drag = Math.exp(-EF.soft.drag * dt);
+        p.velocity.x *= drag; p.velocity.y *= drag;
+        p.velocity.x += rnd(-20, 20) * dt; p.velocity.y += rnd(-20, 20) * dt;
+        var sz2 = p._s0 * (1 + (p._growth - 1) * Math.sqrt(t)); p.size.set(sz2, sz2, sz2);
+        p.color.w = (p._kind === 2 ? 0.45 : 0.4) * Math.min(1, t * 5) * (1 - t) * (1 - t);
+      }
+      var nx = p.position.x + p.velocity.x * dt, ny = p.position.y + p.velocity.y * dt, nz = p.position.z + p.velocity.z * dt;
+      place(p, dt, nx, ny, nz);
+    });
+
+    var glowBehavior = behavior('tncGlow', function (p, dt) {
+      var t = p.age / p.life;
+      if (t >= 1) return;
+      if (p._kind === 1) {                              // crash flash, stationary
+        p.color.w = 0.85 * (1 - t) * (1 - t);
+        var sz = p._s0 * (0.6 + 0.6 * t); p.size.set(sz, sz, sz);
+        return;
+      }
+      p.velocity.z += 180 * dt;
+      var ht = t * p._rampSpeed;
+      p.color.set(1 - 0.4 * ht, 0.62 - 0.52 * ht, Math.max(0.02, 0.2 - 0.22 * ht),
+        (p._rampSpeed < 1 ? 0.6 : 0.42) * Math.min(1, t * 8) * (1 - t));
+      var sz2 = p._s0 * (0.7 + 0.5 * Math.sin(Math.PI * Math.min(1, t * 1.4))) * (1 - 0.5 * t) * rnd(0.85, 1.15);
+      p.size.set(sz2, sz2, sz2);
+      var nx = p.position.x + p.velocity.x * dt, ny = p.position.y + p.velocity.y * dt, nz = p.position.z + p.velocity.z * dt;
+      place(p, dt, nx, ny, nz);
+    });
+
+    chipsSys.behaviors.push(chipBehavior);
+    sparksSys.behaviors.push(sparkBehavior);
+    dropsSys.behaviors.push(dropsBehavior);
+    softSys.behaviors.push(softBehavior);
+    glowSys.behaviors.push(glowBehavior);
+
+    /* ----------------------------------------------------------- update */
+    fx.update = function (dt, s) {
+      dt = +dt || 0;
+      if (dt > 0.1) dt = 0.1;
+      if (!(dt > 0)) return;
+      s = s || {};
+      var st = (typeof s.stockTop === 'number' && isFinite(s.stockTop)) ? s.stockTop : 0;
+      var hasPos = !!(s.pos && isFinite(s.pos.x) && isFinite(s.pos.y) && isFinite(s.pos.z));
+      var spin = +s.spindle || 0, sgn = spin < 0 ? -1 : 1;
+      var R = Math.max(0.2, +s.toolR || 3);
+      var speed = clamp(+s.speed || 1, 1, 1000);
+      var mul = Math.min(Math.pow(speed, 0.45), 5);
+      var active = !!s.running && hasPos;
+      var cutting = active && !!s.cutting && spin !== 0;
+      var coolOn = active && !!s.coolant && spin !== 0 && en.coolant;
+      if (hasPos) coolGeom(s);
+
+      ctx.st = st; ctx.hasPos = hasPos; ctx.spin = spin; ctx.sgn = sgn; ctx.R = R;
+      ctx.cutting = cutting; ctx.s = s;
+      ctx.toolX = hasPos ? s.pos.x : 1e9; ctx.toolY = hasPos ? s.pos.y : 1e9; ctx.toolZ = hasPos ? s.pos.z : 0;
+      var kickR = R + EF.chip.kickPad; ctx.kickR2 = kickR * kickR;
+
+      // advance particles that existed at the start of this frame
+      for (var qi = 0; qi < systems.length; qi++) systems[qi].update(dt);
+
+      // spawn (after the step, like the legacy back end)
+      if (cutting) {
+        if (en.chips) {
+          acc.chip += dt * EF.rate.chip * clamp(Math.sqrt(R / 4), 0.6, 2) * mul;
+          while (acc.chip >= 1) { acc.chip -= 1; spawnChip(s, st, sgn, R, Math.random() * dt); }
+        }
+        if (en.sparks) {
+          acc.spark += dt * EF.rate.spark * mul;
+          while (acc.spark >= 1) { acc.spark -= 1; cuttingSparks(s, sgn); }
+        }
+        if (en.smoke) {
+          acc.smoke += dt * EF.rate.smoke * Math.min(Math.pow(speed, 0.3), 2.5);
+          while (acc.smoke >= 1) { acc.smoke -= 1; spawnSmoke(s, false); }
+        }
+        if (en.fire) {
+          acc.fire += dt * EF.rate.fire * Math.min(Math.pow(speed, 0.3), 2.5);
+          while (acc.fire >= 1) { acc.fire -= 1; spawnFlame(s); }
+        }
+      } else { acc.chip = acc.spark = acc.smoke = acc.fire = 0; }
+      if (coolOn) {
+        acc.cool += dt * EF.rate.jet;
+        while (acc.cool >= 1) { acc.cool -= 1; spawnJet(Math.random() * dt); }
+      } else acc.cool = 0;
+
+      if (nozzle) {
+        nozzle.visible = hasPos && en.coolant && !!s.coolant;
+        if (nozzle.visible) {
+          nozzle.position.set(cool.nx, cool.ny, cool.nz);
+          tmpV.set(cool.ax - cool.nx, cool.ay - cool.ny, cool.az - cool.nz).normalize();
+          nozzle.quaternion.setFromUnitVectors(Y, tmpV);
+        }
+      }
+
+      if (flashAge < 9) {
+        flashAge += dt;
+        light.intensity = flashAge < 0.35 ? LK * 7 * Math.exp(-flashAge / 0.09) : 0;
+        if (flashAge >= 0.35) flashAge = 9;
+      }
+
+      // sync GPU buffers after spawning, so new particles show up this frame
+      for (var bi = 0; bi < renderer.batches.length; bi++) renderer.batches[bi].update();
+    };
+
+    /* ------------------------------------------------------------- crash */
+    fx.crash = function (pos) {
+      if (!pos || !isFinite(pos.x) || !isFinite(pos.y) || !isFinite(pos.z)) return;
+      var x = pos.x, y = pos.y, z = pos.z, j, a, sp, el, ce;
+      if (en.sparks) {
+        for (j = 0; j < EF.crash.sparks; j++) {
+          a = Math.random() * TAU;
+          el = Math.pow(Math.random(), 0.6) * 1.35 - 0.15;
+          ce = Math.cos(el);
+          sp = rnd(600, 4600) * (Math.random() < 0.15 ? 1.4 : 1);
+          spawnSpark(x + rnd(-2, 2), y + rnd(-2, 2), z + rnd(0, 6),
+            Math.cos(a) * ce * sp, Math.sin(a) * ce * sp, Math.sin(el) * sp,
+            rnd(0.3, 1.15), rnd(0.8, 1.5));
+        }
+        var g1 = spawnInto(glowSys, EF.maxGlow);
+        g1._kind = 1; g1._s0 = 55; g1.position.set(x, y, z + 4); g1.velocity.set(0, 0, 0);
+        g1.life = 0.25; g1.age = 0; g1.size.set(55, 55, 55); g1.color.set(1, 0.82, 0.55, 0.85);
+        var g2 = spawnInto(glowSys, EF.maxGlow);
+        g2._kind = 1; g2._s0 = 22; g2.position.set(x, y, z + 4); g2.velocity.set(0, 0, 0);
+        g2.life = 0.12; g2.age = 0; g2.size.set(22, 22, 22); g2.color.set(1, 1, 0.9, 1);
+        light.position.set(x, y, z + 15);
+        light.intensity = 7 * LK; flashAge = 0;
+      }
+      if (en.chips) {
+        for (j = 0; j < EF.crash.chipsHeavy; j++) {
+          a = Math.random() * TAU; sp = rnd(250, 1300);
+          var gr = rnd(0.45, 0.62);
+          var p = spawnInto(chipsSys, maxChips);
+          p._rest = false; p._bounced = false; p._s0 = rnd(1.8, 3.6); p._spin = rnd(-10, 10);
+          p.position.set(x + rnd(-2, 2), y + rnd(-2, 2), z + rnd(0.5, 5));
+          p.velocity.set(Math.cos(a) * sp, Math.sin(a) * sp, rnd(350, 1400));
+          p.life = rnd(1.2, 1.5); p.age = 0;
+          p.size.set(p._s0, p._s0, p._s0);
+          p.color.set(gr * chipTint.r, gr * 1.01 * chipTint.g, gr * 1.05 * chipTint.b, 1);
+          p.rotation = Math.random() * TAU;
+        }
+        for (j = 0; j < EF.crash.chipsShatter; j++) {
+          a = Math.random() * TAU; sp = rnd(300, 1800);
+          var g2c = rnd(0.62, 0.9);
+          var p2 = spawnInto(chipsSys, maxChips);
+          p2._rest = false; p2._bounced = false; p2._s0 = rnd(1, 2.2); p2._spin = rnd(-10, 10);
+          p2.position.set(x + rnd(-2, 2), y + rnd(-2, 2), z + rnd(0.5, 4));
+          p2.velocity.set(Math.cos(a) * sp, Math.sin(a) * sp, rnd(300, 1200));
+          p2.life = rnd(1.1, 1.5); p2.age = 0;
+          p2.size.set(p2._s0, p2._s0, p2._s0);
+          p2.color.set(g2c * chipTint.r, g2c * chipTint.g, g2c * 1.03 * chipTint.b, 1);
+          p2.rotation = Math.random() * TAU;
+        }
+      }
+      if (en.smoke) {
+        var fake = { pos: { x: x, y: y, z: z + 2 }, toolR: 6 };
+        for (j = 0; j < EF.crash.smoke; j++) spawnSmoke(fake, true);
+      }
+    };
+
+    fx.set = function (o) {
+      if (!o) return;
+      for (var key in en) if (Object.prototype.hasOwnProperty.call(o, key)) en[key] = !!o[key];
+    };
+
+    fx.setMaterial = function (preset) {
+      if (!preset) return;
+      setTint(chipTint, hexOf(preset.chipColor, 0xb8bec8));
+      setTint(sparkTint, hexOf(preset.sparkColor, 0xffffff));
+    };
+
+    // three.quarks billboards are real world-mm sized quads, so perspective
+    // foreshortening already matches the legacy shader's uScale math for
+    // free; nothing to recompute here besides keeping the hook present.
+    fx.resize = function () {};
+
+    fx.clear = function () {
+      for (var i = 0; i < systems.length; i++) systems[i].particleNum = 0;
+      for (var bi = 0; bi < renderer.batches.length; bi++) renderer.batches[bi].update();
+      acc.chip = acc.spark = acc.cool = acc.smoke = acc.fire = 0;
+      light.intensity = 0; flashAge = 9;
+    };
+
+    fx.dispose = function () {
+      var i;
+      for (i = 0; i < renderer.batches.length; i++) {
+        var b = renderer.batches[i];
+        if (b.dispose) b.dispose();
+        if (b.material && b.material.dispose) b.material.dispose();
+      }
+      for (i = 0; i < systems.length; i++) systems[i].dispose();
+      for (i = 0; i < ownMats.length; i++) ownMats[i].dispose();
+      if (root.parent) root.parent.remove(root);
+      dotTex.dispose();
+      for (i = 0; i < nozzleGeos.length; i++) nozzleGeos[i].dispose();
+      for (i = 0; i < nozzleMats.length; i++) nozzleMats[i].dispose();
+      systems.length = 0;
+      fx.update = fx.crash = function () {};
+    };
+
+    fx.stats = function () {
+      return { chips: chipsSys.particleNum, sparks: sparksSys.particleNum, coolant: dropsSys.particleNum,
+        smoke: softSys.particleNum, glow: glowSys.particleNum };
+    };
+
+    fx.object3d = root;
+    return fx;
+  }
+
+  /* ---------------------------------------------------------------- create */
+  function create(THREE, scene, opts) {
+    var Q = (typeof window !== 'undefined') ? window.QUARKS : null;
+    var fx = null;
+    if (Q && Q.ParticleSystem && Q.BatchedRenderer && Q.SpriteParticle && Q.ConstantValue) {
+      try { fx = createQuarks(THREE, Q, scene, opts); }
+      catch (err) {
+        fx = null;
+        try { if (typeof console !== 'undefined' && console.warn) console.warn('TNC_FX: three.quarks back end failed, falling back to the built-in renderer.', err); } catch (e2) {}
+      }
+    }
+    if (!fx) fx = createLegacy(THREE, scene, opts);
+    api.instance = fx;   // addition: last-created instance, so a sibling plugin (materials.js)
+                          // can reach fx.setMaterial() without ui.js having to hand it out
     return fx;
   }
 
@@ -13800,6 +14479,7 @@ var TNC_I18N = (function () {
       'btn.cool': 'Coolant',
       'btn.fire': 'Smoke & fire',
       'btn.labels': 'Labels',
+      'btn.vice': 'Vice',
       'btn.sound': 'Sound',
       'btn.snap': 'Store finished run as reference A',
       'btn.restore': 'Open reference program',
@@ -13841,6 +14521,7 @@ var TNC_I18N = (function () {
       'btn.cool': 'Kylmedel',
       'btn.fire': 'Rök & eld',
       'btn.labels': 'Etiketter',
+      'btn.vice': 'Skruvstycke',
       'btn.sound': 'Ljud',
       'btn.snap': 'Spara avslutad körning som referens A',
       'btn.restore': 'Öppna referensprogram',
@@ -13873,6 +14554,7 @@ var TNC_I18N = (function () {
     'CHAMFER NOT PERMITTED': 'FAS EJ TILLÅTEN',
     'PROGRAM START UNDEFINED': 'PROGRAMSTART EJ DEFINIERAD',
     'SPINDLE ?': 'SPINDEL ?',
+    'CRASH: TOOL INTO THE VICE': 'KRASCH: VERKTYG I SKRUVSTYCKET',
     'START': 'START',
     'STOP': 'STOPP',
     'RESET': 'ÅTERSTÄLL',
@@ -14044,13 +14726,13 @@ function readPrefs(){
 function writePrefs(){
   try{
     const v=encodeURIComponent(JSON.stringify({speed:S.speed, ovr:S.ovr, view:S.view, mode:S.mode, fx:S.fx,
-      cool:S.fxCool, fire:S.fxFire, labels:S.labels, sound:S.sound, machine:S.machine, flow:S.flowView, focus:S.focusView, side:S.sideTab, ref:S.ref}));
+      cool:S.fxCool, fire:S.fxFire, labels:S.labels, vice:S.vice, sound:S.sound, machine:S.machine, flow:S.flowView, focus:S.focusView, side:S.sideTab, ref:S.ref}));
     const path=location.pathname.replace(/[^/]*$/,'')||'/';
     document.cookie=`${PREF}=${v}; Max-Age=31536000; Path=${path}; SameSite=Lax${location.protocol==='https:'?'; Secure':''}`;
   }catch(e){}
   if(PROF) persist();
 }
-const prefsNow=()=>({speed:S.speed, ovr:S.ovr, view:S.view, mode:S.mode, fx:S.fx, cool:S.fxCool, fire:S.fxFire, labels:S.labels, sound:S.sound, machine:S.machine, flow:S.flowView, focus:S.focusView, side:S.sideTab, ref:S.ref});
+const prefsNow=()=>({speed:S.speed, ovr:S.ovr, view:S.view, mode:S.mode, fx:S.fx, cool:S.fxCool, fire:S.fxFire, labels:S.labels, vice:S.vice, sound:S.sound, machine:S.machine, flow:S.flowView, focus:S.focusView, side:S.sideTab, ref:S.ref});
 
 /* ================= machines ================= */
 const MACHINES={
@@ -14085,7 +14767,7 @@ const S={
   view:['3D','TOP','FRONT','SIDE'].includes(P.view)?P.view:'3D',
   cursor:0, editing:false, raw:false, mgt:false, mgtSel:0, flowView:!!P.flow,
   fx:P.fx!==undefined?!!P.fx:!REDUCED, fxCool:P.cool!==undefined?!!P.cool:true, fxFire:!!P.fire,
-  labels:P.labels!==undefined?!!P.labels:true, sound:P.sound!==undefined?!!P.sound:true,
+  labels:P.labels!==undefined?!!P.labels:true, vice:P.vice!==undefined?!!P.vice:true, sound:P.sound!==undefined?!!P.sound:true,
   ref:null, pos:null, seg:null, shake:0, lesson:null, focus:null, focusView:!!P.focus, sideTab:P.side||'diag', ref:P.ref||'keys', pickPath:null, execB:-1, wiz:null, pick:null, tt:false
 };
 const TEMP='LESSON.H';
@@ -15565,10 +16247,11 @@ function setSpeed(v,quiet){ S.speed=v; [...$('spd').children].forEach(b=>b.datas
   if(v===0&&S.running) runMax(); if(!quiet) say(v?'SPEED '+v+'×':'MAX — RUNS TO THE END OR THE FIRST CRASH'); }
 $('spd').addEventListener('click',e=>{ const b=e.target.closest('button'); if(b) setSpeed(+b.dataset.s); });
 function syncToggles(){ $('b-fx').dataset.on=S.fx?'1':'0'; $('b-cool').dataset.on=S.fxCool?'1':'0'; $('b-fire').dataset.on=S.fxFire?'1':'0';
-  $('b-labels').dataset.on=S.labels?'1':'0'; $('b-sound').dataset.on=S.sound?'1':'0'; fxApply(); if(CO) CO.setVisible(S.labels); writePrefs(); }
+  $('b-labels').dataset.on=S.labels?'1':'0'; $('b-vice').dataset.on=S.vice?'1':'0'; if(window.TNC_STOCK) TNC_STOCK.VICE.on=S.vice; $('b-sound').dataset.on=S.sound?'1':'0'; fxApply(); if(CO) CO.setVisible(S.labels); writePrefs(); }
 function tog(k,label){ S[k]=!S[k]; syncToggles(); say(label+(S[k]?' ON':' OFF')); }
 $('b-fx').onclick=()=>tog('fx','CHIPS & SPARKS'); $('b-cool').onclick=()=>tog('fxCool','COOLANT');
 $('b-fire').onclick=()=>tog('fxFire','SMOKE & FIRE'); $('b-labels').onclick=()=>tog('labels','LABELS'); $('b-sound').onclick=()=>tog('sound','SOUND');
+$('b-vice').onclick=()=>{ tog('vice','VICE'); compile(); };   // standard vice (TNC_STOCK.VICE): drawn + crash-checked; off = part on a fixture plate
 if(!window.TNC_FX){ ['b-fx','b-cool','b-fire'].forEach(id=>$(id).hidden=true); }
 if(!window.TNC_CALLOUTS) $('b-labels').hidden=true;
 $('b-start').onclick=ncStart; $('b-stop').onclick=stop; $('b-step').onclick=stepBlock; $('b-reset').onclick=reset;
