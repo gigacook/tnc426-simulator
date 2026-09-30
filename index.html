@@ -6378,7 +6378,7 @@ var TNC = (function () {
     { t: 42, name: 'REAMER_H7',     l: 101.30,  r: 5.000  }
   ];
 
-  var IMPLEMENTED_CYCLES = { 1: 1, 2: 1, 4: 1, 17: 1, 18: 1, 200: 1, 201: 1, 202: 1, 203: 1, 204: 1, 205: 1, 206: 1, 207: 1, 208: 1, 209: 1, 210: 1, 211: 1, 212: 1, 213: 1, 214: 1, 215: 1, 230: 1, 231: 1 };
+  var IMPLEMENTED_CYCLES = { 1: 1, 2: 1, 4: 1, 17: 1, 18: 1, 200: 1, 201: 1, 202: 1, 203: 1, 204: 1, 205: 1, 206: 1, 207: 1, 208: 1, 209: 1, 210: 1, 211: 1, 212: 1, 213: 1, 214: 1, 215: 1, 230: 1, 231: 1, 262: 1, 263: 1, 264: 1, 265: 1, 267: 1 };
   var PATTERN_CYCLES = { 220: 1, 221: 1 };
   // definition-only cycles with no tool motion in this simulator (9 dwell, 32 tolerance)
   var NOMOTION_CYCLES = { 7: 1, 8: 1, 9: 1, 10: 1, 11: 1, 19: 1, 32: 1, 247: 1 };
@@ -7374,7 +7374,7 @@ var TNC = (function () {
     /* 206 (floating tap holder) needs the spindle running. 207/209 are rigid: the control drives the spindle itself,
        so a repeated M99 after the spindle stopped at the end of the previous hole is legal (CAM posts rely on it). */
     if (!keep && kind === 206) { fail(st, bi, 'SPINDLE ?'); }
-    var dir = keep || 1;
+    var dir = kind === 206 ? (keep || 1) : (pitch < 0 ? -1 : 1);  // 206: M3/M4 as programmed; 207/209: Q239 + = right-hand (M3 in)
     emit(st, 'rapid', { x: x, y: y, z: surf + clr }, RAPID_RATE, bi, lab);
     spin(st, dir);                                                // the cycle runs the spindle for the tap
     if (kind === 209) {                                         // infeed Q257, reverse, retract Q256 (0: to set-up clearance)
@@ -7417,17 +7417,83 @@ var TNC = (function () {
     emit(st, 'rapid', { x: x, y: y, z: surf + clr2 }, RAPID_RATE, bi, lab);
   }
 
+  /* --- thread milling 262 263 264 265 267 (manual 8.3, "Fundamentals of thread milling") ---
+     Helix of the tool centre: R = Q335/2 - (R+DR) inside, + (R+DR) outside (267); |Q239| per turn.
+     Manual table for a right-hand (M3) tool: inside, Q351 +1 climb = RL = ccw, -1 up-cut = RR = cw; outside the reverse.
+     The helix climbs when its sense matches the hand (right-hand = ccw climbing):
+       inside  RH+1 Z+  LH-1 Z+  RH-1 Z-  LH+1 Z-      outside  RH+1 Z-  LH-1 Z-  RH-1 Z+  LH+1 Z+
+     265 always works downward; its sense follows the hand only (RH cw).  Q207 is the feed at the cutting edge; the
+     centre runs Q207 x R / (Q335/2) (manual: "the displayed value does not match the programmed value").
+     Where the manual gives no numbers, the simulator: runs whole turns anchored at the thread depth, starts on the
+     reference axis (+X), approaches on a semicircle that also covers half a pitch in Z (the "compensating motion",
+     iTNC 530: at most half the pitch), departs on a semicircle in the plane, starts 267 at R + |pitch|. */
+  function semi(st, cx, cy, r0, r1, z1, ccw, f, bi, lab) {        // semicircle along +X from radius r0 to r1
+    if (Math.abs(r1 - r0) <= EPS) { emit(st, 'feed', { x: cx + r1, y: cy, z: z1 }, f, bi, lab); return; }
+    emit(st, 'arc', { x: cx + r1, y: cy, z: z1 }, f, bi, lab, { cx: cx + (r0 + r1) / 2, cy: cy, ccw: ccw, sweep: ccw ? Math.PI : -Math.PI });
+  }
+  function cycleThread(st, cy, bi) {
+    var n = cy.num, clr = qp(cy, 200, 2), surf = qp(cy, 203, 0), clr2 = qp(cy, 204, clr), D = Math.abs(qp(cy, 335, 0)), pit = qp(cy, 239, 0), P = Math.abs(pit);
+    var dep = Math.abs(qp(cy, 201, 0)), fpre = qp(cy, 253, st.feed) || st.feed, fm = qp(cy, 207, st.feed) || st.feed, fcs = qp(cy, n === 264 ? 206 : 254, fm) || fm;
+    var x = st.pos.x, y = st.pos.y, lab = cy.label, rt = st.tool.r + (+st.tool.dr || 0), ext = n === 267, R = D / 2 + (ext ? rt : -rt);
+    var RH = pit >= 0, clb = qp(cy, 351, 1) >= 0, ccw = n === 265 ? !RH : ext ? !clb : clb, up = n !== 265 && ccw === RH, sz = up ? 1 : -1;
+    var zb = surf - dep, Rs = ext ? R + P : 0, fs = Math.abs(qp(cy, 358, 0)), off = Math.abs(qp(cy, 359, 0));
+    if (n === 262 && dep <= EPS) return;                           // thread depth 0: the cycle is not executed (manual)
+    if (D <= EPS || (dep > EPS && P <= EPS)) { fail(st, bi, 'CYCL DEF INCOMPLETE'); return; }
+    if (R <= EPS) { fail(st, bi, 'TOOL RADIUS TOO LARGE'); return; }
+    function front(fz) {                                           // countersinking at front: Q358 depth, circle Q359 about the centre
+      if (fs <= EPS) return;
+      emit(st, 'feed', { x: x + Rs, y: y, z: surf - fs }, fz, bi, lab);
+      if (off <= EPS) return;
+      var sn = ccw !== (Rs > off);
+      semi(st, x, y, Rs, off, surf - fs, sn, fcs, bi, lab);
+      emit(st, 'arc', { x: x + off, y: y, z: surf - fs }, fcs, bi, lab, { cx: x, cy: y, ccw: ccw, sweep: ccw ? 2 * Math.PI : -2 * Math.PI });
+      semi(st, x, y, off, Rs, surf - fs, sn, fcs, bi, lab);
+    }
+    emit(st, 'rapid', { x: x, y: y, z: surf + clr }, RAPID_RATE, bi, lab);
+    if (ext) emit(st, 'rapid', { x: x + Rs, y: y, z: surf + clr }, RAPID_RATE, bi, lab);   // along the reference axis to the start
+    if (n === 264 && Math.abs(qp(cy, 356, 0)) > EPS)               // drilling: the 205 peck engine, Q356 total hole depth
+      cyclePeck205(st, { label: lab, params: { 200: clr, 201: qp(cy, 356, 0), 206: qp(cy, 206, st.feed), 202: qp(cy, 202, 0), 203: surf, 204: clr,
+        258: qp(cy, 258, 0.2), 259: qp(cy, 258, 0.2), 257: qp(cy, 257, 0), 256: qp(cy, 256, 0.2) } }, bi);
+    var cs = n === 263 ? Math.abs(qp(cy, 356, 0)) : 0;
+    if (cs > EPS) {                                                // 263 countersinking: plunge to Q356 (the circle at the core diameter: not simulated)
+      if (!(Math.abs(qp(cy, 357, 0)) > EPS)) emit(st, 'feed', { x: x, y: y, z: surf - cs + clr }, fpre, bi, lab);
+      emit(st, 'feed', { x: x, y: y, z: surf - cs }, Math.abs(qp(cy, 357, 0)) > EPS ? fpre : fcs, bi, lab);
+    }
+    var q360 = n === 265 && Math.round(qp(cy, 360, 0)) === 1;
+    if (n !== 262 && !q360) front(n === 265 ? fcs : fpre);
+    if (dep > EPS) {
+      var q355 = Math.round(Math.abs(qp(cy, 355, 0))), N = Math.ceil(dep / P - 1e-9), passes = [], i;
+      if (n === 265 || ((n === 262 || ext) && q355 === 1)) passes.push({ z: up ? zb : zb + N * P, t: N });          // continuous
+      else if ((n === 262 || ext) && q355 > 1) {                   // several 360° paths, offset Q355 x pitch
+        var k = Math.ceil(dep / (q355 * P) - 1e-9);
+        for (i = 0; i < k; i++) passes.push({ z: zb + (up ? i : k - 1 - i) * q355 * P + (up ? 0 : P), t: 1 });
+      } else passes.push({ z: up ? zb : zb + P, t: 1 });          // one 360° path at the thread depth
+      var fh = fm * R / (D / 2), sa = ccw !== (Rs > R);
+      for (i = 0; i < passes.length; i++) {
+        var zs = passes[i].z, ze = zs + sz * P * passes[i].t;
+        emit(st, 'feed', { x: x + Rs, y: y, z: zs }, fpre, bi, lab);                   // to the starting plane
+        emit(st, 'feed', { x: x + Rs, y: y, z: zs - sz * P / 2 }, fpre, bi, lab);      // compensating motion
+        semi(st, x, y, Rs, R, zs, sa, fm, bi, lab);                                     // tangential helical approach
+        emit(st, 'arc', { x: x + R, y: y, z: ze }, fh, bi, lab, { cx: x, cy: y, ccw: ccw, sweep: (ccw ? 2 : -2) * Math.PI * passes[i].t });
+        semi(st, x, y, R, Rs, ze, sa, fm, bi, lab);                                     // tangential departure, back to the start
+      }
+    }
+    if (q360) front(fpre);
+    emit(st, 'rapid', { x: st.pos.x, y: st.pos.y, z: surf + clr }, RAPID_RATE, bi, lab);
+    emit(st, 'rapid', { x: st.pos.x, y: st.pos.y, z: surf + clr2 }, RAPID_RATE, bi, lab);
+  }
+
   /* --- old dotted cycles, started from set-up clearance above the surface (tool already there) ---
      1 PECKING: 1.1 SET UP, 1.2 DEPTH, 1.3 PECKG, 1.4 DWELL, 1.5 F
      2 TAPPING: 2.1 SET UP, 2.2 DEPTH, 2.3 DWELL, 2.4 F       17 RIGID TAPPING: 17.1 SET UP, 17.2 DEPTH, 17.3 PITCH
      18 THREAD CUTTING: 18.1 DEPTH, 18.2 PITCH (from the current position) */
   function cycleOld(st, cy, bi) {
     var x = st.pos.x, y = st.pos.y, z0 = st.pos.z, lab = cy.label, keep = st.spinDir || 1, n = cy.num;
-    if (n === 18) {
-      var d18 = sub(cy, 1, 0, 0), p18 = Math.abs(sub(cy, 2, 0, 0)), f18 = p18 * st.sRpm;
+    if (n === 18) {                                               // the TNC switches the spindle on and off itself (manual)
+      var d18 = sub(cy, 1, 0, 0), p18 = sub(cy, 2, 0, 0), f18 = Math.abs(p18) * st.sRpm, s18 = (p18 < 0 ? -1 : 1) * (d18 < 0 ? 1 : -1);
       if (!d18 || !(f18 > 0)) { fail(st, bi, 'CYCL DEF INCOMPLETE'); return; }
-      emit(st, 'feed', { x: x, y: y, z: z0 + d18 }, f18, bi, lab); spin(st, -keep);
-      emit(st, 'feed', { x: x, y: y, z: z0 }, f18, bi, lab); spin(st, keep); return;
+      spin(st, s18);                                              // pitch + = right-hand: M3 with a negative depth
+      emit(st, 'feed', { x: x, y: y, z: z0 + d18 }, f18, bi, lab); spin(st, 0); return;   // stops at the end of thread
     }
     var set = Math.abs(sub(cy, 1, 0, 2)), dep = -Math.abs(sub(cy, 2, 0, 0)), surf = z0 - set;
     if (Math.abs(dep) <= EPS) { fail(st, bi, 'CYCL DEF INCOMPLETE'); return; }
@@ -7443,7 +7509,7 @@ var TNC = (function () {
     }
     var f = n === 2 ? (sub(cy, 4, 0, st.feed) || st.feed) : Math.abs(sub(cy, 3, 0, 0)) * st.sRpm;
     if (!(f > 0)) { fail(st, bi, 'CYCL DEF INCOMPLETE'); return; }
-    if (n === 17) spin(st, keep);                                 // rigid: spindle under cycle control, no M3 needed
+    if (n === 17) spin(st, keep = sub(cy, 3, 0, 0) < 0 ? -1 : 1); // rigid: spindle under cycle control, PITCH + = right-hand
     emit(st, 'feed', { x: x, y: y, z: surf + dep }, f, bi, lab); spin(st, -keep);
     emit(st, 'feed', { x: x, y: y, z: z0 }, f, bi, lab); spin(st, n === 17 ? 0 : keep);
   }
@@ -7646,6 +7712,7 @@ var TNC = (function () {
     else if (cy.num === 205) cyclePeck205(st, cy, bi);
     else if (cy.num === 206 || cy.num === 207 || cy.num === 209) cycleTap(st, cy, bi, cy.num);
     else if (cy.num === 208) cycleBoreMill(st, cy, bi);
+    else if (cy.num >= 262 && cy.num <= 267 && cy.num !== 266) cycleThread(st, cy, bi);
     else if (cy.num >= 212 && cy.num <= 215) cycleFinish(st, cy, bi, at);
     else if (cy.num === 210 || cy.num === 211) cycleSlot(st, cy, bi, at);
     else if (cy.num === 230 || cy.num === 231) cycleSurface(st, cy, bi);
@@ -8608,13 +8675,245 @@ var TNC = (function () {
 if (typeof module !== 'undefined') module.exports = TNC;
 
 </script>
+<script>/* ===== Material model: height field, tilted tool, vice ===== */
+/* ============================================================
+   TNC_STOCK — the material model, shared by the live view (ui.js) and the checks (sim.js analyse).
+   Pure: no DOM, no three.js.
+
+   Height field: one top-surface z per XY column over the blank (BLK FORM). It cannot hold undercuts:
+   a tilted tool that passes UNDER an overhang removes the whole column above its lowest point too.
+   Accepted — a dexel/voxel model is the real fix (see CONTINUE.md, TNC 430 multi-axis).
+
+   TNC_STOCK.grid(stock, segs)          -> { NX, NY, DX, DY }   resolution follows the smallest cutter
+   TNC_STOCK.field(stock, g)            -> Float32Array         a fresh blank (every column at the top)
+   TNC_STOCK.axis(s, u)                 -> null | [ux,uy,uz]   tool axis (tip -> spindle) at u along seg s; null = vertical
+   TNC_STOCK.stamp(hm, st, g, s, p, ax, eps) -> Boolean         cut the tool body at tip p; true when material went
+   TNC_STOCK.probe(hm, st, g, s, p, ax) -> Boolean              tool body touches material (rapid check)
+   TNC_STOCK.holderHits(hm, st, g, s, p, ax) -> Boolean         holder (nose and up, along the axis) touches material
+   TNC_STOCK.vice(st)                   -> [box, box] | []     jaw boxes {x0,x1,y0,y1,z0,z1}
+   TNC_STOCK.viceHit(st, s, p, ax)      -> null | 'tool' | 'holder'
+   TNC_STOCK.disc(...)                  the vertical-tool disc visit (unchanged from sim.js)
+
+   Vertical tool (A = B = 0 or no rotary axes): the exact old disc code, so the 426 path is unchanged.
+   Tilted tool: the body is a cylinder (flat), ball + cylinder (ball: name BALL / KUGEL / KULFR, or R2 >= R)
+   or 45° cone + cylinder (chamfer / spot), along its real axis from A/B; each column takes the lowest point
+   of the body over it.
+   ============================================================ */
+var TNC_STOCK = (function () {
+  'use strict';
+
+  /* ---------- vice: the part is clamped in a machine vice, jaws hugging the blank in Y ----------
+     All defaults are guesses to confirm with the operator (see the report / CONTINUE.md).
+     Switch off: TNC_STOCK.VICE.on = false (no UI toggle yet — add one in the Effects & view menu if wanted). */
+  var VICE = {
+    on: false,       // OFF until the operator confirms the vice layout: ON flagged 24% of real programs as vice crashes
+    axis: 'Y',       // jaws close along Y: one jaw on the Y- face, one on the Y+ face of the blank
+    drop: 5,         // jaw top this far below the blank top (mm) …
+    minGrip: 0.5,    // … but never more than this share of the blank height (thin plates: jaw top at mid-height)
+    jawT: 25,        // jaw thickness along Y (mm)
+    jawW: 160,       // jaw width along X (mm) — a 160 mm vice, centred on the blank; never narrower than the blank
+    below: 40        // jaw depth below the blank bottom, drawn only (mm)
+  };
+  var FLUTE_DEF = function (r) { return Math.max(30, r * 7); };   // body length when L is unknown: as ui.js draws it
+  var HEAD_LEN = 300;          // holder + spindle head probe length above the nose, along the axis (mm)
+  var VICE_STEP = 1;           // column spacing for the vice probe (mm)
+  var BIG = 1e6;
+  var SHRINK = 0.02;           // tilted probes run 0.02 mm inside the stamped body: grid columns on the exact silhouette
+                               // (a tangent, discriminant ~ 0) must not flip between cut and uncut by rounding
+
+  /* ---------- height-field resolution: follow the smallest cutter ---------- */
+  function grid(st, segs) {
+    var w = Math.max(1, st.x1 - st.x0), h = Math.max(1, st.y1 - st.y0);
+    var minR = Infinity;
+    for (var i = 0; i < segs.length; i++) if (segs[i].kind === 'feed' && segs[i].toolR < minR) minR = segs[i].toolR;
+    if (!isFinite(minR)) minR = 3;
+    var cell = Math.max(0.3, Math.min(0.8, minR / 2));
+    while ((w / cell + 1) * (h / cell + 1) > 150000) cell *= 1.08;
+    var NX = Math.max(30, Math.round(w / cell) + 1), NY = Math.max(30, Math.round(h / cell) + 1);
+    return { NX: NX, NY: NY, DX: w / (NX - 1), DY: h / (NY - 1) };
+  }
+  function field(st, g) { var hm = new Float32Array(g.NX * g.NY); hm.fill(st.z1); return hm; }
+
+  /* ---------- vertical tool: disc visit, stamp or probe (eps: the analysis ignores slivers under 0.05) ---------- */
+  function disc(hm, st, g, cx, cy, z, r, cone, stamp, eps) {
+    if (eps == null) eps = 0.05;
+    var i0 = Math.max(0, Math.floor((cx - r - st.x0) / g.DX)), i1 = Math.min(g.NX - 1, Math.ceil((cx + r - st.x0) / g.DX));
+    var j0 = Math.max(0, Math.floor((cy - r - st.y0) / g.DY)), j1 = Math.min(g.NY - 1, Math.ceil((cy + r - st.y0) / g.DY));
+    var r2 = r * r, hit = false;
+    for (var j = j0; j <= j1; j++) {
+      var dy = st.y0 + j * g.DY - cy;
+      for (var i = i0; i <= i1; i++) {
+        var dx = st.x0 + i * g.DX - cx, d2 = dx * dx + dy * dy;
+        if (d2 > r2) continue;
+        var zz = cone ? z + Math.sqrt(d2) : z, k = j * g.NX + i;
+        if (hm[k] > zz + eps && hm[k] > st.z0 + 1e-6) {   // a column cut to the bottom holds no material
+          hit = true;
+          if (stamp) hm[k] = Math.max(st.z0, zz); else return true;
+        }
+      }
+    }
+    return hit;
+  }
+
+  /* ---------- tool axis from the head angles. This machine: R = Ry(-B)·Rx(A) (as core.js cycle 19 and the
+     ui.js tool pose); the axis tip -> spindle is R·(0,0,1) = (-sinB cosA, -sinA, cosB cosA). ---------- */
+  function axis(s, u) {
+    if (!s.a || s.a.a == null) return null;
+    var A = s.a.a + ((s.b.a || 0) - s.a.a) * u, B = (s.a.b || 0) + ((s.b.b || 0) - (s.a.b || 0)) * u;
+    if (Math.abs(A) < 1e-6 && Math.abs(B) < 1e-6) return null;
+    A *= Math.PI / 180; B *= Math.PI / 180;
+    return [-Math.sin(B) * Math.cos(A), -Math.sin(A), Math.cos(B) * Math.cos(A)];
+  }
+  function isBall(s) { return !s.cone && (!!s.ball || (s.toolR2 > 0 && s.toolR2 >= s.toolR - 1e-9)); }   // s.ball: expand() from the tool name
+  function bodyLen(s) { return s.stick > 0 ? s.stick : FLUTE_DEF(s.toolR); }
+
+  /* smallest h in [lo,hi] with A h² + B h + C <= 0, NaN if none */
+  function qmin(A, B, C, lo, hi) {
+    if (lo > hi) return NaN;
+    if (A * lo * lo + B * lo + C <= 0) return lo;
+    var r0, r1;
+    if (Math.abs(A) < 1e-12) { if (Math.abs(B) < 1e-12) return NaN; r0 = r1 = -C / B; }
+    else { var D = B * B - 4 * A * C; if (D < 0) return NaN; D = Math.sqrt(D);
+      r0 = (-B - D) / (2 * A); r1 = (-B + D) / (2 * A); if (r0 > r1) { var tt = r0; r0 = r1; r1 = tt; } }
+    if (r0 >= lo && r0 <= hi) return r0;
+    if (r1 >= lo && r1 <= hi) return r1;
+    return NaN;
+  }
+  /* h range where the axial coordinate t = a + h·uz lies in [t0,t1] */
+  function tRange(a, uz, t0, t1, out) {
+    if (Math.abs(uz) < 1e-12) { if (a < t0 || a > t1) return false; out[0] = -BIG; out[1] = BIG; return true; }
+    var h0 = (t0 - a) / uz, h1 = (t1 - a) / uz; out[0] = Math.min(h0, h1); out[1] = Math.max(h0, h1); return true;
+  }
+  var TR = [0, 0];
+  /* lowest h (z above the base point) of the solid cylinder r, t in [t0,t1] over column offset (dx,dy) */
+  function cylLow(dx, dy, ax, r, t0, t1) {
+    var a = dx * ax[0] + dy * ax[1], uz = ax[2];
+    if (!tRange(a, uz, t0, t1, TR)) return NaN;
+    return qmin(1 - uz * uz, -2 * a * uz, dx * dx + dy * dy - a * a - r * r, TR[0], TR[1]);
+  }
+  /* 45° cone, tip at the base point, t in [0,r]: radius at t is t */
+  function coneLow(dx, dy, ax, r) {
+    var a = dx * ax[0] + dy * ax[1], uz = ax[2];
+    if (!tRange(a, uz, 0, r, TR)) return NaN;
+    return qmin(1 - 2 * uz * uz, -4 * a * uz, dx * dx + dy * dy - 2 * a * a, TR[0], TR[1]);
+  }
+  /* lowest point of the tool body over the column (dx,dy) from the tip, relative to the tip z; NaN = misses */
+  function bodyLow(kind, dx, dy, ax, r, L) {
+    var h = NaN, c;
+    if (kind === 1) {                         // ball: sphere centred r up the axis, then the shank
+      var cx = dx - r * ax[0], cy = dy - r * ax[1], d2 = cx * cx + cy * cy;
+      if (d2 <= r * r) h = r * ax[2] - Math.sqrt(r * r - d2);
+      c = cylLow(dx, dy, ax, r, r, Math.max(r, L));
+    } else if (kind === 2) {                  // chamfer / spot: cone, then the shank
+      h = coneLow(dx, dy, ax, r);
+      c = cylLow(dx, dy, ax, r, r, Math.max(r, L));
+    } else c = cylLow(dx, dy, ax, r, 0, L);
+    return (h === h && !(c < h)) ? h : c;     // NaN-safe min
+  }
+  /* XY bounding box of a body from the tip along the axis, t in [t0,t1], radius r */
+  function bbox(p, ax, r, t0, t1) {
+    var s = r;                                                    // a tilted cross-section still fits in r around the axis
+    var xa = p.x + ax[0] * t0, xb = p.x + ax[0] * t1, ya = p.y + ax[1] * t0, yb = p.y + ax[1] * t1;
+    return [Math.min(xa, xb) - s, Math.max(xa, xb) + s, Math.min(ya, yb) - s, Math.max(ya, yb) + s];
+  }
+  /* visit the columns of the body: stamp (lower them) or probe (true at first material) */
+  function visit(hm, st, g, p, ax, kind, r, t0, t1, L, stamp, eps) {
+    var bb = bbox(p, ax, r, t0, t1);
+    var i0 = Math.max(0, Math.floor((bb[0] - st.x0) / g.DX)), i1 = Math.min(g.NX - 1, Math.ceil((bb[1] - st.x0) / g.DX));
+    var j0 = Math.max(0, Math.floor((bb[2] - st.y0) / g.DY)), j1 = Math.min(g.NY - 1, Math.ceil((bb[3] - st.y0) / g.DY));
+    var hit = false;
+    for (var j = j0; j <= j1; j++) {
+      var dy = st.y0 + j * g.DY - p.y;
+      for (var i = i0; i <= i1; i++) {
+        var k = j * g.NX + i;
+        if (!(hm[k] > st.z0 + 1e-6)) continue;
+        var dx = st.x0 + i * g.DX - p.x;
+        var h = kind < 0 ? cylLow(dx, dy, ax, r, t0, t1) : bodyLow(kind, dx, dy, ax, r, L);
+        if (h !== h) continue;
+        var zz = p.z + h;
+        if (hm[k] > zz + eps) { hit = true; if (stamp) hm[k] = Math.max(st.z0, zz); else return true; }
+      }
+    }
+    return hit;
+  }
+  function kindOf(s) { return s.cone ? 2 : isBall(s) ? 1 : 0; }
+
+  /* ---------- the public stamp / probe ---------- */
+  function stamp(hm, st, g, s, p, ax, eps) {
+    if (eps == null) eps = 0.05;
+    if (!ax) {
+      if (isBall(s)) return visit(hm, st, g, p, [0, 0, 1], 1, s.toolR, 0, bodyLen(s), bodyLen(s), true, eps);
+      return disc(hm, st, g, p.x, p.y, p.z, s.toolR, s.cone, true, eps);
+    }
+    return visit(hm, st, g, p, ax, kindOf(s), s.toolR, 0, bodyLen(s), bodyLen(s), true, eps);
+  }
+  function probe(hm, st, g, s, p, ax) {
+    if (!ax) {
+      if (isBall(s)) return visit(hm, st, g, p, [0, 0, 1], 1, s.toolR - SHRINK, 0, bodyLen(s), bodyLen(s), false, 0.05);
+      return disc(hm, st, g, p.x, p.y, p.z, s.toolR, s.cone, false);
+    }
+    return visit(hm, st, g, p, ax, kindOf(s), s.toolR - SHRINK, 0, bodyLen(s), bodyLen(s), false, 0.05);
+  }
+  function holderR(s) { return Math.max(s.toolR * 2, 12); }   // collet nut radius ~ 2 x tool, min 12
+  /* holder: from the nose (tip + stick-out) up the axis. Vertical: material above the nose height (old check). */
+  function holderHits(hm, st, g, s, p, ax) {
+    if (!(s.stick > 0)) return false;
+    var hr = holderR(s);
+    if (!ax) { var zn = p.z + s.stick; return zn < st.z1 && disc(hm, st, g, p.x, p.y, zn, hr, false, false); }
+    return visit(hm, st, g, p, ax, -1, hr - SHRINK, s.stick, s.stick + HEAD_LEN, 0, false, 0.05);
+  }
+
+  /* ---------- vice ---------- */
+  function vice(st) {
+    if (!VICE.on) return [];
+    var H = st.z1 - st.z0, top = st.z1 - Math.min(VICE.drop, H * VICE.minGrip), bot = st.z0 - VICE.below;
+    var cx = (st.x0 + st.x1) / 2, hw = Math.max(VICE.jawW, st.x1 - st.x0) / 2;
+    if (VICE.axis === 'X') {
+      var cy = (st.y0 + st.y1) / 2, hy = Math.max(VICE.jawW, st.y1 - st.y0) / 2;
+      return [{ x0: st.x0 - VICE.jawT, x1: st.x0, y0: cy - hy, y1: cy + hy, z0: bot, z1: top },
+              { x0: st.x1, x1: st.x1 + VICE.jawT, y0: cy - hy, y1: cy + hy, z0: bot, z1: top }];
+    }
+    return [{ x0: cx - hw, x1: cx + hw, y0: st.y0 - VICE.jawT, y1: st.y0, z0: bot, z1: top },
+            { x0: cx - hw, x1: cx + hw, y0: st.y1, y1: st.y1 + VICE.jawT, z0: bot, z1: top }];
+  }
+  /* body (kind, r, t in [t0,t1]) against one jaw: any column of the jaw where the body dips below the jaw top */
+  function boxHit(bx, p, ax, kind, r, t0, t1, L) {
+    var A = ax || [0, 0, 1];
+    var zlo = Math.min(p.z + A[2] * t0, p.z + A[2] * t1) - (ax ? r * Math.sqrt(Math.max(0, 1 - A[2] * A[2])) : 0);
+    if (zlo >= bx.z1 - 1e-6) return false;                        // the whole body stays above the jaw top
+    var bb = bbox(p, A, r, t0, t1);
+    var x0 = Math.max(bb[0], bx.x0), x1 = Math.min(bb[1], bx.x1), y0 = Math.max(bb[2], bx.y0), y1 = Math.min(bb[3], bx.y1);
+    if (x0 > x1 || y0 > y1) return false;
+    var nx = Math.max(1, Math.ceil((x1 - x0) / VICE_STEP)), ny = Math.max(1, Math.ceil((y1 - y0) / VICE_STEP));
+    for (var j = 0; j <= ny; j++) { var dy = y0 + (y1 - y0) * j / ny - p.y;
+      for (var i = 0; i <= nx; i++) { var dx = x0 + (x1 - x0) * i / nx - p.x;
+        var h = kind < 0 ? cylLow(dx, dy, A, r, t0, t1) : bodyLow(kind, dx, dy, A, r, L);
+        if (h === h && p.z + h < bx.z1 - 1e-6 && p.z + h > bx.z0) return true; } }
+    return false;
+  }
+  function viceHit(st, s, p, ax, jaws) {
+    jaws = jaws || vice(st); if (!jaws.length) return null;
+    var L = bodyLen(s), kind = kindOf(s), hr = holderR(s);
+    for (var n = 0; n < jaws.length; n++) {
+      if (boxHit(jaws[n], p, ax, kind, s.toolR, 0, L, L)) return 'tool';
+      if (s.stick > 0 && boxHit(jaws[n], p, ax, -1, hr, s.stick, s.stick + HEAD_LEN, 0)) return 'holder';
+    }
+    return null;
+  }
+
+  return { VICE: VICE, HEAD_LEN: HEAD_LEN, grid: grid, field: field, disc: disc, axis: axis, isBall: isBall,
+           stamp: stamp, probe: probe, holderHits: holderHits, vice: vice, viceHit: viceHit };
+})();
+if (typeof module !== 'undefined') module.exports = TNC_STOCK;
+
+</script>
 <script>/* ===== Simulation checks ===== */
 /* ============================================================
    TNC_SIM — shared simulation helpers + safety checks.
-   Pure: no DOM, no three.js. Used by the UI and by node tests.
+   Pure: no DOM, no three.js. Used by the UI and by node tests. The material model is stock.js.
 
    TNC_SIM.expand(res)            -> { segs, total }   timed, arc-tessellated
-   TNC_SIM.grid(stock, segs)      -> { NX, NY, DX, DY } height-field resolution
+   TNC_SIM.grid(stock, segs)      -> { NX, NY, DX, DY } height-field resolution (TNC_STOCK.grid)
    TNC_SIM.analyse(res, ex, g)    -> events[]          crashes + warnings
    TNC_SIM.isCone(toolNumber)     -> Boolean           chamfer / spot tools
    ============================================================ */
@@ -8630,6 +8929,8 @@ var TNC_SIM = (function () {
     else if (/ENDMILL/.test(t.name)) FLUTES[t.t] = 3;
   });
   function isCone(t) { return !!CONE[t]; }
+  var STOCK = (typeof TNC_STOCK !== 'undefined' && TNC_STOCK) ||
+              (typeof require !== 'undefined' ? require('./stock.js') : null);
 
   /* ---------- arcs -> short chords ---------- */
   function tessArc(mv, out) {
@@ -8674,7 +8975,7 @@ var TNC_SIM = (function () {
         var f = mv.kind === 'rapid' ? rapid : Math.max(1, mv.feed || 500);
         var dt = mv.dur != null ? mv.dur * (total > 1e-9 ? len / total : 1) : len / f * 60;   // machine time when the core knows it
         segs.push({ a: a, b: b, len: len, f: f, kind: mv.kind === 'rapid' ? 'rapid' : 'feed',
-                    block: mv.block, tool: mv.tool, toolR: mv.toolR || 3, stick: mv.stick, toolL: mv.toolL, sRpm: mv.sRpm, seq: mv.seq, cone: isCone(mv.tool) || /CHAMFER|SPOT|CENTER|CENTRE/i.test(mv.toolName || ''),
+                    block: mv.block, tool: mv.tool, toolR: mv.toolR || 3, stick: mv.stick, toolL: mv.toolL, sRpm: mv.sRpm, seq: mv.seq, cone: isCone(mv.tool) || /CHAMFER|SPOT|CENTER|CENTRE/i.test(mv.toolName || ''), ball: /BALL|KUGEL|KULFR/i.test(mv.toolName || ''),
                     spindle: mv.spindle || 0, coolant: !!mv.coolant, cycle: mv.cycle || null,
                     t0: t, t1: t + dt });
         t += dt;
@@ -8683,37 +8984,8 @@ var TNC_SIM = (function () {
     return { segs: segs, total: t };
   }
 
-  /* ---------- height-field resolution: follow the smallest cutter ---------- */
-  function grid(st, segs) {
-    var w = Math.max(1, st.x1 - st.x0), h = Math.max(1, st.y1 - st.y0);
-    var minR = Infinity;
-    for (var i = 0; i < segs.length; i++) if (segs[i].kind === 'feed' && segs[i].toolR < minR) minR = segs[i].toolR;
-    if (!isFinite(minR)) minR = 3;
-    var cell = Math.max(0.3, Math.min(0.8, minR / 2));
-    while ((w / cell + 1) * (h / cell + 1) > 150000) cell *= 1.08;
-    var NX = Math.max(30, Math.round(w / cell) + 1), NY = Math.max(30, Math.round(h / cell) + 1);
-    return { NX: NX, NY: NY, DX: w / (NX - 1), DY: h / (NY - 1) };
-  }
-
-  /* ---------- disc visit: stamp or probe ---------- */
-  function disc(hm, st, g, cx, cy, z, r, cone, stamp) {
-    var i0 = Math.max(0, Math.floor((cx - r - st.x0) / g.DX)), i1 = Math.min(g.NX - 1, Math.ceil((cx + r - st.x0) / g.DX));
-    var j0 = Math.max(0, Math.floor((cy - r - st.y0) / g.DY)), j1 = Math.min(g.NY - 1, Math.ceil((cy + r - st.y0) / g.DY));
-    var r2 = r * r, hit = false;
-    for (var j = j0; j <= j1; j++) {
-      var dy = st.y0 + j * g.DY - cy;
-      for (var i = i0; i <= i1; i++) {
-        var dx = st.x0 + i * g.DX - cx, d2 = dx * dx + dy * dy;
-        if (d2 > r2) continue;
-        var zz = cone ? z + Math.sqrt(d2) : z, k = j * g.NX + i;
-        if (hm[k] > zz + 0.05 && hm[k] > st.z0 + 1e-6) {   // a column cut to the bottom holds no material
-          hit = true;
-          if (stamp) hm[k] = Math.max(st.z0, zz); else return true;
-        }
-      }
-    }
-    return hit;
-  }
+  /* ---------- material model: stock.js (shared with the live view) ---------- */
+  var grid = STOCK.grid;
 
   /* ---------- safety analysis ---------- */
   var MSG = {
@@ -8722,12 +8994,14 @@ var TNC_SIM = (function () {
     THROUGH_CUT:       'NOTE: TOOL BREAKS THROUGH THE BLANK BOTTOM — ASSUMES PARALLELS UNDER THE PART',
     CHIP_LOAD:         'WARNING: CHIP LOAD HIGH FOR THIS CUTTER',
     SPINDLE_MAX:       'WARNING: SPINDLE SPEED ABOVE THE MACHINE MAXIMUM',
-    HOLDER:            'CRASH: TOOL HOLDER COLLISION — THE HOLDER NOSE REACHES THE PART'
+    HOLDER:            'CRASH: TOOL HOLDER COLLISION — THE HOLDER NOSE REACHES THE PART',
+    VICE_TOOL:         'CRASH: TOOL INTO THE VICE',
+    VICE_HOLDER:       'CRASH: TOOL HOLDER COLLISION — HOLDER HITS THE VICE'
   };
 
   function analyse(res, ex, g) {
     var st = res.stock, ev = [], seen = {};
-    var hm = new Float32Array(g.NX * g.NY); hm.fill(st.z1);
+    var hm = STOCK.field(st, g), jaws = STOCK.vice(st);
     function add(code, sev, s, idx, t, p, extra) {
       var key = code === 'CHIP_LOAD' ? code + ':' + s.tool + ':' + s.f
               : code === 'THROUGH_CUT' ? code + ':' + s.tool
@@ -8740,28 +9014,31 @@ var TNC_SIM = (function () {
     function inside(p, r) {
       return p.x > st.x0 - r && p.x < st.x1 + r && p.y > st.y0 - r && p.y < st.y1 + r;
     }
+    var holderX = function (s) { return ' — T' + s.tool + ' STICK-OUT ' + s.stick.toFixed(1) + ' MM FROM L ' + (s.toolL || 0).toFixed(1) + ' (TOOL LIST / TOOL HOLDER LENGTH)'; };
     ex.segs.forEach(function (s, idx) {
       var step = Math.max(0.3, Math.min(s.toolR * 0.45, 1.5));
       var n = Math.max(1, Math.ceil(s.len / step));
       for (var i = 0; i <= n; i++) {
         var u = i / n, t = s.t0 + (s.t1 - s.t0) * u;
         var p = { x: s.a.x + (s.b.x - s.a.x) * u, y: s.a.y + (s.b.y - s.a.y) * u, z: s.a.z + (s.b.z - s.a.z) * u };
+        var ax = STOCK.axis(s, u);                         // null = vertical tool (the old checks, unchanged)
+        if (jaws.length) {                                 // vice: steel, never cut — the tool or the holder in it is a crash
+          var vh = STOCK.viceHit(st, s, p, ax, jaws);
+          if (vh === 'tool') { add('VICE_TOOL', 'crash', s, idx, t, p); break; }
+          if (vh === 'holder') { add('VICE_HOLDER', 'crash', s, idx, t, p, holderX(s)); break; }
+        }
         if (s.kind === 'rapid') {
-          if (disc(hm, st, g, p.x, p.y, p.z, s.toolR, s.cone, false)) {
+          if (STOCK.probe(hm, st, g, s, p, ax)) {
             add('RAPID_IN_MATERIAL', 'crash', s, idx, t, p); break;
           }
           continue;
         }
-        if (inside(p, s.toolR)) {
-          /* holder: the part surface stands higher than the holder nose (tip + stick-out) */
-          if (s.stick > 0) {                    // material under the collet nut (radius ~ 2 x tool, min 12) above the nose height
-            var zn = p.z + s.stick, hr = Math.max(s.toolR * 2, 12);
-            if (zn < st.z1 && disc(hm, st, g, p.x, p.y, zn, hr, false, false))
-              add('HOLDER', 'crash', s, idx, t, p, ' — T' + s.tool + ' STICK-OUT ' + s.stick.toFixed(1) + ' MM FROM L ' + (s.toolL || 0).toFixed(1) + ' (TOOL LIST / TOOL HOLDER LENGTH)');
-          }
-          if (p.z < st.z0 - 0.01) add('THROUGH_CUT', 'info', s, idx, t, p);   // a note, never a crash: through cuts are normal
+        if (ax || inside(p, s.toolR)) {
+          /* holder: material reaches the holder (tip + stick-out, then up the tool axis) */
+          if (STOCK.holderHits(hm, st, g, s, p, ax)) add('HOLDER', 'crash', s, idx, t, p, holderX(s));
+          if (p.z < st.z0 - 0.01 && inside(p, s.toolR)) add('THROUGH_CUT', 'info', s, idx, t, p);   // a note, never a crash: through cuts are normal
         }
-        var cut = disc(hm, st, g, p.x, p.y, p.z, s.toolR, s.cone, true);
+        var cut = STOCK.stamp(hm, st, g, s, p, ax);
         if (cut) {
           if (s.spindle === 0) add('SPINDLE_OFF', 'crash', s, idx, t, p);
           var z = FLUTES[s.tool];
@@ -13391,6 +13668,11 @@ var TNC_DIALOGS = (function () {
     [206, 'TAPPING NEW', 'TAP', [[200, 'SET-UP CLEARANCE', 2], [201, 'DEPTH', -20], [206, 'FEED RATE FOR PLNGNG', 150], [211, 'DWELL TIME AT DEPTH', 0.25], [203, 'SURFACE COORDINATE', 0], [204, '2ND SET-UP CLEARANCE', 50]]],
     [207, 'RIGID TAPPING NEW', 'TAP', [[200, 'SET-UP CLEARANCE', 2], [201, 'DEPTH', -20], [239, 'PITCH', 1], [203, 'SURFACE COORDINATE', 0], [204, '2ND SET-UP CLEARANCE', 50]]],
     [209, 'TAPPING W/ CHIP BRKG', 'TAP', [[200, 'SET-UP CLEARANCE', 2], [201, 'DEPTH', -20], [239, 'PITCH', 1], [203, 'SURFACE COORDINATE', 0], [204, '2ND SET-UP CLEARANCE', 50], [257, 'DEPTH FOR CHIP BRKNG', 5], [256, 'DIST FOR CHIP BRKNG', 0.2], [336, 'ANGLE OF SPINDLE', 0]]],
+    [262, 'THREAD MILLING', 'TAP', [[335, 'NOMINAL DIAMETER', 10], [239, 'PITCH', 1.5], [201, 'THREAD DEPTH', -20], [355, 'THREADS PER STEP', 0], [253, 'F PRE-POSITIONING', 750], [351, 'CLIMB OR UP-CUT', 1], [200, 'SET-UP CLEARANCE', 2], [203, 'SURFACE COORDINATE', 0], [204, '2ND SET-UP CLEARANCE', 50], [207, 'FEED RATE FOR MILLING', 500]]],
+    [263, 'THREAD MLLNG/CNTSNKG', 'TAP', [[335, 'NOMINAL DIAMETER', 10], [239, 'PITCH', 1.5], [201, 'THREAD DEPTH', -16], [356, 'COUNTERSINKING DEPTH', -20], [253, 'F PRE-POSITIONING', 750], [351, 'CLIMB OR UP-CUT', 1], [200, 'SET-UP CLEARANCE', 2], [357, 'CLEARANCE TO SIDE', 0.2], [358, 'DEPTH AT FRONT', 0], [359, 'OFFSET AT FRONT', 0], [203, 'SURFACE COORDINATE', 0], [204, '2ND SET-UP CLEARANCE', 50], [254, 'F COUNTERSINKING', 150], [207, 'FEED RATE FOR MILLING', 500]]],
+    [264, 'THREAD DRILLNG/MLLNG', 'TAP', [[335, 'NOMINAL DIAMETER', 10], [239, 'PITCH', 1.5], [201, 'THREAD DEPTH', -16], [356, 'TOTAL HOLE DEPTH', -20], [253, 'F PRE-POSITIONING', 750], [351, 'CLIMB OR UP-CUT', 1], [202, 'PLUNGING DEPTH', 5], [258, 'ADVANCED STOP DISTANCE', 0.2], [257, 'DEPTH FOR CHIP BRKNG', 5], [256, 'DIST FOR CHIP BRKNG', 0.2], [358, 'DEPTH AT FRONT', 0], [359, 'OFFSET AT FRONT', 0], [200, 'SET-UP CLEARANCE', 2], [203, 'SURFACE COORDINATE', 0], [204, '2ND SET-UP CLEARANCE', 50], [206, 'FEED RATE FOR PLUNGING', 150], [207, 'FEED RATE FOR MILLING', 500]]],
+    [265, 'HEL.THREAD DRLG/MLG', 'TAP', [[335, 'NOMINAL DIAMETER', 10], [239, 'PITCH', 1.5], [201, 'THREAD DEPTH', -16], [253, 'F PRE-POSITIONING', 750], [358, 'DEPTH AT FRONT', 0], [359, 'OFFSET AT FRONT', 0], [360, 'COUNTERSINKING', 0], [200, 'SET-UP CLEARANCE', 2], [203, 'SURFACE COORDINATE', 0], [204, '2ND SET-UP CLEARANCE', 50], [254, 'F COUNTERSINKING', 150], [207, 'FEED RATE FOR MILLING', 500]]],
+    [267, 'OUTSIDE THREAD MLLNG', 'TAP', [[335, 'NOMINAL DIAMETER', 10], [239, 'PITCH', 1.5], [201, 'THREAD DEPTH', -20], [355, 'THREADS PER STEP', 0], [253, 'F PRE-POSITIONING', 750], [351, 'CLIMB OR UP-CUT', 1], [200, 'SET-UP CLEARANCE', 2], [358, 'DEPTH AT FRONT', 0], [359, 'OFFSET AT FRONT', 0], [203, 'SURFACE COORDINATE', 0], [204, '2ND SET-UP CLEARANCE', 50], [254, 'F COUNTERSINKING', 150], [207, 'FEED RATE FOR MILLING', 500]]],
     [212, 'POCKET FINISHING', 'POCKET', FIN(false)],
     [213, 'STUD FINISHING', 'POCKET', FIN(false)],
     [214, 'C. POCKET FINISHING', 'POCKET', FIN(true)],
@@ -14026,11 +14308,12 @@ function calloutsFor(){
 }
 const fmt=v=>(Math.round(v*100)/100).toString();
 
-/* ---------- height field (3-axis material model) ---------- */
+/* ---------- height field: the material model lives in stock.js (shared with the checks in sim.js) ---------- */
+let GR=null;
 function buildHeightField(){
   const st=ST, w=st.x1-st.x0, h=st.y1-st.y0;
-  const g=TNC_SIM.grid(st,S.segs); NX=g.NX; NY=g.NY; DX=g.DX; DY=g.DY;
-  HM=new Float32Array(NX*NY).fill(st.z1);
+  const g=GR=TNC_STOCK.grid(st,S.segs); NX=g.NX; NY=g.NY; DX=g.DX; DY=g.DY;
+  HM=TNC_STOCK.field(st,g);
   const pos=new Float32Array(NX*NY*3), col=new Float32Array(NX*NY*3), idx=[];
   for(let j=0;j<NY;j++)for(let i=0;i<NX;i++){ const k=(j*NX+i)*3; pos[k]=st.x0+i*DX; pos[k+1]=st.y0+j*DY; pos[k+2]=st.z1; }
   for(let j=0;j<NY-1;j++)for(let i=0;i<NX-1;i++){ const a=j*NX+i,b=a+1,c=a+NX,d=c+1; idx.push(a,b,d,a,d,c); }
@@ -14042,24 +14325,18 @@ function buildHeightField(){
   partRoot.add(gSkirt);
   gFloor=new THREE.Mesh(new THREE.PlaneGeometry(w,h),new THREE.MeshStandardMaterial({color:0x4a535f,metalness:.5,roughness:.6,side:THREE.DoubleSide}));
   gFloor.position.set((st.x0+st.x1)/2,(st.y0+st.y1)/2,st.z0); partRoot.add(gFloor);
+  /* vice jaws (TNC_STOCK.VICE; .on=false hides them and drops the vice checks — no UI toggle yet) */
+  const vm=new THREE.MeshStandardMaterial({color:0x3d4a5c,metalness:.8,roughness:.38});
+  TNC_STOCK.vice(st).forEach(b=>{ const j=new THREE.Mesh(new THREE.BoxGeometry(b.x1-b.x0,b.y1-b.y0,b.z1-b.z0),vm);
+    j.position.set((b.x0+b.x1)/2,(b.y0+b.y1)/2,(b.z0+b.z1)/2); partRoot.add(j); });
   paintHM();
-}
-function stampDisc(cx,cy,z,r,cone){
-  const st=ST;
-  const i0=Math.max(0,Math.floor((cx-r-st.x0)/DX)), i1=Math.min(NX-1,Math.ceil((cx+r-st.x0)/DX));
-  const j0=Math.max(0,Math.floor((cy-r-st.y0)/DY)), j1=Math.min(NY-1,Math.ceil((cy+r-st.y0)/DY));
-  const r2=r*r;
-  for(let j=j0;j<=j1;j++){ const dy=st.y0+j*DY-cy;
-    for(let i=i0;i<=i1;i++){ const dx=st.x0+i*DX-cx, d2=dx*dx+dy*dy; if(d2>r2) continue;
-      const zz=cone?z+Math.sqrt(d2):z, k=j*NX+i;          // chamfer & spot tools cut a 45° flank
-      if(zz<HM[k]){ HM[k]=Math.max(st.z0,zz); hmDirty=true; } } }
 }
 function cutSeg(s,u0,u1){
   if(s.kind!=='feed'||!s.spindle) return;             // no removal with the spindle stopped: that is a crash, shown as such
   const len=s.len*(u1-u0); if(len<=0) return;
   const step=Math.max(0.3,Math.min(s.toolR*0.45,2)), n=Math.max(1,Math.ceil(len/step));
-  for(let i=0;i<=n;i++){ const u=u0+(u1-u0)*(i/n);
-    stampDisc(s.a.x+(s.b.x-s.a.x)*u, s.a.y+(s.b.y-s.a.y)*u, s.a.z+(s.b.z-s.a.z)*u, s.toolR, s.cone); }
+  for(let i=0;i<=n;i++){ const u=u0+(u1-u0)*(i/n);          // eps 0: the view removes every sliver; a tilted tool cuts along its axis
+    if(TNC_STOCK.stamp(HM,ST,GR,s,{x:s.a.x+(s.b.x-s.a.x)*u, y:s.a.y+(s.b.y-s.a.y)*u, z:s.a.z+(s.b.z-s.a.z)*u},TNC_STOCK.axis(s,u),0)) hmDirty=true; }
 }
 function paintHM(){
   if(!gStock) return;
