@@ -36,6 +36,12 @@ var TNC = (function () {
   var PATTERN_CYCLES = { 220: 1, 221: 1 };
   // definition-only cycles with no tool motion in this simulator (9 dwell, 32 tolerance)
   var NOMOTION_CYCLES = { 7: 1, 8: 1, 9: 1, 10: 1, 11: 1, 19: 1, 32: 1, 247: 1 };
+  /* TCH PROBE cycles (DEF-active). Datum setting 408-413, 417, 419 probe the ideal blank: motion + nominal results.
+     Tool measuring on the TT (30-33, 480-483; 562 TOOL SETTING L, not in our manuals): no motion, tool data unchanged. */
+  var PROBE_CYCLES = { 408: 1, 409: 1, 410: 1, 411: 1, 412: 1, 413: 1, 417: 1, 419: 1 };
+  var TT_CYCLES = { 30: 1, 31: 1, 32: 1, 33: 1, 480: 1, 481: 1, 482: 1, 483: 1, 562: 1 };
+  /* MP 6120 probing feed, MP 6150 probe positioning (the operator's 430: 500 / 5000), MP 6140 safety clearance (not known: 2) */
+  var PROBE_MP = { f: 500, rapid: 5000, clr: 2 };
 
   /* ---------------------------------------------------------------- 2. helpers */
 
@@ -292,6 +298,16 @@ var TNC = (function () {
       return block;
     }
 
+    /* ---- touch probe cycle:  TCH PROBE 412 DATUM INSIDE CIRCLE + Q lines, or dotted  TCH PROBE 31.0 TOOL LENGTH / 31.1 CHECK: 0 ---- */
+    if ((m = /^TCH\s+PROBE\s+(\d+)\.(\d+)\s*(.*)$/.exec(U))) {
+      if (+m[2] === 0) { block.kind = 'TCHPROBE'; block.args.num = parseInt(m[1], 10); block.args.name = m[3].trim(); block.args.dot = true; return block; }
+      block.kind = 'CYCLPARM'; block.indent = true; block.args.q = parseInt(m[2], 10); block.args.dot = true; block.args.body = m[3].trim();
+      block.args.values = (m[3].replace(/Q\d+/g, '').match(/[+-]?(?:\d+\.?\d*|\.\d+)/g) || []).map(parseFloat);
+      block.args.value = block.args.values.length ? block.args.values[0] : null;
+      return block;
+    }
+    if ((m = /^TCH\s+PROBE\s+(\d+)\s*(.*)$/.exec(U))) { block.kind = 'TCHPROBE'; block.args.num = parseInt(m[1], 10); block.args.name = m[2].trim(); return block; }
+
     /* ---- cycle definition, old dotted style:  CYCL DEF 4.2 DEPTH -10 ---- */
     if ((m = /^CYCL\s+DEF\s+(\d+)\.(\d+)\s*(.*)$/.exec(U))) {
       var cnum = parseInt(m[1], 10), sub = parseInt(m[2], 10), body = m[3];
@@ -484,7 +500,7 @@ var TNC = (function () {
       var b = parseLine(lines[i], blocks.length);
       if (b.kind === 'QASSIGN') {
         /* Inside a CYCL DEF (Q-style), Q200+ lines are its parameters; anywhere else it is a formula. */
-        var inCycle = (ctx === 'CYCLDEF' || ctx === 'CYCLPARM') && b.args.q >= 200 && b.args.value !== null;
+        var inCycle = (ctx === 'CYCLDEF' || ctx === 'CYCLPARM' || ctx === 'TCHPROBE') && b.args.q >= 200 && b.args.value !== null;
         if (inCycle) { b.kind = 'CYCLPARM'; b.indent = true; delete b.args.expr; }
         else { b.kind = 'FORMULA'; if (!b.args.expr) markParseError(b, 'ARITHMETICAL ERROR'); }
       }
@@ -533,7 +549,7 @@ var TNC = (function () {
       blocks: blocks,
       pos: { x: 0, y: 0, z: 0 },          // programmed coordinates (after cycles 7/8/10/11)
       mpos: { x: 0, y: 0, z: 0 },         // machine coordinates: where the tool really is
-      xf: { on: false, dx: 0, dy: 0, dz: 0, mx: false, my: false, mz: false, rot: 0, s: 1, flip: false, tilt: null },
+      xf: { on: false, px: 0, py: 0, pz: 0, dx: 0, dy: 0, dz: 0, mx: false, my: false, mz: false, rot: 0, s: 1, flip: false, tilt: null },
       steps: 0,
       exec: [], seq: 0,                   // executed blocks in order; moves carry their step number (seq)
       rot: { a: 0, b: 0, c: 0 },          // rotary axis positions, degrees
@@ -547,6 +563,7 @@ var TNC = (function () {
       rcAct: false,        // this block switches RL/RR on
       lastTan: null,       // XY unit tangent at the end of the last path element (for CT)
       toolDefs: {},        // TOOL DEF inside the program
+      presets: {},         // preset-table rows written by touch probe cycles (Q303 = 1), machine coordinates
       Q: {},
       cycle: null,
       moves: [],
@@ -567,24 +584,27 @@ var TNC = (function () {
   }
 
   /* ---- coordinate transformations: cycles 7 datum shift, 8 mirror, 10 rotation, 11 scaling.
-     machine = shift + rotate( scale( mirror(programmed) ) ), all about the active datum. ---- */
+     machine = preset + shift + rotate( scale( mirror(programmed) ) ), all about the active datum.
+     preset (px py pz): the workpiece datum in machine coordinates, 0 at program start; moved by the
+     touch probe datum cycles (Q305 = 0) and by cycle 247 with a row a probe cycle wrote. ---- */
   function toM(st, p) {
     var f = st.xf; if (!f.on) return { x: p.x, y: p.y, z: p.z };
     var x = f.mx ? -p.x : p.x, y = f.my ? -p.y : p.y, z = f.mz ? -p.z : p.z;
     x *= f.s; y *= f.s; z *= f.s;
     var c = Math.cos(f.rot * Math.PI / 180), sn = Math.sin(f.rot * Math.PI / 180), X = x * c - y * sn, Y = x * sn + y * c;
     if (f.tilt) { var T = f.tilt.m; var X2 = T[0] * X + T[1] * Y + T[2] * z, Y2 = T[3] * X + T[4] * Y + T[5] * z, Z2 = T[6] * X + T[7] * Y + T[8] * z; X = X2; Y = Y2; z = Z2; }
-    return { x: X + f.dx, y: Y + f.dy, z: z + f.dz };
+    return { x: X + f.dx + f.px, y: Y + f.dy + f.py, z: z + f.dz + f.pz };
   }
   function fromM(st, p) {
     var f = st.xf; if (!f.on) return { x: p.x, y: p.y, z: p.z };
-    var x = p.x - f.dx, y = p.y - f.dy, z = p.z - f.dz;
+    var x = p.x - f.dx - f.px, y = p.y - f.dy - f.py, z = p.z - f.dz - f.pz;
     if (f.tilt) { var T = f.tilt.m; var x2 = T[0] * x + T[3] * y + T[6] * z, y2 = T[1] * x + T[4] * y + T[7] * z, z2 = T[2] * x + T[5] * y + T[8] * z; x = x2; y = y2; z = z2; }  // inverse = transpose
     var c = Math.cos(f.rot * Math.PI / 180), sn = Math.sin(f.rot * Math.PI / 180);
     var xr = x * c + y * sn, yr = -x * sn + y * c;
     xr /= f.s; yr /= f.s; z /= f.s;
     return { x: f.mx ? -xr : xr, y: f.my ? -yr : yr, z: f.mz ? -z : z };
   }
+  function xfOn(f) { return !!(f.px || f.py || f.pz || f.dx || f.dy || f.dz || f.mx || f.my || f.mz || f.rot || f.s !== 1 || f.tilt); }
   function flipRc(st, rc) { return (st.xf.flip && (rc === 'RL' || rc === 'RR')) ? (rc === 'RL' ? 'RR' : 'RL') : rc; }
   function applyTransform(st, cy, bi) {
     var f = st.xf, subs = cy.bodies || {}, k, v, m, toks, i;
@@ -621,7 +641,7 @@ var TNC = (function () {
       else fail(st, bi, 'CYCL DEF INCOMPLETE');
     }
     f.flip = f.mx !== f.my;                                   // one plane axis mirrored: arcs and RL/RR swap
-    f.on = !!(f.dx || f.dy || f.dz || f.mx || f.my || f.mz || f.rot || f.s !== 1 || f.tilt);
+    f.on = xfOn(f);
     st.pos = fromM(st, st.mpos);                              // the tool does not move; its programmed position does
     if (st.cc) st.cc = st.cc;                                 // CC stays in programmed coordinates
   }
@@ -1373,6 +1393,129 @@ var TNC = (function () {
     else if (cy.num === 1 || cy.num === 2 || cy.num === 17 || cy.num === 18) cycleOld(st, cy, bi);
   }
 
+  /* ---------------------------------------------------------------- 6b. touch probe cycles
+     There is no real part: the blank is ideal and sits where the program says, so every touch lands on the
+     nominal surface and the results are the nominal values. Parameters and run: iTNC 530 user's manual ch. 13/15/19
+     (the 426/430 touch probe manual is not at hand; 4xx parameters are the same family), result list Q150-Q162
+     and MP 6120/6140/6150 from the 426/430 manual (280 476) 10.10 / 13.1.
+     Moves carry probe: true (all) and touch: true (the move at probing feed toward the surface): the stylus
+     touches, it never cuts, so no material removal, no RAPID INTO MATERIAL, no spindle check for them.
+     Working plane X/Y, touch probe axis Z. Q261 = height of the ball centre, so the tip (south pole) is at Q261 - R;
+     in the plane the ball centre stops one stylus radius R short of the surface. */
+  function pmv(st, kind, to, bi, lab, arc) {
+    var n0 = st.moves.length, pr = st.mach.probe || {}, f = kind === 'touch' ? (pr.f || PROBE_MP.f) : (pr.rapid || PROBE_MP.rapid);
+    emit(st, kind === 'touch' ? 'feed' : kind, to, f, bi, lab, arc);
+    for (var i = n0; i < st.moves.length; i++) { var m = st.moves[i]; m.probe = true; if (kind === 'touch') m.touch = true; m.feed = f; m.dur = m.len / f * 60; }
+  }
+  /* positioning logic (ch. 13.2): below the clearance height -> up to it first; then in the plane; then down to the start height */
+  function probePre(st, x, y, zs, H, bi, lab) {
+    if (st.pos.z < H) pmv(st, 'rapid', { x: st.pos.x, y: st.pos.y, z: H }, bi, lab);
+    pmv(st, 'rapid', { x: x, y: y, z: st.pos.z }, bi, lab);
+    pmv(st, 'rapid', { x: x, y: y, z: zs }, bi, lab);
+  }
+  /* P: [{s: start, e: ball centre at contact, c: paraxial corner before s}] at tip height z. via 1 = between points at the
+     clearance height H (straight, or on circ when circ.arc), 0 = at measuring height (paraxial via c, or on circ). */
+  function probePts(st, P, z, H, via, bi, lab, circ) {
+    for (var i = 0; i < P.length && !st.abort; i++) {
+      var s = P[i].s, zz = via ? H : z, same = Math.hypot(s.x - st.pos.x, s.y - st.pos.y) < 1e-9;
+      if (i === 0) probePre(st, s.x, s.y, z, H, bi, lab);
+      else if (!same) {
+        if (via) pmv(st, 'rapid', { x: st.pos.x, y: st.pos.y, z: H }, bi, lab);
+        if (circ && (!via || circ.arc)) pmv(st, 'arc', { x: s.x, y: s.y, z: zz }, bi, lab, { cx: circ.cx, cy: circ.cy, ccw: circ.ccw });
+        else { if (!via && P[i].c) pmv(st, 'rapid', { x: P[i].c.x, y: P[i].c.y, z: zz }, bi, lab); pmv(st, 'rapid', { x: s.x, y: s.y, z: zz }, bi, lab); }
+        if (via) pmv(st, 'rapid', { x: s.x, y: s.y, z: z }, bi, lab);
+      }
+      pmv(st, 'touch', { x: P[i].e.x, y: P[i].e.y, z: z }, bi, lab);
+      pmv(st, 'rapid', { x: s.x, y: s.y, z: z }, bi, lab);                       // back to the starting point
+    }
+  }
+  function probeZ(st, x, y, zSurf, sc, H, bi, lab) {                               // one touch down onto a surface in the probe axis
+    probePre(st, x, y, zSurf + sc, H, bi, lab);
+    pmv(st, 'touch', { x: x, y: y, z: zSurf }, bi, lab);
+    pmv(st, 'rapid', { x: x, y: y, z: zSurf + sc }, bi, lab);
+  }
+  /* "Saving the calculated datum" (ch. 15.1). meas / tgt: {x?, y?, z?} measured point (programmed coordinates) / value to set.
+     Q305 = 0: the display is set, active at once (the preset moves; cycles 7/8/10/11 stay on top of it).
+     Q305 = n, Q303 = 1: row n of the preset table (REF = machine coordinates), per axis; cycle 247 Q339 = n activates it.
+     Q305 = n, Q303 = 0: the active datum table (activated by cycle 7 #n) — not simulated, no effect. Q303 = -1: the iTNC
+     refuses (message not documented) — no effect. */
+  function probeDatum(st, cy, meas, tgt) {
+    var n = Math.round(qp(cy, 305, 0)), f = st.xf, k, p = { x: 0, y: 0, z: 0 }, q;
+    for (k in meas) p[k] = meas[k];
+    q = { x: p.x, y: p.y, z: p.z }; for (k in tgt) q[k] = tgt[k];
+    var Mp = toM(st, p), Mq = toM(st, q);
+    if (n === 0) { f.px += Mp.x - Mq.x; f.py += Mp.y - Mq.y; f.pz += Mp.z - Mq.z; f.on = xfOn(f); st.pos = fromM(st, st.mpos); }
+    else if (Math.round(qp(cy, 303, -1)) === 1) { var row = st.presets[n] = st.presets[n] || {}; for (k in tgt) row[k] = Mp[k] - tgt[k]; }
+  }
+  function activatePreset(st, cy) {                                                // cycle 247: only a row this run wrote is known
+    var row = st.presets[Math.round(qp(cy, 339, -1))], f = st.xf; if (!row) return;
+    for (var k in row) f['p' + k] = row[k];
+    f.on = xfOn(f); st.pos = fromM(st, st.mpos);
+  }
+
+  function runProbe(st, cy, bi) {
+    var n = cy.num, lab = 'TCH PROBE ' + n, Q = st.Q;
+    if (TT_CYCLES[n]) {                                                            // TT tool measurement: ideal tool, deviation 0, status 0 (in tolerance)
+      if (n === 31 || n === 33 || n === 481 || n === 483) Q[115] = 0;
+      if (n === 32 || n === 33 || n === 482 || n === 483) Q[116] = 0;
+      if (n >= 481 && n <= 483) Q[199] = 0;
+      var sm = /CHECK:?\s*\S+\s+Q(\d+)/.exec((cy.bodies || {})[1] || ''); if (sm && n < 40) Q[+sm[1]] = 0;
+      return;
+    }
+    if (!PROBE_CYCLES[n]) { fail(st, bi, 'TCH PROBE ' + n + ' NOT IMPLEMENTED IN SIMULATOR'); return; }
+    var r = Math.max(st.tool.r || 0, 0), sc = ((st.mach.probe || {}).clr || PROBE_MP.clr) + Math.max(qp(cy, 320, 0), 0);
+    var H = qp(cy, 260, st.pos.z), z = qp(cy, 261, 0) - r, via = Math.round(qp(cy, 301, 1)) === 1, cx = qp(cy, 321, 0), cyy = qp(cy, 322, 0);
+    var P = [], meas = {}, tgt = {}, i, pt = function (sx, sy, ex, ey, c) { P.push({ s: { x: sx, y: sy }, e: { x: ex, y: ey }, c: c }); };
+    if (n === 408 || n === 409) {                                                  // slot / ridge centre in axis Q272, datum Q405
+      var ax = Math.round(qp(cy, 272, 1)) === 2 ? 'y' : 'x', w = Math.abs(qp(cy, 311, 0)) / 2, c0 = ax === 'x' ? cx : cyy, a1, a0;
+      var inside = n === 408, e = inside ? w - r : w + r, s0 = inside ? e - sc : e + sc;
+      if (n === 409) via = true;
+      if (s0 < 0) { s0 = 0; via = false; }                                         // too narrow: probes from the centre, no clearance moves
+      [-1, 1].forEach(function (d) { a1 = c0 + d * s0; a0 = c0 + d * e; if (ax === 'x') pt(a1, cyy, a0, cyy); else pt(cx, a1, cx, a0); });
+      probePts(st, P, z, H, via, bi, lab);
+      meas[ax] = c0; tgt[ax] = qp(cy, 405, 0); Q[166] = 2 * w; Q[157] = c0;
+    } else if (n === 410 || n === 411) {                                           // rectangle: 1 left, 2 bottom, 3 right, 4 top
+      var hx = Math.abs(qp(cy, 323, 0)) / 2, hy = Math.abs(qp(cy, 324, 0)) / 2, sg = n === 410 ? -1 : 1;
+      var ex = hx + sg * r, ey = hy + sg * r, sx = ex + sg * sc, sy = ey + sg * sc;
+      if (n === 410 && (sx < 0 || sy < 0)) { sx = sy = 0; via = false; }
+      var S = [[-sx, 0, -ex, 0], [0, -sy, 0, -ey], [sx, 0, ex, 0], [0, sy, 0, ey]];
+      for (i = 0; i < 4; i++) {
+        var pr = S[(i + 3) % 4], cu = S[i], xs = cu[1] === 0 ? cu[0] : pr[0], ys = cu[1] === 0 ? pr[1] : cu[1];   // paraxial: round the corner
+        pt(cx + cu[0], cyy + cu[1], cx + cu[2], cyy + cu[3], i ? { x: cx + xs, y: cyy + ys } : null);
+      }
+      probePts(st, P, z, H, via, bi, lab);
+      meas = { x: cx, y: cyy }; tgt = { x: qp(cy, 331, 0), y: qp(cy, 332, 0) }; Q[151] = cx; Q[152] = cyy; Q[154] = 2 * hx; Q[155] = 2 * hy;
+    } else if (n === 412 || n === 413) {                                           // circle: Q423 points from Q325 in steps of Q247
+      var R = Math.abs(qp(cy, 262, 0)) / 2, a0d = qp(cy, 325, 0), stp = qp(cy, 247, 90), N = Math.round(qp(cy, 423, 4)) === 3 ? 3 : 4;
+      var er = n === 412 ? R - r : R + r, sr = n === 412 ? er - sc : er + sc;
+      if (sr < 0) { sr = 0; via = false; }
+      for (i = 0; i < N; i++) { var an = (a0d + i * stp) * Math.PI / 180, co = Math.cos(an), si = Math.sin(an); pt(cx + sr * co, cyy + sr * si, cx + er * co, cyy + er * si); }
+      probePts(st, P, z, H, via, bi, lab, sr > 0 ? { cx: cx, cy: cyy, ccw: stp > 0, arc: Math.round(qp(cy, 365, 1)) === 1 } : null);
+      meas = { x: cx, y: cyy }; tgt = { x: qp(cy, 331, 0), y: qp(cy, 332, 0) }; Q[151] = cx; Q[152] = cyy; Q[153] = 2 * R;
+    } else if (n === 417) {                                                        // one point in the probe axis
+      probeZ(st, qp(cy, 263, 0), qp(cy, 264, 0), qp(cy, 294, 0), sc, H, bi, lab);
+      meas = { z: qp(cy, 294, 0) }; tgt = { z: qp(cy, 333, 0) }; Q[160] = meas.z;
+    } else if (n === 419) {                                                        // one point in axis Q272 (3 = probe axis), direction Q267
+      var a = Math.round(qp(cy, 272, 1)), d = qp(cy, 267, 1) < 0 ? -1 : 1, x0 = qp(cy, 263, 0), y0 = qp(cy, 264, 0);
+      if (a === 3) {                                                               // touch point in Z taken as Q261 (manual silent)
+        var zt = qp(cy, 261, 0); probePre(st, x0, y0, zt - d * sc, H, bi, lab);
+        pmv(st, 'touch', { x: x0, y: y0, z: zt }, bi, lab); pmv(st, 'rapid', { x: x0, y: y0, z: zt - d * sc }, bi, lab);
+        meas = { z: zt }; tgt = { z: qp(cy, 333, 0) };
+      } else {
+        if (a === 2) pt(x0, y0 - d * (r + sc), x0, y0 - d * r); else pt(x0 - d * (r + sc), y0, x0 - d * r, y0);
+        probePts(st, P, z, H, true, bi, lab);
+        meas[a === 2 ? 'y' : 'x'] = a === 2 ? y0 : x0; tgt[a === 2 ? 'y' : 'x'] = qp(cy, 333, 0);
+      }
+    }
+    if (n !== 417 && n !== 419 && Math.round(qp(cy, 381, 0)) === 1) {             // Q381 = 1: also the datum in the probe axis
+      pmv(st, 'rapid', { x: st.pos.x, y: st.pos.y, z: H }, bi, lab);
+      probeZ(st, qp(cy, 382, 0), qp(cy, 383, 0), qp(cy, 384, 0), sc, H, bi, lab);
+      meas.z = qp(cy, 384, 0); tgt.z = qp(cy, 333, 0);
+    }
+    pmv(st, 'rapid', { x: st.pos.x, y: st.pos.y, z: H }, bi, lab);                 // back to the clearance height, then the datum
+    probeDatum(st, cy, meas, tgt);
+  }
+
   /* ---------------------------------------------------------------- 7. execution */
 
   function targetOf(args, st) {
@@ -1789,11 +1932,13 @@ var TNC = (function () {
           st.cycle = gatherCycle(st, i);
           if (!IMPLEMENTED_CYCLES[st.cycle.num] && !NOMOTION_CYCLES[st.cycle.num])
             fail(st, i, 'CYCLE ' + st.cycle.num + ' NOT IMPLEMENTED IN SIMULATOR');
+          if (st.cycle.num === 247) activatePreset(st, st.cycle);
           if (st.cycle.num === 7 || st.cycle.num === 8 || st.cycle.num === 10 || st.cycle.num === 11 || st.cycle.num === 19) {
             applyTransform(st, st.cycle, i); st.cycle = null;   // takes effect here; not called
           }
           break;
         case 'CYCLPARM': break;                    // consumed by the CYCL DEF above
+        case 'TCHPROBE': runProbe(st, gatherCycle(st, i), i); break;   // DEF-active; CYCL CALL keeps the last CYCL DEF
         case 'CYCLCALL':
           applyM(st, b.args.m, 'start');
           runCycle(st, i);
@@ -2268,7 +2413,7 @@ var TNC = (function () {
       if (mv.kind === 'rapid') pathRapid += mv.len; else pathFeed += mv.len;
       minZ = Math.min(minZ, mv.from.z, mv.to.z);
       maxZ = Math.max(maxZ, mv.from.z, mv.to.z);
-      if (mv.kind !== 'rapid') {
+      if (mv.kind !== 'rapid' && !mv.probe) {
         var depth = stockTop - (mv.from.z + mv.to.z) / 2;
         if (depth > 0) removed += 2 * mv.toolR * depth * mv.len;
       }

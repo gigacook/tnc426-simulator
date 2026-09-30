@@ -124,6 +124,26 @@ var TNC_DIALOGS = (function () {
     [9, 'DWELL TIME', 'SPECIAL', [['DWELL', 1]]],
     [32, 'TOLERANCE', 'SPECIAL', [['T', 0.05]]]
   ];
+  /* TCH PROBE cycles (TOUCH PROBE key), Q style; example values from the iTNC 530 manual ch. 15/19 (the 426/430 probe manual is not at hand) */
+  var TS = [[381, 'PROBE IN TS AXIS', 0], [382, '1ST CO. FOR TS AXIS', 85], [383, '2ND CO. FOR TS AXIS', 50], [384, '3RD CO. FOR TS AXIS', 0], [333, 'DATUM', 1]];
+  var PCIRC = [[321, 'CENTER IN 1ST AXIS', 50], [322, 'CENTER IN 2ND AXIS', 50], [262, 'NOMINAL DIAMETER', 75], [325, 'STARTING ANGLE', 0], [247, 'STEPPING ANGLE', 60],
+    [261, 'MEASURING HEIGHT', -5], [320, 'SET-UP CLEARANCE', 0], [260, 'CLEARANCE HEIGHT', 20], [301, 'MOVE TO CLEARANCE', 0], [305, 'NUMBER IN TABLE', 0],
+    [331, 'DATUM', 0], [332, 'DATUM', 0], [303, 'MEAS. VALUE TRANSFER', 1]].concat(TS, [[423, 'NO. OF MEAS. POINTS', 4], [365, 'TYPE OF TRAVERSE', 1]]);
+  var PRECT = [[321, 'CENTER IN 1ST AXIS', 50], [322, 'CENTER IN 2ND AXIS', 50], [323, 'FIRST SIDE LENGTH', 60], [324, '2ND SIDE LENGTH', 20], [261, 'MEASURING HEIGHT', -5],
+    [320, 'SET-UP CLEARANCE', 0], [260, 'CLEARANCE HEIGHT', 20], [301, 'MOVE TO CLEARANCE', 0], [305, 'NUMBER IN TABLE', 0], [331, 'DATUM', 0], [332, 'DATUM', 0], [303, 'MEAS. VALUE TRANSFER', 1]].concat(TS);
+  var PSLOT = function (w) { return [[321, 'CENTER IN 1ST AXIS', 50], [322, 'CENTER IN 2ND AXIS', 50], [311, w + ' WIDTH', 25], [272, 'MEASURING AXIS', 1], [261, 'MEASURING HEIGHT', -5],
+    [320, 'SET-UP CLEARANCE', 0], [260, 'CLEARANCE HEIGHT', 20]].concat(w === 'SLOT' ? [[301, 'MOVE TO CLEARANCE', 0]] : [], [[305, 'NUMBER IN TABLE', 0], [405, 'DATUM', 0], [303, 'MEAS. VALUE TRANSFER', 1]], TS); };
+  var PROBES = [
+    [408, 'SLOT CENTER REF PT', PSLOT('SLOT')],
+    [409, 'RIDGE CENTER REF PT', PSLOT('RIDGE')],
+    [410, 'DATUM INSIDE RECTAN.', PRECT],
+    [411, 'DATUM OUTS. RECTAN.', PRECT.map(function (p) { return p[0] === 323 ? [323, 'FIRST SIDE LENGTH', 60] : p; })],
+    [412, 'DATUM INSIDE CIRCLE', PCIRC],
+    [413, 'DATUM OUTSIDE CIRCLE', PCIRC.map(function (p) { return p[0] === 262 ? [262, 'NOMINAL DIAMETER', 30] : p; })],
+    [417, 'DATUM IN TS AXIS', [[263, '1ST POINT 1ST AXIS', 25], [264, '1ST POINT 2ND AXIS', 25], [294, '1ST POINT 3RD AXIS', 25], [320, 'SET-UP CLEARANCE', 0], [260, 'CLEARANCE HEIGHT', 50], [305, 'NUMBER IN TABLE', 0], [333, 'DATUM', 0], [303, 'MEAS. VALUE TRANSFER', 1]]],
+    [419, 'DATUM IN ONE AXIS', [[263, '1ST POINT 1ST AXIS', 25], [264, '1ST POINT 2ND AXIS', 25], [261, 'MEASURING HEIGHT', 25], [320, 'SET-UP CLEARANCE', 0], [260, 'CLEARANCE HEIGHT', 50], [272, 'MEASURING AXIS', 1], [267, 'TRAVERSE DIRECTION', 1], [305, 'NUMBER IN TABLE', 0], [333, 'DATUM', 0], [303, 'MEAS. VALUE TRANSFER', 1]]],
+    [481, 'TOOL LENGTH', [[340, 'CHECK', 1], [260, 'CLEARANCE HEIGHT', 100], [341, 'PROBING THE TEETH', 1]]]
+  ];
   var GROUPS = [['DRILL', 'DRILLING/\nTHREAD'], ['TAP', 'TAPPING'], ['POCKET', 'POCKETS/\nSTUDS/SLOTS'], ['PATTERN', 'POINT\nPATTERNS'],
                 ['SURFACE', 'MULTIPASS\nMILLING'], ['TRANSF', 'COORD.\nTRANSF.'], ['SPECIAL', 'SPECIAL\nCYCLES']];
 
@@ -133,15 +153,21 @@ var TNC_DIALOGS = (function () {
   }
   function fmtQ(v) { v = String(v).trim(); if (/^[+-]?Q/i.test(v)) return v.toUpperCase(); var n = parseFloat(v); return isNaN(n) ? v : (n < 0 ? '-' : '+') + Math.abs(n); }
 
+  /* Q style: head line + one question per Q parameter; params [[Q, text, default], ...] */
+  function qSpec(head, num, params) {
+    return { title: head, cycle: num,
+      steps: params.map(function (p) { return { k: 'q' + p[0], ask: 'Q' + p[0] + '  ' + p[1] + ' ?', type: 'num', dflt: String(p[2]) }; }),
+      build: function (v) {
+        var w = 0; params.forEach(function (p) { w = Math.max(w, ('Q' + p[0] + '=' + fmtQ(v['q' + p[0]])).length); });
+        return [head].concat(params.map(function (p) {
+          var s = 'Q' + p[0] + '=' + fmtQ(v['q' + p[0]]); return '  ' + s + new Array(Math.max(1, w - s.length + 2)).join(' ') + ';' + p[1]; })).join('\n'); } };
+  }
+  function probeList() { return PROBES.map(function (c) { return { num: c[0], name: c[1] }; }); }
+  function probeSpec(num) { var c = PROBES.filter(function (x) { return x[0] === num; })[0]; return c ? qSpec('TCH PROBE ' + c[0] + ' ' + c[1], c[0], c[2]) : null; }
   /* a spec for one cycle: one question per Q parameter (Q style) or per sub-block (dotted) */
   function cycleSpec(num) {
     var q = CYCLES.filter(function (c) { return c[0] === num; })[0];
-    if (q) return { title: 'CYCL DEF ' + q[0] + ' ' + q[1], cycle: q[0],
-      steps: q[3].map(function (p) { return { k: 'q' + p[0], ask: 'Q' + p[0] + '  ' + p[1] + ' ?', type: 'num', dflt: String(p[2]) }; }),
-      build: function (v) {
-        var w = 0; q[3].forEach(function (p) { w = Math.max(w, ('Q' + p[0] + '=' + fmtQ(v['q' + p[0]])).length); });
-        return ['CYCL DEF ' + q[0] + ' ' + q[1]].concat(q[3].map(function (p) {
-          var s = 'Q' + p[0] + '=' + fmtQ(v['q' + p[0]]); return '  ' + s + new Array(Math.max(1, w - s.length + 2)).join(' ') + ';' + p[1]; })).join('\n'); } };
+    if (q) return qSpec('CYCL DEF ' + q[0] + ' ' + q[1], q[0], q[3]);
     var d = DOTTED.filter(function (c) { return c[0] === num; })[0];
     if (!d) return null;
     return { title: 'CYCL DEF ' + d[0] + ' ' + d[1], cycle: d[0],
@@ -166,6 +192,6 @@ var TNC_DIALOGS = (function () {
         return out.join('\n'); } };
   }
 
-  return { PATH: PATH, GROUPS: GROUPS, cycleList: cycleList, cycleSpec: cycleSpec };
+  return { PATH: PATH, GROUPS: GROUPS, cycleList: cycleList, cycleSpec: cycleSpec, probeList: probeList, probeSpec: probeSpec };
 })();
 if (typeof module !== 'undefined') module.exports = TNC_DIALOGS;
