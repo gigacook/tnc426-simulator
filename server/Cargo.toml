@@ -1,0 +1,23 @@
+[workspace]
+resolver = "2"
+members = ["crates/tnc-formats", "crates/tnc-engine", "crates/tnc-server"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+rust-version = "1.80"
+
+[workspace.dependencies]
+tnc-formats = { path = "crates/tnc-formats" }
+tnc-engine = { path = "crates/tnc-engine" }
+anyhow = "1"
+thiserror = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+tracing = "0.1"
+
+[profile.release]
+lto = "thin"
+strip = true

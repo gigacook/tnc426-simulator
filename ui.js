@@ -89,13 +89,8 @@ const MACHINES={
     analyse:(r,ex)=>TNC_SIM.analyse(r,ex,TNC_SIM.grid(r.stock,ex.segs)),
     programs:window.TNC_PROGRAMS||{}, lessons:window.TNC_LESSONS||null }
 };
-/* TNC 430: the operator's machine, from its machine-parameter list (vertical, A/B swivel head).
-   Head: B (outer, near the body) carries A (inner, holds the spindle); at A0 B0 the tool points to Z-;
-   A+ tilts the tip to Y+, B+ to X+; A-90 B0 = horizontal. Pivots ~250 mm (operator's estimate). */
-const MACHINE_430={ arcTol:0.006, pocketK:1.1, fMax:1500, accel:0.4, sMax:3000,   // S max: the operator's figure (MP 3515 lists 2500 for gear 2)
-  rapid:{x:9000,y:10000,z:5000,a:4000,b:1000}, axes:['X','Y','Z','B','A'],
-  limits:{X:[2,1250.2],Y:[-850.2,0.2],Z:[-500.2,0.2],B:[-180.1,0.1],A:[-195,15]},
-  head:{inner:'A',outer:'B',pivotA:250,pivotB:250} };
+/* TNC 430: the operator's machine parameters live in machines.js (shared with the server's engine). */
+const MACHINE_430=(window.TNC_MACHINE_CONFIGS||{})['430']||{};
 MACHINES['430']={ id:'430', label:'TNC 430', axes:['X','Y','Z','B','A'], tools:TNC.TOOLS, machine:MACHINE_430,
   run:t=>TNC.run(t,{tools:mtools('430'),machine:MACHINE_430,holder:holderOpt('430')}), expand:r=>TNC_SIM.expand(r),
   analyse:(r,ex)=>TNC_SIM.analyse(r,ex,TNC_SIM.grid(r.stock,ex.segs)),
@@ -172,7 +167,7 @@ const UNDO={}, REDO={};
 const ukey=()=>S.machine+':'+S.pgm;
 function snapshot(){ const k=ukey(); (UNDO[k]=UNDO[k]||[]).push({text:S.text,cursor:S.cursor});
   if(UNDO[k].length>200) UNDO[k].shift(); REDO[k]=[]; }
-function setText(t){ S.text=t; pg()[S.pgm]=t; raw.value=t; touchMeta(S.pgm); compile(); persist(); }
+function setText(t){ S.text=t; pg()[S.pgm]=t; raw.value=t; touchMeta(S.pgm); compile(); persist(); emit('text',{name:S.pgm,machine:S.machine,text:t}); }
 function touchMeta(n,created){ if(!n||n===TEMP) return; const mm=(S.meta[S.machine]=S.meta[S.machine]||{}), now=new Date().toISOString();
   const e=mm[n]||(mm[n]={c:now,m:now,v:0}); if(created){ e.c=now; e.v=0; } e.m=now; e.v++; }
 function edit(t, cur, msg){
@@ -234,7 +229,9 @@ const BUS={};
 const emit=(ev,...a)=>{ (BUS[ev]||[]).forEach(fn=>{ try{ fn(...a); }catch(e){ console.warn('plugin '+ev,e); } }); };
 const UIAPI={ THREE, scene, camera, renderer, controls, lights:{key:keyL,fill:fillL},
   on:(ev,fn)=>{ (BUS[ev]=BUS[ev]||[]).push(fn); }, render:null,
-  get state(){ return S; }, surfaceAt:(x,y)=>surfaceAt(x,y), say:m=>say(m) };
+  get state(){ return S; }, surfaceAt:(x,y)=>surfaceAt(x,y), say:m=>say(m),
+  get program(){ return {name:S.pgm, machine:S.machine, text:S.text}; },
+  open:(name,text,o)=>openExternal(name,text,o||{}) };
 window.TNC_UI=UIAPI;
 
 let world=null, partRoot=null, toolRoot=null, rig=null, stockH=null;
@@ -839,6 +836,16 @@ function openPgm(name){
   if(S.lesson&&name!==TEMP) endLesson(true);
   S.pgm=name; S.text=pg()[name]; raw.value=S.text; S.cursor=0; closeMgt(); compile(); persist();
   say('PGM '+name+' SELECTED');
+  emit('program',{name,machine:S.machine});
+}
+/* a program handed in from outside (bridge.js: the web app's library). Same name = replaced, not renamed. */
+function openExternal(name,text,{machine,tools}={}){
+  if(machine&&MACHINES[machine]&&machine!==S.machine) setMachine(machine);
+  if(Array.isArray(tools)){ S.tools[S.machine]=tools; }
+  const n=String(name||'PGM').toUpperCase().replace(/\.[HI]$/,'').replace(/[^A-Z0-9_]/g,'_').slice(0,16)+'.H';
+  if(pg()[n]==null){ pg()[n]=text; touchMeta(n,true); } else pg()[n]=text;
+  delete UNDO[S.machine+':'+n]; delete REDO[S.machine+':'+n];
+  openPgm(n); return n;
 }
 function addPgm(name,text,{open=true,project=true}={}){
   const n=uniqueName(name); pg()[n]=text; touchMeta(n,true);
@@ -1074,9 +1081,9 @@ $('b-help').onclick=()=>openHelp();
 
 /* ---------- AI setup + generation (ai.js) ---------- */
 const AI=window.TNC_AI||null;
-function getKey(){ return sess.get(KEY_LS)||local.get(KEY_LS)||window.TNC_AI_LOCAL_KEY||''; }   // last: .env, local build only
+function getKey(){ return sess.get(KEY_LS)||local.get(KEY_LS)||window.TNC_AI_LOCAL_KEY||(window.TNC_AI_API?'server':''); }   // last: .env, local build only
 function getModel(){ return local.get(MODEL_LS)||(AI?AI.DEFAULT_MODEL:'deepseek/deepseek-v4.1-flash'); }
-function keyPill(){ const p=$('ai-keypill'), k=getKey(); p.textContent=k?(k===window.TNC_AI_LOCAL_KEY&&!sess.get(KEY_LS)&&!local.get(KEY_LS)?'key from .env':'key set'):'no key'; p.className='pill '+(k?'ok':'no'); }
+function keyPill(){ const p=$('ai-keypill'), k=getKey(); p.textContent=k?(k==='server'&&window.TNC_AI_API?'key on the server':k===window.TNC_AI_LOCAL_KEY&&!sess.get(KEY_LS)&&!local.get(KEY_LS)?'key from .env':'key set'):'no key'; p.className='pill '+(k?'ok':'no'); }
 function aiSetupHTML(){
   const k=getKey(), rem=!!local.get(KEY_LS);
   return `<div class="prose">
@@ -1736,9 +1743,11 @@ if(window.TNC_I18N) try{ TNC_I18N.set(TNC_I18N.lang||'en'); }catch(e){}
 compile(); renderSK(); renderProjects(); syncToggles(); keyPill(); resize(); profChip(); setSideTab(S.sideTab); renderUserPrograms();
 if(S.flowView&&window.TNC_FLOW){ S.flowView=false; toggleFlow(); }
 const flash=sess.get('tnc.flash'); if(flash){ sess.del('tnc.flash'); setTimeout(()=>say(flash),400); }
-if(!sess.get(BOOT_SS)) $('boot').hidden=false;
-else if(!PROF.name) openProfile();
+const embedded=!!(window.TNC_BRIDGE&&TNC_BRIDGE.embedded);      // inside the web app: no splash, no name prompt
+if(!embedded&&!sess.get(BOOT_SS)) $('boot').hidden=false;
+else if(!embedded&&!PROF.name) openProfile();
 requestAnimationFrame(tick);
+emit('ready');
 })();
 })();
 

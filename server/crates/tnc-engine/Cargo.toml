@@ -1,0 +1,17 @@
+[package]
+name = "tnc-engine"
+description = "The simulator's own Klartext interpreter (core.js) run in embedded QuickJS"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+rquickjs = "0.9"
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio = { version = "1", features = ["sync"] }
+tnc-formats.workspace = true
+
+[dev-dependencies]
+tokio.workspace = true

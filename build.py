@@ -33,6 +33,7 @@ LIBS = [
 # (file, label) — project modules, in load order. ui.js must stay last.
 MODULES = [
     ('core.js',      'TNC Klartext interpreter'),
+    ('machines.js',  'Machine parameters (shared with the server engine)'),
     ('stock.js',     'Material model: height field, tilted tool, vice'),
     ('sim.js',       'Simulation checks'),
     ('programs.js',  'Programs on the control'),
@@ -45,6 +46,7 @@ MODULES = [
     ('look.js',      'Look: environment, antialiasing'),
     ('profile.js',   'User profile storage'),
     ('ai.js',        'AI program generation (OpenRouter)'),
+    ('bridge.js',    'Bridge to the TNC server and web app (inactive without a server)'),
     ('viz.js',       'View aids: axis vectors, click to pick'),
     ('dialogs.js',   'Programming dialogs: path functions, CYCL DEF, TOOL CALL'),
     ('i18n.js',      'i18n: language strings (en/sv)'),

@@ -19,8 +19,12 @@ var TNC_AI = (function () {
   var DEFAULT_MODEL = 'deepseek/deepseek-v4.1-flash';
   var MODELS = ['deepseek/deepseek-v4.1-flash', 'deepseek/deepseek-v4-pro-0813', 'google/gemini-3.8-flash', 'openai/gpt-5.6-luna'];
 
+  /* window.TNC_AI_API: set by bridge.js when the page is served by the TNC server, which holds the
+     OpenRouter key and forwards to OpenRouter. The browser then sends its session cookie, never a key. */
+  function api() { return (typeof window !== 'undefined' && window.TNC_AI_API) || API; }
   function headers(key) {
-    var h = { 'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json', 'X-Title': 'TNC 426 Simulator' };
+    var h = { 'Content-Type': 'application/json', 'X-Title': 'TNC 426 Simulator' };
+    if (api() === API) h['Authorization'] = 'Bearer ' + key;
     try { if (typeof location !== 'undefined' && /^https?:/.test(location.origin)) h['HTTP-Referer'] = location.origin + location.pathname; } catch (e) {}
     return h;
   }
@@ -52,7 +56,7 @@ var TNC_AI = (function () {
   }
 
   function testKey(key) {
-    return fetch(API + '/key', { headers: headers(key) }).then(function (res) {
+    return fetch(api() + '/key', { headers: headers(key) }).then(function (res) {
       return readJson(res).then(function (b) { if (!res.ok) throw httpError(res, b); return b.data || b; });
     });
   }
@@ -91,7 +95,7 @@ var TNC_AI = (function () {
       if (obj.usage) usage = obj.usage;
     }
 
-    return fetch(API + '/chat/completions', {
+    return fetch(api() + '/chat/completions', {
       method: 'POST', headers: headers(o.key), signal: ac.signal,
       body: JSON.stringify(requestBody(o))
     }).then(function (res) {

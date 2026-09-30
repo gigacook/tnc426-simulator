@@ -13,3 +13,12 @@ index.local.html
 # personal notes and keys — never committed
 private/
 .claude/
+
+# build output
+server/target/
+web/dist/
+*.log
+logs/
+
+# local-only material (never pushed)
+local/
