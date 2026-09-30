@@ -1109,23 +1109,23 @@ function aiSetupHTML(){
 </div>
 <div class="fgrid" style="max-width:760px">
 <label class="fld wide"><span>OPENROUTER API KEY</span><input id="ai-key" type="password" autocomplete="off" spellcheck="false" placeholder="your OpenRouter key" value="${esc(k)}"></label>
-<label class="fld wide"><span>MODEL</span><input id="ai-model" list="ai-models" spellcheck="false" value="${esc(getModel())}">
-<datalist id="ai-models">${(AI?AI.MODELS:[]).map(m=>`<option value="${esc(m)}">`).join('')}</datalist></label>
 <label class="fld chk wide"><input type="checkbox" id="ai-remember"${rem?' checked':''}> Remember the key in this browser</label>
 </div>
 <div class="actrow"><button class="cbtn pri" id="ai-test">Test key</button><button class="cbtn" id="ai-savekey">Save</button><button class="cbtn" id="ai-forget">Forget key</button></div>
-<div class="aistat" id="ai-setstat" hidden></div>`;
+<div class="aistat" id="ai-setstat" hidden></div>
+<div id="ai-setup-mp" style="max-width:980px;margin-top:18px"></div>`;
 }
 function storeKey(k,rem){ sess.del(KEY_LS); local.del(KEY_LS); if(k){ if(rem) local.set(KEY_LS,k); else sess.set(KEY_LS,k); } keyPill(); }
 function wireAiSetup(){
+  mpMount($('ai-setup-mp'));
   const st=$('ai-setstat'), put=(h)=>{ st.hidden=false; st.innerHTML=h; };
-  $('ai-savekey').onclick=()=>{ storeKey($('ai-key').value.trim(),$('ai-remember').checked); local.set(MODEL_LS,$('ai-model').value.trim()||getModel());
+  $('ai-savekey').onclick=()=>{ storeKey($('ai-key').value.trim(),$('ai-remember').checked);
     put('<span class="ok">Saved.</span> '+($('ai-remember').checked?'Remembered in this browser.':'Kept for this tab only.')); };
   $('ai-forget').onclick=()=>{ storeKey('',false); $('ai-key').value=''; put('<span class="ok">Key forgotten</span> — removed from this browser.'); };
   $('ai-test').onclick=async()=>{
     const k=$('ai-key').value.trim(); if(!k){ put('<span class="bad">Paste a key first.</span>'); return; }
     if(!AI){ put('<span class="bad">The AI module is not in this build.</span>'); return; }
-    storeKey(k,$('ai-remember').checked); local.set(MODEL_LS,$('ai-model').value.trim()||getModel()); put('<span class="dim">Checking the key with OpenRouter…</span>');
+    storeKey(k,$('ai-remember').checked); put('<span class="dim">Checking the key with OpenRouter…</span>');
     try{ const d=await AI.testKey(k);
       const lim=d.limit==null?'no limit set — add one on the Keys page':'$'+(+d.limit).toFixed(2)+' limit';
       put(`<span class="ok">Key works.</span> ${esc(d.label||'')}\nUsed so far: $${(+(d.usage||0)).toFixed(4)} · ${esc(lim)}`); }
@@ -1243,32 +1243,124 @@ function openNew(which){
   $('ns-tool').innerHTML=mtools().map(t=>`<option value="${t.t}"${t.t===4?' selected':''}>T${t.t} ${esc(t.name)} (R${t.r})</option>`).join('');
   keyPill(); newGo(which||'scratch');
 }
-/* model picker in the AI dialog: three recommendations, or any model from OpenRouter's live list */
-const AI_REC=[['deepseek/deepseek-v4.1-flash','DeepSeek V4.1 Flash — recommended default, ~$0.04 / $0.29 per M tokens'],
-  ['qwen/qwen3.8-flash','Qwen 3.8 Flash — fast, ~$0.15 / $0.47 per M tokens'],
-  ['anthropic/claude-opus-5.5','Claude Opus 5.5 (via OpenRouter) — strongest, ~$4 / $20 per M tokens']];
+/* ================= MODEL PICKER — one catalogue (TNC_AI.listModels): the recommended model, frontier quick picks
+   computed from OpenRouter's live list, a sortable / filterable table (↑↓ Enter Esc), and any id typed by hand.
+   The pick is stored under MODEL_LS in this browser (as before); every request uses getModel(). ================= */
+const MP={cat:null,sort:'created',dir:-1,q:'',prov:'',act:0,rows:[]};
+const MP_COLS=[['name','Model'],['provider','Provider'],['context','Context'],['pin','$/M in'],['pout','$/M out']];
+/* prices: US$ per million tokens. Table: fixed decimals so the column lines up; cards and chips: trailing zeros dropped */
+const mpUsd=(v,col)=>{ if(v==null) return '—'; if(v===0) return 'free'; const t=v<0.1?v.toFixed(3):col||v<100?v.toFixed(2):v.toFixed(0); return '$'+(col?t:t.replace(/\.0+$|(\.\d*[1-9])0+$/,'$1')); };
+const mpCtx=n=>!n?'—':n>=1e6?+(n/1e6).toFixed(1)+'M':Math.round(n/1000)+'K';
+const mpProvName=p=>AI&&AI.providerName?AI.providerName(p):p;
+const mpMeta=m=>`<span>${mpCtx(m.context)} context</span><span>${mpUsd(m.pin)} in</span><span>${mpUsd(m.pout)} out</span><small>per M tokens</small>`;
+const MP_ID=/^[\w.-]+\/[\w.:~-]+$/;
+/* fuzzy: each query word matches as a substring, or as its letters in order within a short span ("gmn 3" → gemini-3) */
+function mpFuzzy(hay,t){ if(hay.includes(t)) return true;
+  for(let s=hay.indexOf(t[0]);s>=0;s=hay.indexOf(t[0],s+1)){ let j=s,k=0; while(j<hay.length&&k<t.length){ if(hay[j]===t[k]) k++; j++; } if(k===t.length&&j-s<=t.length*3) return true; }
+  return false; }
+function mpRows(){
+  const L=(MP.cat&&MP.cat.models)||[], toks=MP.q.toLowerCase().split(/\s+/).filter(Boolean), k=MP.sort, d=MP.dir;
+  const r=L.filter(m=>{ if(MP.prov&&m.provider!==MP.prov) return false; const h=m._h||(m._h=(m.name+' '+m.id+' '+mpProvName(m.provider)).toLowerCase()); return toks.every(t=>mpFuzzy(h,t)); });
+  return r.sort((a,b)=>{ let x=a[k], y=b[k]; if(k==='provider'){ x=mpProvName(x); y=mpProvName(y); }
+    if(x==null||y==null) return (x==null)-(y==null)||b.created-a.created;                 // unknown price / context last, either way
+    return (typeof x==='string'?x.localeCompare(y,undefined,{sensitivity:'base'}):x-y)*d||b.created-a.created; });
+}
+function mpMount(root){
+  if(!root) return;
+  if(root.dataset.mp){ mpTop(root); mpLoad(root); return; }
+  root.dataset.mp='1'; root.classList.add('mp');
+  root.innerHTML=`<div class="mp-top"></div>
+  <div class="mp-bar"><button type="button" class="mp-all" aria-expanded="false">All models <span class="mp-cnt"></span><span class="mp-car">▾</span></button>
+    <input class="mp-id" spellcheck="false" autocomplete="off" placeholder="…or type any OpenRouter id: provider/model" aria-label="Model id">
+    <button type="button" class="mp-use">Use id</button></div>
+  <div class="mp-pal" hidden>
+    <div class="mp-tools"><input class="mp-q" spellcheck="false" autocomplete="off" placeholder="Filter — name or provider" aria-label="Filter models">
+      <select class="mp-prov" aria-label="Provider"><option value="">All providers</option></select><span class="mp-n"></span></div>
+    <div class="mp-scroll"><table class="mp-t"><colgroup><col class="c-n"><col class="c-p"><col class="c-x"><col class="c-i"><col class="c-o"></colgroup>
+      <thead><tr>${MP_COLS.map(([k,l])=>`<th data-s="${k}"${k==='name'||k==='provider'?'':' class="num"'}><button type="button">${l}<i></i></button></th>`).join('')}</tr></thead><tbody></tbody></table></div>
+    <div class="mp-keys"><kbd>↑</kbd><kbd>↓</kbd> move <kbd>Enter</kbd> pick <kbd>Esc</kbd> close <span>·</span> click a column to sort; again reverses, a third time goes back to newest first</div>
+  </div>`;
+  const q=root.querySelector('.mp-q'), pal=root.querySelector('.mp-pal'), idf=root.querySelector('.mp-id');
+  root.addEventListener('click',e=>{
+    const pk=e.target.closest('[data-pick]'); if(pk){ mpPick(root,pk.dataset.pick); return; }
+    const tr=e.target.closest('tbody tr[data-i]'); if(tr){ mpPick(root,MP.rows[+tr.dataset.i].id,true); return; }
+    const th=e.target.closest('th[data-s]'); if(th){ const s=th.dataset.s, d0=s==='context'?-1:1;
+      if(MP.sort!==s){ MP.sort=s; MP.dir=d0; } else if(MP.dir===d0) MP.dir=-d0; else { MP.sort='created'; MP.dir=-1; }
+      MP.act=0; root.querySelector('.mp-scroll').scrollTop=0; mpTable(root); q.focus(); return; }
+    if(e.target.closest('.mp-all')) mpOpen(root,pal.hidden);
+    if(e.target.closest('.mp-use')) mpUseId(root);
+  });
+  q.addEventListener('input',()=>{ MP.q=q.value; MP.act=0; mpTable(root); });
+  root.querySelector('.mp-prov').onchange=e=>{ MP.prov=e.target.value; MP.act=0; mpTable(root); q.focus(); };
+  q.addEventListener('keydown',e=>{ const k=e.key, n=MP.rows.length;
+    if(k==='ArrowDown'||k==='ArrowUp'||k==='PageDown'||k==='PageUp'){ e.preventDefault(); if(!n) return;
+      const st=k==='ArrowDown'?1:k==='ArrowUp'?-1:k==='PageDown'?10:-10; MP.act=Math.max(0,Math.min(n-1,MP.act+st)); mpAct(root); }
+    else if(k==='Enter'){ e.preventDefault(); if(n) mpPick(root,MP.rows[MP.act].id,true); else if(MP_ID.test(q.value.trim())) mpPick(root,q.value.trim(),true); }
+    else if(k==='Escape'){ e.preventDefault(); e.stopPropagation(); if(q.value){ q.value=''; MP.q=''; MP.act=0; mpTable(root); } else mpOpen(root,false); }
+  });
+  idf.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); mpUseId(root); } });
+  mpTop(root); mpLoad(root);
+}
+function mpLoad(root){
+  if(!AI||!AI.listModels) return;
+  AI.listModels().then(cat=>{ const changed=!MP.cat||MP.cat.live!==cat.live; MP.cat=cat; if(!root.isConnected) return;
+    const provs={}; cat.models.forEach(m=>provs[m.provider]=(provs[m.provider]||0)+1);
+    const sel=root.querySelector('.mp-prov');
+    sel.innerHTML=`<option value="">All providers (${cat.models.length})</option>`+Object.keys(provs).sort((a,b)=>mpProvName(a).localeCompare(mpProvName(b))).map(p=>`<option value="${esc(p)}">${esc(mpProvName(p))} (${provs[p]})</option>`).join('');
+    if(!provs[MP.prov]) MP.prov=''; sel.value=MP.prov;
+    root.querySelector('.mp-cnt').textContent=cat.models.length;
+    mpTop(root); if(!root.querySelector('.mp-pal').hidden) mpTable(root);
+    if(changed&&!cat.live) say('OPENROUTER MODEL LIST UNREACHABLE — SHORT OFFLINE LIST; ANY ID CAN STILL BE TYPED'); });
+}
+function mpOpen(root,on){ const pal=root.querySelector('.mp-pal'), b=root.querySelector('.mp-all');
+  pal.hidden=!on; b.setAttribute('aria-expanded',on); root.classList.toggle('open',on);
+  if(on){ MP.act=0; mpTable(root); const i=MP.q?-1:MP.rows.findIndex(m=>m.id===getModel()); if(i>=0){ MP.act=i; mpAct(root); } root.querySelector('.mp-q').focus(); }
+  else { const q=root.querySelector('.mp-q'); if(q.value){ q.value=''; MP.q=''; } b.focus(); } }
+function mpPick(root,id,close){
+  if(!MP_ID.test(id)){ say('MODEL ID LOOKS LIKE provider/model'); return; }
+  local.set(MODEL_LS,id); say('MODEL '+id); mpTop(root);
+  if(close) mpOpen(root,false); else if(!root.querySelector('.mp-pal').hidden) mpTable(root);
+}
+function mpUseId(root){ const f=root.querySelector('.mp-id'), v=f.value.trim(); if(!v){ f.focus(); return; } mpPick(root,v,true); if(MP_ID.test(v)) f.value=''; }
+function mpTop(root){
+  const cat=MP.cat, cur=getModel(), L=cat?cat.models:[], find=id=>L.find(m=>m.id===id);
+  const recId=AI?AI.DEFAULT_MODEL:'deepseek/deepseek-v4.1-flash', rec=find(recId)||(AI&&AI.RECOMMENDED)||{id:recId,name:recId};
+  const fr=cat?cat.frontier.filter(m=>m.id!==recId):[], curM=find(cur), known=cur===recId||fr.some(m=>m.id===cur);
+  root.querySelector('.mp-top').innerHTML=`<div class="mp-hd"><span class="mp-lbl">Model</span>
+    <span class="mp-src${cat&&cat.live?' live':''}">${!cat?'<span class="ai-spin"></span>loading the OpenRouter list…':cat.live?'live from OpenRouter · '+L.length+' models':'offline list — OpenRouter unreachable'}</span></div>
+  <button type="button" class="mp-rec${cur===recId?' sel':''}" data-pick="${esc(recId)}">
+    <span class="mp-star">★ Recommended</span><span class="mp-rn">${esc(rec.name)}</span><span class="mp-rid">${esc(recId)}</span>
+    <span class="mp-rmeta">${mpMeta(rec)}</span>
+    <span class="mp-why">Fast and cheap, and writes clean Klartext: a whole program costs a fraction of a US cent.</span>
+    <span class="mp-use1">${cur===recId?'✓ In use':'Use'}</span></button>
+  <div class="mp-frow"><span class="mp-lbl">Frontier</span><div class="mp-chips">${fr.map(m=>`<button type="button" class="mp-chip${cur===m.id?' sel':''}" data-pick="${esc(m.id)}" title="${esc(m.id)} · ${esc(mpCtx(m.context))} context">
+    <span class="p">${esc(mpProvName(m.provider))}</span><span class="n">${esc(m.name)}</span><span class="c">${mpUsd(m.pin)} / ${mpUsd(m.pout)}</span></button>`).join('')||'<span class="mp-dim">…</span>'}</div></div>
+  ${known?'':`<div class="mp-curl"><span class="mp-lbl">In use</span><b>${esc(curM?curM.name:cur)}</b><code>${esc(cur)}</code>${curM?`<span class="mp-cm">${mpMeta(curM)}</span>`:cat&&cat.live?'<span class="mp-warn">not in the live list — check the id</span>':''}</div>`}`;
+}
+function mpTable(root){
+  const rows=MP.rows=mpRows(), cur=getModel(); if(MP.act>=rows.length) MP.act=Math.max(0,rows.length-1);
+  root.querySelector('.mp-t tbody').innerHTML=rows.length?rows.map((m,i)=>`<tr data-i="${i}"${m.id===cur?' class="sel" aria-selected="true"':''}>
+    <td class="nm"><b>${esc(m.name)}</b><span>${esc(m.id)}</span></td><td>${esc(mpProvName(m.provider))}</td><td class="num">${mpCtx(m.context)}</td><td class="num">${mpUsd(m.pin,1)}</td><td class="num">${mpUsd(m.pout,1)}</td></tr>`).join('')
+    :`<tr class="empty"><td colspan="5">No model matches.${MP_ID.test(MP.q.trim())?' Enter uses <code>'+esc(MP.q.trim())+'</code> as typed.':''}</td></tr>`;
+  root.querySelectorAll('.mp-t th').forEach(th=>{ const on=th.dataset.s===MP.sort; th.setAttribute('aria-sort',on?(MP.dir>0?'ascending':'descending'):'none'); th.querySelector('i').textContent=on?(MP.dir>0?' ↑':' ↓'):''; });
+  root.querySelector('.mp-n').textContent=rows.length+' of '+((MP.cat&&MP.cat.models.length)||0)+(MP.sort==='created'?' · newest first':'');
+  mpAct(root);
+}
+function mpAct(root){ const tb=root.querySelector('.mp-t tbody'); tb.querySelectorAll('tr.act').forEach(r=>r.classList.remove('act'));
+  const r=tb.querySelector(`tr[data-i="${MP.act}"]`); if(r){ r.classList.add('act'); r.scrollIntoView({block:'nearest'}); } }
+/* the AI dialog: prompt, then the model picker, then thinking effort and the answer cap */
 function aiModelUI(){
-  if($('ai-msel')) { syncModelUI(); return; }
-  const box=document.createElement('div'); box.className='fgrid'; box.style.marginTop='8px';
-  box.innerHTML=`<label class="fld wide"><span>MODEL (OPENROUTER)</span><select id="ai-msel">${AI_REC.map(([v,l])=>`<option value="${v}">${esc(l)}</option>`).join('')}<option value="__other">Other OpenRouter model…</option></select></label>
-    <label class="fld"><span>THINKING (REASONING MODELS)</span><select id="ai-think"><option value="off">Off — fastest, cheapest</option><option value="low">Low (recommended)</option><option value="medium">Medium</option><option value="high">High — slow, can cost more</option></select></label>
-    <label class="fld"><span>MAX ANSWER TOKENS (BUDGET GUARD)</span><input id="ai-maxtok" inputmode="numeric" value="12000"></label>
-    <label class="fld wide" id="ai-mother-f" hidden><span>MODEL ID — type or pick from OpenRouter's live list</span><input id="ai-mother" list="ai-mlist" spellcheck="false" placeholder="provider/model"><datalist id="ai-mlist"></datalist></label>`;
-  const ta=$('ai-prompt').closest('.fld'); ta.parentNode.insertBefore(box,ta.nextSibling);
-  $('ai-msel').onchange=()=>{ const v=$('ai-msel').value; if(v==='__other'){ $('ai-mother-f').hidden=false; $('ai-mother').focus(); loadModelList(); } else { $('ai-mother-f').hidden=true; local.set(MODEL_LS,v); say('MODEL '+v); } };
-  $('ai-mother').addEventListener('change',()=>{ const v=$('ai-mother').value.trim(); if(/^[\w.-]+\/[\w.:-]+$/.test(v)){ local.set(MODEL_LS,v); say('MODEL '+v); } else say('MODEL ID LOOKS LIKE provider/model'); });
-  $('ai-mother').addEventListener('keydown',e=>e.stopPropagation());
+  if($('ai-think')){ mpMount($('ai-mp')); return; }
+  const mp=document.createElement('div'); mp.id='ai-mp'; mp.style.marginTop='16px';
+  const box=document.createElement('div'); box.className='fgrid'; box.style.marginTop='12px';
+  box.innerHTML=`<label class="fld"><span>THINKING (REASONING MODELS)</span><select id="ai-think"><option value="off">Off — fastest, cheapest</option><option value="low">Low (recommended)</option><option value="medium">Medium</option><option value="high">High — slow, can cost more</option></select></label>
+    <label class="fld"><span>MAX ANSWER TOKENS (BUDGET GUARD)</span><input id="ai-maxtok" inputmode="numeric" value="12000"></label>`;
+  const ta=$('ai-prompt').closest('.fld'); ta.parentNode.insertBefore(box,ta.nextSibling); ta.parentNode.insertBefore(mp,box);
   $('ai-think').value=aiThink(); $('ai-think').onchange=()=>{ local.set('tnc426.aithink',$('ai-think').value); };
   $('ai-maxtok').value=aiMaxTok(); $('ai-maxtok').addEventListener('keydown',e=>e.stopPropagation());
   $('ai-maxtok').onchange=()=>{ const v=Math.round(+$('ai-maxtok').value); if(v>=1000&&v<=200000) local.set('tnc426.aimaxtok',v); else { say('MAX TOKENS 1000–200000'); $('ai-maxtok').value=aiMaxTok(); } };
-  syncModelUI();
+  mpMount(mp);
 }
-function syncModelUI(){ const m=getModel(), rec=AI_REC.some(r=>r[0]===m); $('ai-msel').value=rec?m:'__other'; $('ai-mother-f').hidden=rec; if(!rec) $('ai-mother').value=m; }
-let modelListLoaded=false;
-function loadModelList(){ if(modelListLoaded) return; modelListLoaded=true;
-  fetch('https://openrouter.ai/api/v1/models').then(r=>r.json()).then(j=>{ const L=(j.data||[]).filter(m=>!/:/.test(m.id)).sort((a,b)=>a.id.localeCompare(b.id));
-    $('ai-mlist').innerHTML=L.map(m=>{ const pr=m.pricing||{}, f=x=>'$'+(+x*1e6).toFixed(2); return `<option value="${esc(m.id)}">${esc((m.name||'')+' · '+f(pr.prompt)+' / '+f(pr.completion)+' per M')}</option>`; }).join('');
-    say(L.length+' OPENROUTER MODELS LOADED'); }).catch(()=>{ modelListLoaded=false; say('COULD NOT LOAD THE OPENROUTER MODEL LIST — TYPE THE ID'); }); }
 
 /* AI: 'new' writes a new program, 'modify' changes the program on screen (undoable) */
 function openAI(mode){ S.aiMode=mode; openNew('ai'); aiModelUI();
