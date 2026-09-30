@@ -177,7 +177,8 @@ var TNC_STOCK = (function () {
     }
     return visit(hm, st, g, p, ax, kindOf(s), s.toolR - SHRINK, 0, bodyLen(s), bodyLen(s), false, 0.05);
   }
-  function holderR(s) { return Math.max(s.toolR * 2, 12); }   // collet nut radius ~ 2 x tool, min 12
+  var NUT_R = 25;               // ER32 clamping nut Ø50 (DIN 6499 / ISO 15488) on the DIN 69871 ISO 50 / SK40 holder — as drawn in tools3d.js
+  function holderR(s) { return Math.max(NUT_R, s.toolR + 6); }
   /* holder: from the nose (tip + stick-out) up the axis. Vertical: material above the nose height (old check). */
   function holderHits(hm, st, g, s, p, ax) {
     if (!(s.stick > 0)) return false;
