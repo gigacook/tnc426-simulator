@@ -42,7 +42,7 @@ META
 | B5 | blocked(user: Windows VM + HEIDENHAIN station demo) | **Programming-station oracle**: golden set 15–25 programs, capture moves/errors/timing, `tests/golden/*.json` + `tests/station.js`. Settles every OPEN item. | `tests/`, `docs/PROGRAMMING-STATION.md` | golden diff report |
 | B6 | todo | Interpreter coverage: SL contour cycles 14/20–25 (common on real 426 programs), 3, 5, 12 PGM CALL, 13, 26, 27/28, FK, F AUTO. Manual-first; tests per cycle. | `sim/core.js`, `sim/dialogs.js`, `tests/` | manual.js pass; corpus not worse |
 | B7 | todo | CI: GitHub Action = `node tests/manual.js` + `cargo test` + web type-check/build + `python3 build.py`; deploy Pages from CI instead of committing index.html. | `.github/` | green run |
-| B8 | todo | Docs to reality: README (layout moved to sim/, fullstack), `docs/FEATURES.txt` (DEV tab; still says TCH PROBE/thread milling missing), `docs/HISTORY.txt`. Sonnet job. | `README.md`, `docs/` | no statement contradicts STATE |
+| B8 | done | Docs to reality: README (layout moved to sim/, fullstack), `docs/FEATURES.txt` (DEV tab; still says TCH PROBE/thread milling missing), `docs/HISTORY.txt`. Sonnet job. | `README.md`, `docs/` | no statement contradicts STATE |
 | B9 | todo | Wire `probeSpec` to a TOUCH PROBE soft key; `TCHPROBE` node in flow.js. | `sim/ui.js` soft keys, `sim/flow.js` | manual click-through |
 | B10 | todo | Live visual translation: `traceFor`/`traceTick` (ui.js) → `pathSVG` (flow.js). | `sim/ui.js`, `sim/flow.js` | — |
 | B11 | todo | TNC 430 remainder: dexel/voxel stock for undercuts (GPU candidate, B13), radius comp in a tilted plane. | `sim/stock.js`, `sim/core.js` | — |
