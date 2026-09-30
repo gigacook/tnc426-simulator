@@ -1,5 +1,10 @@
 TNC 426 / 430 SIMULATOR - DEVELOPER FEATURE LOG
-Updated 2026-09-27
+Updated 2026-09-30
+
+2026-09-30: thread milling 262-267, touch-probe cycles (408-413/417/419 motion,
+TT cycles no motion), stock.js tilted-tool cutting, standard vice (toggle), fx on
+three.quarks. Corpus 2,767 / 2,806 clean. QA 93/93. Open points (placeholders,
+not facts) are listed in CONTINUE.md under "Come back to". Sections below may lag.
 
 LIVE - IN THE BUILD, VERIFIED
 ==============================================================================
@@ -107,7 +112,6 @@ IN PROGRESS - NOT YET DONE
     investigation - see TODO.md.
   - fx.js does not yet use three.quarks, even though it is bundled into the
     page. Chips/sparks/coolant still run on the pre-upgrade approach.
-  - Thread milling cycles 262-265, 267 not implemented.
   - Cycles 3, 5, 12, 13, 14/20-25, 19, 26, 27/28 not implemented.
   - TCH PROBE touch-probe cycles not implemented - confirmed not in the
     426/430 manual (iTNC 530/TNC 640 dialect); real CAM programs that call

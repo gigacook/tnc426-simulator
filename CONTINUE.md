@@ -1,6 +1,6 @@
 # CONTINUE — read this first when the user says "continue"
 
-Written 2026-09-27, end of session. Last commit `39031d0` (pushed; live on GitHub Pages).
+Written 2026-09-30. Last commit: see `git log -1` (pushed; live on GitHub Pages).
 Repo stays PUBLIC (user decision). Commit trailer: `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
 
 ## How the user wants work split
@@ -74,28 +74,62 @@ The Serbian questions for the machinist (pivot lengths, axis limits, which head 
   - PRG EDIT: Y CYCL DEF, W TOOL CALL, A APPR/DEP, Q.
 - **Not re-run:** the full QA suite (.tools/qa/qa.mjs) was NOT re-run after this round (user asked to skip). Run it first next time; adapt tests to the new UI where needed.
 
+## Latest round (2026-09-30)
+- **Dropped by the user (don't re-list):** C rotary table, the single-block "line 19" report, new BREAK IT lessons. Two lessons that relied on the old below-blank crash were removed.
+- **Thread milling 262/263/264/265/267** (`cycleThread` in core.js, from the 426/430 manual pp. 235–252; in the CYCL DEF dialogs, TAPPING group).
+- **Tapping 207/209/17:** the spindle direction comes from the sign of Q239. **Cycle 18:** switches its own spindle, no retract.
+- **Touch probe (user: "future proof"):**
+  - `TCH PROBE` blocks parse (both forms).
+  - 408–413, 417 and 419 move as in the iTNC 530 manual and write nominal results. 30–33, 480–483 and 562 are tool measuring with no motion.
+  - Others report `TCH PROBE n NOT IMPLEMENTED IN SIMULATOR`.
+  - Probe moves carry `mv.probe`/`mv.touch`. sim.js and ui.js skip removal and checks for them.
+  - `probeList`/`probeSpec` are in dialogs.js but not wired to a key yet.
+- **Corpus:** 2,767 / 2,806 clean (`AUTOTOOLS=1 node tests/corpus.js`). The 39 left are broken programs: prose in NC lines, bracket formulas, bad BEGIN PGM names. A real TNC rejects them too.
+- **`stock.js`** (new): the shared material model.
+  - A tilted tool (A/B, cycle 19) cuts along its real axis. Height field: no undercuts.
+  - The holder check follows the tool axis, up 300 mm (`HEAD_LEN`).
+- **Standard vice, ON by default** (user: "put standard one right now"). Settings are in `TNC_STOCK.VICE`:
+  - 160 mm jaws on the Y faces, gripping the bottom 6 mm of the blank (a third of thin parts)
+  - toggle under Effects & view → Vice
+  - crashes: `TOOL INTO THE VICE` / `HOLDER HITS THE VICE`
+  - the first move (from the program zero) is not vice-checked
+  - about 7–10% of the internet corpus hits it; these are real cases: outside contours cut down to the jaw zone
+- **fx.js** runs on three.quarks (the legacy engine is the fallback). Not visually tested.
+- **QA suite** `.tools/qa/qa.mjs`, updated to the current UI: 93/93 pass on e20d0d5. Run it with `cd .tools/qa && node qa.mjs`.
+
+## Come back to — open points (placeholders, NOT facts)
+Settle these with the programming station (item 1 below) or the operator. Each is marked in a code comment.
+- **Thread milling (core.js `cycleThread`)**, where neither manual gives numbers:
+  1. Helix start and turns: whole turns at thread depth, starting on +X. Is there rounding, overrun, or another start angle?
+  2. Approach: a semicircle from the centre rising half a pitch. Departure: a flat semicircle. The side pre-positioning for small tools (tool Ø < ¼ thread Ø) is not built.
+  3. 267 start point: R + |pitch| from the stud. After the cycle the tool is left above that point, not above the centre.
+  4. 263 countersink circle at the "core diameter" is not simulated (no formula for the core Ø or for Q357); only the plunge to Q356 is.
+  5. 264 countersinking feed uses Q206 (264 has no Q254).
+  6. Positive depths: the sign is ignored, as in the other cycles. The manual says a positive depth reverses the direction.
+  7. No error is raised when 262/263/264/267 run with M4 or a stopped spindle (no documented message).
+- **Touch probe (core.js)** — mostly from the iTNC 530 manual, since we don't have the 426/430 probe manual:
+  1. MP 6140 clearance: assumed 2 mm.
+  2. Q261: the stylus tip is placed at Q261 minus the stylus radius. Is it at Q261 instead?
+  3. With Q305=0 while cycle 7 is active, the shift stays on top.
+  4. Q303=0 datum tables are not simulated.
+  5. Preset rows are translation only.
+  6. Touch-point order and paraxial routing are read from the manual's figures.
+  7. 419 and the Q381 Z touch write no results.
+- **Vice:** jaw axis, grip, width and thickness are standard guesses, not the operator's vice. Probe moves skip the vice check; a stylus could really hit a jaw.
+- **Head:** the tilted-tool head is a 300 mm cylinder of holder radius; the real head dimensions are unknown.
+
 ## Next, in order
-1. **`SPINDLE ?` false alarms** (~399 in the corpus). `cycleTap` in `core.js` fails when `st.spinDir` is 0 at the cycle call. Check how those programs start the spindle (M3 on the M99 block starts at block START, but `runCycle` may run before `applyM`?). Fix, then re-run the corpus.
-2. **Stale QA check** in `.tools/qa/qa.mjs` feature 5: it expects `TOOL 27 NOT DEFINED` after upload, but uploads now auto-add tools. Update the expectation.
-3. **Sonnet: particle effects on three.quarks.** `window.QUARKS` is loaded but unused. Move `fx.js` chips, sparks and coolant onto it, keeping `fx.js`'s public API. Speed over polish, no testing.
-4. **Thread milling cycles 262, 263, 264, 265, 267.** Small; helix geometry already exists (see `cycleBoreMill`). Parameters are in the manual; tests go in `tests/manual.js`.
-5. **TNC 430 multi-axis.** Large (about 3-4 sessions).
-   - **Machine layout.** The user answered the layout question on 2026-09-27, and the operator's machine-parameter file followed. The digest is in `private/` (gitignored); these are its non-identifying facts:
-     - Active axes are X Y Z B A. Axis 4 is B, axis 5 is A. A and B are a swivel head.
-     - MP 7510 chain Z,Y,A,X,Z,B suggests A is inner and B is outer (to be confirmed).
-     - A C rotary table exists but is NOT in this parameter set.
-     - Software limits: X +2..+1250.2, Y −850.2..+0.2, Z −500.2..+0.2, B −180.1..+0.1°, A −195..+15°.
-     - Rapids: X 9000, Y 10000, Z 5000 mm/min; B 1000, A 4000 °/min. Max feed 1500 mm/min (B 720, A 800 °/min). Acceleration 0.4 m/s².
-     - Spindle max 2500 rpm (2 gear ranges).
-     - MP 7500 = %101: cycle 19 is active and positions the axes itself.
-     - **MP 7530 = 0 on all elements.** The control uses zero pivot lengths.
-     - Other settings: MP 7431 arc tolerance 0.006 mm; MP 7430 pocket overlap 1.1; MP 7440 M89 is a modal cycle call; MP 7230 dialog language is Swedish.
-     - Follow-up questions for the operator are appended to the Q&A file in `private/`: real pivot lengths, which head axis is outer, tool orientation at A0 B0, positive directions, the C table parameters, the machine make, and the dialog language.
-   - Build it as a kinematics CONFIG in `window.TNC_MACHINES['430']`: an axis list, each linear/rotary and head/table, with pivot offsets. A 6th axis = one config line. Never fork the UI.
-   - Interpreter additions: A/B/C words, cycle 19 WORKING PLANE, M128/M114, M126, rotary feed. All are in the same 280 476 manual.
-   - Material model: the height field only handles a vertical tool, so tilted tools need a dexel/voxel model. This is the big piece.
-6. **Programming-station oracle.** See `tnc-programstation/instruct.md`. It needs the user's Windows VM plus HEIDENHAIN's free station demo; ask first. Our side: `tests/golden/*.json` + `tests/station.js`.
-7. **Deferred (the user said not now):** future-proofing concept (backend + Windows/Mac desktop) as text in the DEV tab.
+1. **Programming-station oracle (maybe, user's call).** See `tnc-programstation/instruct.md`. Needs the user's Windows VM plus HEIDENHAIN's free station demo. It is the way to settle the open points above.
+2. **Backend (reasoning started 2026-09-30, nothing decided).** Two layers:
+   - an installed app: Tauri 2 (lean), Electron, or a local server + browser
+   - an optional shared server: PocketBase (lean)
+
+   The GitHub Pages version stays working without either. The user still has to answer: which jobs (key safety / sharing / real folders / sending programs to the machine over LSV-2), how the operator moves programs today, who uses it, and the shop PC's OS. Before building an LSV-2 link, check the licence and 426/430 support of `pyLSV2` and the JS project in `search-heidenhain`.
+3. **TNC 430 multi-axis, remaining:**
+   - a dexel/voxel model for undercuts
+   - radius compensation in a tilted plane
+   - M128/M114 (the operator doesn't use M128; he uses cycle 19)
+4. Wire `probeSpec` to a TOUCH PROBE soft key; add a `TCHPROBE` node in flow.js.
 
 ## Map
 - `build.py`: LIBS / MODULES / TEXTS lists plus the vendor bundle.

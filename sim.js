@@ -66,7 +66,7 @@ var TNC_SIM = (function () {
         var dt = mv.dur != null ? mv.dur * (total > 1e-9 ? len / total : 1) : len / f * 60;   // machine time when the core knows it
         segs.push({ a: a, b: b, len: len, f: f, kind: mv.kind === 'rapid' ? 'rapid' : 'feed',
                     block: mv.block, tool: mv.tool, toolR: mv.toolR || 3, stick: mv.stick, toolL: mv.toolL, sRpm: mv.sRpm, seq: mv.seq, cone: isCone(mv.tool) || /CHAMFER|SPOT|CENTER|CENTRE/i.test(mv.toolName || ''), ball: /BALL|KUGEL|KULFR/i.test(mv.toolName || ''),
-                    spindle: mv.spindle || 0, coolant: !!mv.coolant, cycle: mv.cycle || null,
+                    spindle: mv.spindle || 0, coolant: !!mv.coolant, cycle: mv.cycle || null, probe: !!mv.probe,
                     t0: t, t1: t + dt });
         t += dt;
       });
@@ -106,6 +106,7 @@ var TNC_SIM = (function () {
     }
     var holderX = function (s) { return ' — T' + s.tool + ' STICK-OUT ' + s.stick.toFixed(1) + ' MM FROM L ' + (s.toolL || 0).toFixed(1) + ' (TOOL LIST / TOOL HOLDER LENGTH)'; };
     ex.segs.forEach(function (s, idx) {
+      if (s.probe) return;                                 // touch-probe moves touch, never cut: no removal, no collision checks
       var step = Math.max(0.3, Math.min(s.toolR * 0.45, 1.5));
       var n = Math.max(1, Math.ceil(s.len / step));
       for (var i = 0; i <= n; i++) {

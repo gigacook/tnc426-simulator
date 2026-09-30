@@ -362,7 +362,7 @@ function buildHeightField(){
   paintHM();
 }
 function cutSeg(s,u0,u1){
-  if(s.kind!=='feed'||!s.spindle) return;             // no removal with the spindle stopped: that is a crash, shown as such
+  if(s.kind!=='feed'||!s.spindle||s.probe) return;    // no removal with the spindle stopped (a crash, shown as such) or while probing
   const len=s.len*(u1-u0); if(len<=0) return;
   const step=Math.max(0.3,Math.min(s.toolR*0.45,2)), n=Math.max(1,Math.ceil(len/step));
   for(let i=0;i<=n;i++){ const u=u0+(u1-u0)*(i/n);          // eps 0: the view removes every sliver; a tilted tool cuts along its axis
