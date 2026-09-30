@@ -338,11 +338,12 @@ function calloutsFor(){
 }
 const fmt=v=>(Math.round(v*100)/100).toString();
 
-/* ---------- height field (3-axis material model) ---------- */
+/* ---------- height field: the material model lives in stock.js (shared with the checks in sim.js) ---------- */
+let GR=null;
 function buildHeightField(){
   const st=ST, w=st.x1-st.x0, h=st.y1-st.y0;
-  const g=TNC_SIM.grid(st,S.segs); NX=g.NX; NY=g.NY; DX=g.DX; DY=g.DY;
-  HM=new Float32Array(NX*NY).fill(st.z1);
+  const g=GR=TNC_STOCK.grid(st,S.segs); NX=g.NX; NY=g.NY; DX=g.DX; DY=g.DY;
+  HM=TNC_STOCK.field(st,g);
   const pos=new Float32Array(NX*NY*3), col=new Float32Array(NX*NY*3), idx=[];
   for(let j=0;j<NY;j++)for(let i=0;i<NX;i++){ const k=(j*NX+i)*3; pos[k]=st.x0+i*DX; pos[k+1]=st.y0+j*DY; pos[k+2]=st.z1; }
   for(let j=0;j<NY-1;j++)for(let i=0;i<NX-1;i++){ const a=j*NX+i,b=a+1,c=a+NX,d=c+1; idx.push(a,b,d,a,d,c); }
@@ -354,24 +355,18 @@ function buildHeightField(){
   partRoot.add(gSkirt);
   gFloor=new THREE.Mesh(new THREE.PlaneGeometry(w,h),new THREE.MeshStandardMaterial({color:0x4a535f,metalness:.5,roughness:.6,side:THREE.DoubleSide}));
   gFloor.position.set((st.x0+st.x1)/2,(st.y0+st.y1)/2,st.z0); partRoot.add(gFloor);
+  /* vice jaws (TNC_STOCK.VICE; .on=false hides them and drops the vice checks — no UI toggle yet) */
+  const vm=new THREE.MeshStandardMaterial({color:0x3d4a5c,metalness:.8,roughness:.38});
+  TNC_STOCK.vice(st).forEach(b=>{ const j=new THREE.Mesh(new THREE.BoxGeometry(b.x1-b.x0,b.y1-b.y0,b.z1-b.z0),vm);
+    j.position.set((b.x0+b.x1)/2,(b.y0+b.y1)/2,(b.z0+b.z1)/2); partRoot.add(j); });
   paintHM();
-}
-function stampDisc(cx,cy,z,r,cone){
-  const st=ST;
-  const i0=Math.max(0,Math.floor((cx-r-st.x0)/DX)), i1=Math.min(NX-1,Math.ceil((cx+r-st.x0)/DX));
-  const j0=Math.max(0,Math.floor((cy-r-st.y0)/DY)), j1=Math.min(NY-1,Math.ceil((cy+r-st.y0)/DY));
-  const r2=r*r;
-  for(let j=j0;j<=j1;j++){ const dy=st.y0+j*DY-cy;
-    for(let i=i0;i<=i1;i++){ const dx=st.x0+i*DX-cx, d2=dx*dx+dy*dy; if(d2>r2) continue;
-      const zz=cone?z+Math.sqrt(d2):z, k=j*NX+i;          // chamfer & spot tools cut a 45° flank
-      if(zz<HM[k]){ HM[k]=Math.max(st.z0,zz); hmDirty=true; } } }
 }
 function cutSeg(s,u0,u1){
   if(s.kind!=='feed'||!s.spindle) return;             // no removal with the spindle stopped: that is a crash, shown as such
   const len=s.len*(u1-u0); if(len<=0) return;
   const step=Math.max(0.3,Math.min(s.toolR*0.45,2)), n=Math.max(1,Math.ceil(len/step));
-  for(let i=0;i<=n;i++){ const u=u0+(u1-u0)*(i/n);
-    stampDisc(s.a.x+(s.b.x-s.a.x)*u, s.a.y+(s.b.y-s.a.y)*u, s.a.z+(s.b.z-s.a.z)*u, s.toolR, s.cone); }
+  for(let i=0;i<=n;i++){ const u=u0+(u1-u0)*(i/n);          // eps 0: the view removes every sliver; a tilted tool cuts along its axis
+    if(TNC_STOCK.stamp(HM,ST,GR,s,{x:s.a.x+(s.b.x-s.a.x)*u, y:s.a.y+(s.b.y-s.a.y)*u, z:s.a.z+(s.b.z-s.a.z)*u},TNC_STOCK.axis(s,u),0)) hmDirty=true; }
 }
 function paintHM(){
   if(!gStock) return;

@@ -1,9 +1,9 @@
 /* ============================================================
    TNC_SIM — shared simulation helpers + safety checks.
-   Pure: no DOM, no three.js. Used by the UI and by node tests.
+   Pure: no DOM, no three.js. Used by the UI and by node tests. The material model is stock.js.
 
    TNC_SIM.expand(res)            -> { segs, total }   timed, arc-tessellated
-   TNC_SIM.grid(stock, segs)      -> { NX, NY, DX, DY } height-field resolution
+   TNC_SIM.grid(stock, segs)      -> { NX, NY, DX, DY } height-field resolution (TNC_STOCK.grid)
    TNC_SIM.analyse(res, ex, g)    -> events[]          crashes + warnings
    TNC_SIM.isCone(toolNumber)     -> Boolean           chamfer / spot tools
    ============================================================ */
@@ -19,6 +19,8 @@ var TNC_SIM = (function () {
     else if (/ENDMILL/.test(t.name)) FLUTES[t.t] = 3;
   });
   function isCone(t) { return !!CONE[t]; }
+  var STOCK = (typeof TNC_STOCK !== 'undefined' && TNC_STOCK) ||
+              (typeof require !== 'undefined' ? require('./stock.js') : null);
 
   /* ---------- arcs -> short chords ---------- */
   function tessArc(mv, out) {
@@ -63,7 +65,7 @@ var TNC_SIM = (function () {
         var f = mv.kind === 'rapid' ? rapid : Math.max(1, mv.feed || 500);
         var dt = mv.dur != null ? mv.dur * (total > 1e-9 ? len / total : 1) : len / f * 60;   // machine time when the core knows it
         segs.push({ a: a, b: b, len: len, f: f, kind: mv.kind === 'rapid' ? 'rapid' : 'feed',
-                    block: mv.block, tool: mv.tool, toolR: mv.toolR || 3, stick: mv.stick, toolL: mv.toolL, sRpm: mv.sRpm, seq: mv.seq, cone: isCone(mv.tool) || /CHAMFER|SPOT|CENTER|CENTRE/i.test(mv.toolName || ''),
+                    block: mv.block, tool: mv.tool, toolR: mv.toolR || 3, stick: mv.stick, toolL: mv.toolL, sRpm: mv.sRpm, seq: mv.seq, cone: isCone(mv.tool) || /CHAMFER|SPOT|CENTER|CENTRE/i.test(mv.toolName || ''), ball: /BALL|KUGEL|KULFR/i.test(mv.toolName || ''),
                     spindle: mv.spindle || 0, coolant: !!mv.coolant, cycle: mv.cycle || null,
                     t0: t, t1: t + dt });
         t += dt;
@@ -72,37 +74,8 @@ var TNC_SIM = (function () {
     return { segs: segs, total: t };
   }
 
-  /* ---------- height-field resolution: follow the smallest cutter ---------- */
-  function grid(st, segs) {
-    var w = Math.max(1, st.x1 - st.x0), h = Math.max(1, st.y1 - st.y0);
-    var minR = Infinity;
-    for (var i = 0; i < segs.length; i++) if (segs[i].kind === 'feed' && segs[i].toolR < minR) minR = segs[i].toolR;
-    if (!isFinite(minR)) minR = 3;
-    var cell = Math.max(0.3, Math.min(0.8, minR / 2));
-    while ((w / cell + 1) * (h / cell + 1) > 150000) cell *= 1.08;
-    var NX = Math.max(30, Math.round(w / cell) + 1), NY = Math.max(30, Math.round(h / cell) + 1);
-    return { NX: NX, NY: NY, DX: w / (NX - 1), DY: h / (NY - 1) };
-  }
-
-  /* ---------- disc visit: stamp or probe ---------- */
-  function disc(hm, st, g, cx, cy, z, r, cone, stamp) {
-    var i0 = Math.max(0, Math.floor((cx - r - st.x0) / g.DX)), i1 = Math.min(g.NX - 1, Math.ceil((cx + r - st.x0) / g.DX));
-    var j0 = Math.max(0, Math.floor((cy - r - st.y0) / g.DY)), j1 = Math.min(g.NY - 1, Math.ceil((cy + r - st.y0) / g.DY));
-    var r2 = r * r, hit = false;
-    for (var j = j0; j <= j1; j++) {
-      var dy = st.y0 + j * g.DY - cy;
-      for (var i = i0; i <= i1; i++) {
-        var dx = st.x0 + i * g.DX - cx, d2 = dx * dx + dy * dy;
-        if (d2 > r2) continue;
-        var zz = cone ? z + Math.sqrt(d2) : z, k = j * g.NX + i;
-        if (hm[k] > zz + 0.05 && hm[k] > st.z0 + 1e-6) {   // a column cut to the bottom holds no material
-          hit = true;
-          if (stamp) hm[k] = Math.max(st.z0, zz); else return true;
-        }
-      }
-    }
-    return hit;
-  }
+  /* ---------- material model: stock.js (shared with the live view) ---------- */
+  var grid = STOCK.grid;
 
   /* ---------- safety analysis ---------- */
   var MSG = {
@@ -111,12 +84,14 @@ var TNC_SIM = (function () {
     THROUGH_CUT:       'NOTE: TOOL BREAKS THROUGH THE BLANK BOTTOM — ASSUMES PARALLELS UNDER THE PART',
     CHIP_LOAD:         'WARNING: CHIP LOAD HIGH FOR THIS CUTTER',
     SPINDLE_MAX:       'WARNING: SPINDLE SPEED ABOVE THE MACHINE MAXIMUM',
-    HOLDER:            'CRASH: TOOL HOLDER COLLISION — THE HOLDER NOSE REACHES THE PART'
+    HOLDER:            'CRASH: TOOL HOLDER COLLISION — THE HOLDER NOSE REACHES THE PART',
+    VICE_TOOL:         'CRASH: TOOL INTO THE VICE',
+    VICE_HOLDER:       'CRASH: TOOL HOLDER COLLISION — HOLDER HITS THE VICE'
   };
 
   function analyse(res, ex, g) {
     var st = res.stock, ev = [], seen = {};
-    var hm = new Float32Array(g.NX * g.NY); hm.fill(st.z1);
+    var hm = STOCK.field(st, g), jaws = STOCK.vice(st);
     function add(code, sev, s, idx, t, p, extra) {
       var key = code === 'CHIP_LOAD' ? code + ':' + s.tool + ':' + s.f
               : code === 'THROUGH_CUT' ? code + ':' + s.tool
@@ -129,28 +104,31 @@ var TNC_SIM = (function () {
     function inside(p, r) {
       return p.x > st.x0 - r && p.x < st.x1 + r && p.y > st.y0 - r && p.y < st.y1 + r;
     }
+    var holderX = function (s) { return ' — T' + s.tool + ' STICK-OUT ' + s.stick.toFixed(1) + ' MM FROM L ' + (s.toolL || 0).toFixed(1) + ' (TOOL LIST / TOOL HOLDER LENGTH)'; };
     ex.segs.forEach(function (s, idx) {
       var step = Math.max(0.3, Math.min(s.toolR * 0.45, 1.5));
       var n = Math.max(1, Math.ceil(s.len / step));
       for (var i = 0; i <= n; i++) {
         var u = i / n, t = s.t0 + (s.t1 - s.t0) * u;
         var p = { x: s.a.x + (s.b.x - s.a.x) * u, y: s.a.y + (s.b.y - s.a.y) * u, z: s.a.z + (s.b.z - s.a.z) * u };
+        var ax = STOCK.axis(s, u);                         // null = vertical tool (the old checks, unchanged)
+        if (jaws.length) {                                 // vice: steel, never cut — the tool or the holder in it is a crash
+          var vh = STOCK.viceHit(st, s, p, ax, jaws);
+          if (vh === 'tool') { add('VICE_TOOL', 'crash', s, idx, t, p); break; }
+          if (vh === 'holder') { add('VICE_HOLDER', 'crash', s, idx, t, p, holderX(s)); break; }
+        }
         if (s.kind === 'rapid') {
-          if (disc(hm, st, g, p.x, p.y, p.z, s.toolR, s.cone, false)) {
+          if (STOCK.probe(hm, st, g, s, p, ax)) {
             add('RAPID_IN_MATERIAL', 'crash', s, idx, t, p); break;
           }
           continue;
         }
-        if (inside(p, s.toolR)) {
-          /* holder: the part surface stands higher than the holder nose (tip + stick-out) */
-          if (s.stick > 0) {                    // material under the collet nut (radius ~ 2 x tool, min 12) above the nose height
-            var zn = p.z + s.stick, hr = Math.max(s.toolR * 2, 12);
-            if (zn < st.z1 && disc(hm, st, g, p.x, p.y, zn, hr, false, false))
-              add('HOLDER', 'crash', s, idx, t, p, ' — T' + s.tool + ' STICK-OUT ' + s.stick.toFixed(1) + ' MM FROM L ' + (s.toolL || 0).toFixed(1) + ' (TOOL LIST / TOOL HOLDER LENGTH)');
-          }
-          if (p.z < st.z0 - 0.01) add('THROUGH_CUT', 'info', s, idx, t, p);   // a note, never a crash: through cuts are normal
+        if (ax || inside(p, s.toolR)) {
+          /* holder: material reaches the holder (tip + stick-out, then up the tool axis) */
+          if (STOCK.holderHits(hm, st, g, s, p, ax)) add('HOLDER', 'crash', s, idx, t, p, holderX(s));
+          if (p.z < st.z0 - 0.01 && inside(p, s.toolR)) add('THROUGH_CUT', 'info', s, idx, t, p);   // a note, never a crash: through cuts are normal
         }
-        var cut = disc(hm, st, g, p.x, p.y, p.z, s.toolR, s.cone, true);
+        var cut = STOCK.stamp(hm, st, g, s, p, ax);
         if (cut) {
           if (s.spindle === 0) add('SPINDLE_OFF', 'crash', s, idx, t, p);
           var z = FLUTES[s.tool];

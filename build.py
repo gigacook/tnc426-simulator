@@ -33,6 +33,7 @@ LIBS = [
 # (file, label) — project modules, in load order. ui.js must stay last.
 MODULES = [
     ('core.js',      'TNC Klartext interpreter'),
+    ('stock.js',     'Material model: height field, tilted tool, vice'),
     ('sim.js',       'Simulation checks'),
     ('programs.js',  'Programs on the control'),
     ('lessons.js',   'Lessons, BREAK IT, manual'),
