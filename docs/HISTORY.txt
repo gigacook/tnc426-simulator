@@ -1,8 +1,7 @@
-TNC 426 SIMULATOR - VERSION HISTORY
-====================================
-A browser-based HEIDENHAIN TNC 426 CNC simulator, built for a CNC engineer,
- with an AI coding
-assistant (Claude) and several AI sub-agents. Live at
+TNC 426 / 430 SIMULATOR - VERSION HISTORY
+==========================================
+A browser-based HEIDENHAIN TNC 426/430 CNC simulator, built for the operator
+with an AI coding assistant (Claude) and several AI sub-agents. Live at
 https://gigacook.github.io/tnc426-simulator/
 
 
@@ -325,32 +324,143 @@ metal to reflect) before reaching for the expensive fix (re-meshing,
 heavier AA) was the right call and shipped faster.
 
 
-BY THE NUMBERS (2026-09-27)
+v0.7  2026-09-27, evening and late  UI REWRITE, TNC 430 PROFILE, AI LIVE
+--------------------------------------------------------------------------
+WHAT SHIPPED:
+  - Operator feedback turned into a PRG EDIT rewrite: soft-key rows for
+    CYCL DEF / TOOL DEF / TOOL CALL / path functions, one question per
+    step (dialogs.js); the tool list opens in the machine view (key T);
+    keys 1-4 for operating mode, 5-9 for speed, F for a focus view that
+    hides the right pane; modes renamed PRG EDIT / TEST / SINGLE-BLOCK /
+    FULL-RUN; NC START follows the mode; a breadcrumb row above nested
+    soft keys; right-pane tabs for Diagnostics / Reference / the
+    operator's own programs; the position readout moved to an overlay on
+    the 3D view; Swedish added as a second interface language (i18n.js).
+  - A first TNC 430 machine profile (MACHINE_430): the operator's own
+    axis limits and roughly 250 mm head pivots. Cycle 19 (working plane)
+    implemented. Tilted-tool material removal and radius compensation in
+    a tilted plane both flagged as approximate from the start.
+  - AI program generation went live end to end: streaming progress, the
+    program appearing block by block with the path growing in 3D, a
+    request viewer showing every round including the repair pass, a
+    model picker, and downloads sorted into TNC-SIMULATOR subfolders.
+  - The operator's own GAGNING.H program exposed and fixed several real
+    bugs: decimal-comma numbers, dotted cycle lines getting their own
+    block numbers, a false SPINDLE STOPPED alarm during rigid tapping,
+    the DRO not showing a programmed S under M5, and block-preview
+    numbers bleeding from an uploaded listing's own numbering.
+  - Tool holder: ISO 50 (DIN 69871, ER32) at a standard stick-out; an
+    unknown or L=0 tool skips the holder-length check instead of
+    guessing.
+
+HIGHS:
+  - A real operator's own program (GAGNING.H) found bugs that the manual
+    based tests and the CAM corpus both missed - decimal-comma input and
+    the block-preview bleed are not the kind of thing a synthetic test
+    corpus produces.
+
+LOWS:
+  - The full QA suite was not re-run after this round, by the user's own
+    request to move fast; it needed adapting to the new UI regardless.
+
+LESSON: a real operator's file is its own test corpus - the bugs it
+surfaces (locale formatting, listing artefacts) are a different shape
+from what a manual-derived test suite or a scraped CAM corpus will ever
+produce.
+
+
+v0.8  2026-09-30  THREAD MILLING, TOUCH PROBE, TNC 430 KINEMATICS
+---------------------------------------------------------------------
+WHAT SHIPPED:
+  - Thread milling cycles 262-265 and 267 (cycleThread in core.js), from
+    the 426/430 manual's own pages. Several numeric details the manual
+    doesn't give - helix start angle, approach/departure geometry for a
+    small tool, the sign of a positive depth - are documented as open
+    points rather than guessed silently.
+  - Touch probe, built "future proof" ahead of the operator owning a
+    probe: TCH PROBE blocks parse; datum-setting cycles 408-413, 417 and
+    419 move and write nominal results (following the iTNC 530 manual,
+    since no 426/430 probe manual exists in this repo); tool-measuring
+    cycles 30-33, 480-483 and 562 are recognized with no motion; any
+    other cycle number reports NOT IMPLEMENTED instead of doing nothing.
+  - TNC 430 kinematics moved from a single machine profile into
+    machines.js, a config shared with the Rust server's own interpreter,
+    so a program compiles the same way in the browser and on the server.
+    A C rotary table was scoped and then dropped by the user (not built).
+  - stock.js: a shared material model. A tilted tool (A/B, cycle 19) cuts
+    along its real axis; the holder check follows the tool axis.
+  - A standard vice, on by default: 160 mm jaws on the Y faces, gripping
+    the bottom of the blank; a toggle under Effects & view; crash checks
+    for the tool and the holder. Dimensions are a standard guess, not the
+    operator's actual vice. About 7-10% of the CAM corpus hits it - real
+    cases, not false positives.
+  - fx.js moved onto window.QUARKS (three.quarks) ParticleSystems through
+    one shared BatchedRenderer, with the previous built-in renderer kept
+    as the fallback if QUARKS is missing.
+  - Corpus 2,767 / 2,806 clean; QA suite updated to the current UI, 93/93
+    checks pass.
+
+LOWS:
+  - fx.js was not visually re-tested after the move to three.quarks.
+  - Several thread-milling and touch-probe details remain placeholders,
+    not verified facts - see CONTINUE.md, "Come back to".
+
+LESSON: "future proof" work (touch probe, before the operator has a
+probe) still needs the same honesty as anything else - cycles that
+aren't implemented say so explicitly instead of silently no-op'ing.
+
+
+FULLSTACK  Rust server + React web app
+---------------------------------------------------------------------
+WHAT SHIPPED:
+  - A Rust server (server/, axum + SQLite) that runs sim/core.js in
+    embedded QuickJS, so a program the server checks gets the same
+    result as the browser - one interpreter, not two. Accounts, a
+    versioned program library, per-machine tool tables, share links, and
+    an AI proxy to OpenRouter.
+  - A React web app (web/, Vite + TypeScript) for the server: sign in,
+    edit and check programs, browse and restore versions, share a
+    program by link.
+  - The GitHub Pages simulator stays a self-contained single file either
+    way; the server and web app are an optional layer around it, not a
+    replacement for it. A desktop app (Tauri 2) is planned, not built -
+    the server's router is written so a shell can embed it directly.
+  - Repo reorganized: simulator sources moved into sim/, project docs
+    into docs/ (this file, docs/FEATURES.txt, docs/PROGRAMMING-STATION.md
+    replacing tnc-programstation/instruct.md). Old prototypes and stale
+    hand-off notes deleted: orbital.html, fx-demo.html, the duplicate
+    NAMEPLATE_V2.H in the root, HANDOFF.md, NEXT-SESSION-PROMPT.md,
+    TODO.md (folded into CONTINUE.md).
+
+NOT VERIFIED:
+  - The server and web app have not been checked against a real
+    HEIDENHAIN control or programming station any more than the
+    single-file simulator has.
+
+
+BY THE NUMBERS (2026-09-30)
 -----------------------------
-  Commits, v0.1 through the last verified HEAD: 13 (37b63a5 through
-                             9618cce - see git log for the full list;
-                             this count will already be stale by the
-                             time you read it, this repo moves fast)
-  Live version:              v0.6 (interpreter accuracy, profiles, AI,
-                             materials/look, three.js r186 all shipped
-                             and in the build)
+  Live version:              v0.8 plus the fullstack Rust server + React
+                             web app (interpreter accuracy, TNC 430
+                             kinematics, thread milling, touch probe, all
+                             shipped and in the build; the server and web
+                             app are additional, not a replacement for
+                             the single-file simulator)
   Programs shipped:          3 (BRACKET.H, NAMEPLATE.H, NAMEPLATE_V2.H)
   Lessons written:           14 (6 LEARN + 8 BREAK IT) + 16 manual sections
-  Cycles implemented:        23 motion/pocket/drilling cycles (1, 2, 4,
-                             17, 18, 200-215, 220, 221, 230, 231) plus 7
-                             non-motion cycles (7, 8, 9, 10, 11, 32, 247)
+  Cycles implemented:        25 motion/pocket/drilling/thread cycles (1,
+                             2, 4, 17, 18, 200-215, 220, 221, 230, 231,
+                             262-265, 267) plus 8 non-motion cycles (7, 8,
+                             9, 10, 11, 19, 32, 247)
+  Touch probe cycles:        8 with motion/results (408-413, 417, 419),
+                             9 tool-measuring with no motion (30-33,
+                             480-483, 562); all other numbers rejected
+                             as NOT IMPLEMENTED, not silently accepted
   Manual test coverage:      node tests/manual.js - all pass
-  Real-world corpus:         2,806 programs, 2,495 clean with AUTOTOOLS=1
-                             (1,066 clean without it)
-  QA (Playwright):           51 / 52 checks pass (1 stale expectation)
-  Known bugs open:           1 (SPINDLE ? false alarms in tapping cycles,
-                             ~399 corpus programs affected)
-  Known stale test:          1 (QA feature 5, TOOL 27 NOT DEFINED)
-  Builds opened in a real browser: now checked by .tools/qa/qa.mjs via
-                             Playwright's Chromium (the "Chrome is not
-                             installed" gap from earlier versions is
-                             closed for QA purposes; AI generation is
-                             still only checked against a mock, not the
-                             real OpenRouter API).
+  Real-world corpus:         2,806 programs, 2,767 clean (AUTOTOOLS=1)
+  QA (Playwright):           93 / 93 checks pass
+  This count will already be stale by the time you read it - this repo
+  moves fast; CONTINUE.md is the live source of truth, this file is the
+  narrative record.
 
 (c) 2026 TNC 426 Simulator contributors
