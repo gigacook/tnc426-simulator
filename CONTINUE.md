@@ -66,4 +66,3 @@ META
 ## ASK — waiting on the user
 - A1: React for the web app: keep as a thin shell, or replace? (D-REACT)
 - A2: How does the operator move programs today, and does his 430 have the Ethernet card? (B3; user: "probably from a PC at his company, USB stick; Ethernet card should also be supported")
-- A3: The push of commit 64eba32+ was blocked by the auto-mode safety check (flagged as data exfiltration). The user pushes manually: `git push origin main`.
