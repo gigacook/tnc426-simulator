@@ -688,8 +688,8 @@ function skRows(){ if(S.wiz) return wizSK(); if(S.pick) return S.pick; if(S.mgt)
 /* soft keys: the same look and the same behaviour everywhere; NC START green, NC STOP red; a path row when nested */
 const SKKEY={ed:'E',ins:'I',del:'DEL',undo:'CTRL Z',redo:'CTRL Y',rawt:'TAB',tt:'T',mgt:'M',focus:'F',flow:'V',start:'SPACE',stop:'ESC',reset:'R',
   v3:'G',vt:'G',vf:'G',vs:'G',ovrd:'−',ovru:'+',cycldef:'Y','w:TOOLCALL':'W',apprdep:'A','w:Q':'Q',load:'CTRL O',save:'CTRL S',new:'N',mdel:'DEL',restore:'R',end:'ESC',
-  ttend:'ESC',pickend:'ESC',wend:'END',wcancel:'ESC',wskip:'ENT'};
-function skKey(a){ if(a==='step') return S.mode==='single'?'SPACE / S':'S'; return SKKEY[a]||''; }
+  ttend:'ESC',pickend:'ESC',wend:'END',wcancel:'ESC',wskip:'⇧ ENTER',wok:'ENTER',wsign:'− / +',wact:'#',wce:'DELETE'};
+function skKey(a){ if(a==='step') return S.mode==='single'?'SPACE / S':'S'; if(a.startsWith('wa:')) return 'XYZ'.includes(a.slice(3))?'':a.slice(3); return SKKEY[a]||''; }
 function skClass(a){ const on=(a==='rawt'&&S.raw)||(a==='flow'&&S.flowView)||(a==='focus'&&S.focusView)||(a==='tt'&&S.tt)||(a==='mgt'&&S.mgt);
   return (a==='start'||(a==='step'&&S.mode==='single'))?' go':(a==='stop'?' stop':(on?' on':'')); }
 function renderSK(){ const tr=window.TNC_I18N?(x=>TNC_I18N.tr(x)):(x=>x);
@@ -697,7 +697,7 @@ function renderSK(){ const tr=window.TNC_I18N?(x=>TNC_I18N.tr(x)):(x=>x);
   renderPath(); }
 function renderPath(){
   const el=$('skpath'); if(!el) return; let path=null, back='';
-  if(S.wiz){ path=['PROGRAM',S.wiz.spec.title,'QUESTION '+(S.wiz.i+1)+' / '+S.wiz.spec.steps.length]; back='ESC = CANCEL · END = FINISH'; }
+  if(S.wiz){ path=['PROGRAM',S.wiz.spec.title,'QUESTION '+(S.wiz.i+1)+' / '+S.wiz.spec.steps.length]; back='DEL (ESC) = ABORT · END = FINISH'; }
   else if(S.pick){ path=(S.pickPath||['PROGRAM']); back='ESC = ONE LEVEL UP'; }
   else if(S.mgt){ path=['PROGRAMS']; back='ESC / M = BACK TO THE PROGRAM'; }
   else if(S.tt){ path=['TOOL LIST','TOOL.T']; back='ESC / T / END = BACK'; }
@@ -712,12 +712,14 @@ function act(a){
     S.pick=L.map(c=>[c.num+'\n'+c.name.split(' ').slice(0,2).join(' '),'cy:'+c.num]).concat([['BACK','cycldef'],['END','pickend']]); renderSK(); return; }
   if(a.startsWith('cy:')){ S.pick=null; startWiz(DLG.cycleSpec(+a.slice(3))); return; }
   if(a.startsWith('wv:')){ wizAccept(a.slice(3)); return; }
-  if(a.startsWith('wa:')){ dlgIn.value=(dlgIn.value.trim()+' '+a.slice(3)).trim(); dlgIn.focus(); return; }
+  if(a.startsWith('wa:')){ ckAxis(a.slice(3)); return; }
+  if(a.startsWith('wd:')){ ckDigit(a.slice(3)); return; }
   switch(a){
     case 'cycldef': if(!DLG) return; if(S.mode!=='edit') setMode('edit'); S.pickPath=['PROGRAM','CYCL DEF']; S.pick=DLG.GROUPS.map(g=>[g[1],'cg:'+g[0]]).concat([['END','pickend']]); renderSK(); break;
     case 'apprdep': if(S.mode!=='edit') setMode('edit'); S.pickPath=['PROGRAM','APPR / DEP']; S.pick=[['APPR','w:APPR'],['DEP','w:DEP'],['',''],['',''],['',''],['',''],['',''],['END','pickend']]; renderSK(); break;
     case 'pickend': S.pick=null; renderSK(); break;
-    case 'wskip': wizAccept('',true); break; case 'wend': wizEnd(); break; case 'wcancel': wizCancel(); break;
+    case 'wskip': wizAccept('',true); break; case 'wend': wizEnd(); break; case 'wcancel': wizCancel(); break; case 'wok': wizAccept(dlgIn.value); break;
+    case 'wi': ckInc(); break; case 'wp': ckPolar(); break; case 'wq': ckQ(); break; case 'wsign': ckSign(); break; case 'wact': ckActual(); break; case 'wce': ckCE(); break;
     case 'ttmiss': addMissingTools(); break;
     case 'ttexp': if(window.TNC_PROFILE) download('TOOL_TNC'+S.machine+'.T',new Blob([TNC_PROFILE.toolT(mtools())],{type:'text/plain'}),'TOOL-TABLES'); break;
     case 'ttend': closeTT(); break; case 'focus': toggleFocus(); break;
@@ -811,7 +813,7 @@ function insertBlock(){ const ls=lines(); let i=srcLine(S.cursor); if(/^\s*(\d+\
 function deleteBlock(){ const ls=lines(); if(ls.length<=1) return; const i=srcLine(S.cursor), n=nOf(S.cursor);
   ls.splice(i,1); edit(ls.join('\n'),S.cursor,'BLOCK '+n+' DELETED — CTRL+Z TO UNDO'); }
 function copyBlock(){ const ls=lines(), i=srcLine(S.cursor); ls.splice(i+1,0,ls[i]); edit(ls.join('\n'),S.cursor+1,'BLOCK COPIED'); }
-dlgIn.addEventListener('keydown',e=>{ if(S.wiz){ if(e.key==='Enter'){ e.preventDefault(); wizAccept(dlgIn.value); } else if(e.key==='Escape'){ e.preventDefault(); wizCancel(); } e.stopPropagation(); return; }
+dlgIn.addEventListener('keydown',e=>{ if(S.wiz){ if(wizKey(e)) e.preventDefault(); e.stopPropagation(); return; }
   if(S.editing&&(e.key==='Tab'||(e.key==='ArrowRight'&&dlgIn.selectionStart===dlgIn.value.length))&&ghostEl&&ghostEl.dataset.full){ e.preventDefault(); ghostAccept(); e.stopPropagation(); return; }
   if(e.key==='Enter'){ e.preventDefault(); endEdit(true); }
   else if(e.key==='Escape'){ e.preventDefault(); endEdit(false); } e.stopPropagation(); });
@@ -1521,14 +1523,15 @@ function wizStep(){ return S.wiz.spec.steps[S.wiz.i]; }
 function wizShow(){
   const st=wizStep(), d=st.dflt!=null&&st.dflt!==''?st.dflt:null;
   dlgPr.textContent=st.ask;
-  dlgHint.textContent=S.wiz.spec.title+' · '+(S.wiz.i+1)+'/'+S.wiz.spec.steps.length+' · ENT '+(d!=null?'= '+d:(st.opt||st.type==='feed'||st.type==='m'?'= NONE':'')) +' · END · ESC';
+  dlgHint.textContent=S.wiz.spec.title+' · '+(S.wiz.i+1)+'/'+S.wiz.spec.steps.length+' · ENT '+(d!=null?'= '+d:(st.opt||st.type==='feed'||st.type==='m'?'= NONE':''))
+    +(padStep(st)?' · '+(st.type==='coords'?'X 10 Y 20 · ':'')+'I INCR.'+(st.type==='coords'?' · P POLAR':''):'')+' · ⇧ENT NO ENT · END · ESC DEL';
   dlgIn.value=''; dlgIn.placeholder=d!=null?d:''; renderSK(); dlgIn.focus();
 }
 function wizSK(){
-  const st=wizStep(), tail=[['NO\nENT','wskip'],['END','wend'],['CANCEL','wcancel']];
+  const st=wizStep(), tail=[['NO\nENT','wskip'],['ENT','wok'],['END','wend'],['DEL','wcancel']];   // manual 4.5 p. 67: NO ENT ignores, END ends, DEL aborts
   let k=[];
   if(st.type==='choice') k=st.opts.map(o=>[o,'wv:'+o]);
-  else if(st.type==='coords') k=(M().axes||['X','Y','Z']).flatMap(a=>[[a,'wa:'+a]]).concat((M().axes||['X','Y','Z']).slice(0,3).map(a=>['I'+a,'wa:I'+a]));
+  else if(padStep(st)) k=wizPad(st);
   else if(st.type==='feed') k=[['F MAX','wv:FMAX'],['F AUTO','wv:FAUTO']];
   else if(st.type==='tool') k=mtools().slice(0,13).map(t=>['T'+t.t+'\n'+String(t.name).slice(0,10),'wv:'+t.t]);
   return k.concat(tail);
@@ -1543,7 +1546,8 @@ function wizAccept(raw,skip){
     else if(skip&&d!=null&&!st.opt) v=d;
   }
   if(v!==''){
-    if(st.type==='num'||st.type==='tool'){ if(!NUMRE.test(v)){ say('ENTER A NUMBER (OR Q PARAMETER)'); dlgIn.select(); return; } }
+    if(st.pol){ if(!/^I?(?:P[RA])?[+-]?(?:\d+\.?\d*|\.\d+|Q\d+)$/i.test(v)){ say('POLAR COORDINATE: A NUMBER OR Q PARAMETER, I = INCREMENTAL'); dlgIn.select(); return; } }
+    else if(st.type==='num'||st.type==='tool'){ if(!NUMRE.test(v)){ say('ENTER A NUMBER (OR Q PARAMETER)'); dlgIn.select(); return; } }
     else if(st.type==='choice'){ const u=v.toUpperCase(); v=st.opts.find(o=>o===u||o.replace(/[^A-Z0-9]/g,'')===u.replace(/[^A-Z0-9]/g,''))||(d!=null?d:st.opts[0]); }
     else if(st.type==='feed'){ const u=v.toUpperCase().replace(/\s+/g,''); v=/^F?MAX$/.test(u)?'FMAX':/^F?AUTO$/.test(u)?'FAUTO':u.replace(/^F/,''); if(!/^(FMAX|FAUTO)$/.test(v)&&!NUMRE.test(v)){ say('FEED RATE: A NUMBER, F MAX OR F AUTO'); dlgIn.select(); return; } }
     else if(st.type==='m'){ v=v.toUpperCase().replace(/M/g,' ').trim(); if(!/^\d+(\s+\d+)*$/.test(v)){ say('M FUNCTION: A NUMBER, e.g. 3 OR 3 8'); dlgIn.select(); return; } }
@@ -1552,18 +1556,81 @@ function wizAccept(raw,skip){
   S.wiz.v[st.k]=v; S.wiz.i++;
   if(S.wiz.i>=S.wiz.spec.steps.length) wizFinish(); else wizShow();
 }
-/* "X10 Y-5", "x+10y-5", "10 -5" (bare numbers fill X, Y, Z in turn), "IX5", Q parameters */
+/* "X10 Y-5", "x+10y-5", "10 -5" (bare numbers fill X, Y, Z in turn), "IX5", "I5", Q parameters */
 function wizCoords(v){
   const axes=(M().axes||['X','Y','Z']), out=[], used=new Set(); let m, rest=v.toUpperCase();
   const re=/(I?)([XYZABC])\s*([+-]?(?:\d+\.?\d*|\.\d+|Q\d+))/g;
   while((m=re.exec(rest))){ const a=m[2]; if(!axes.includes(a)&&!'XYZ'.includes(a)) return null; used.add(a); out.push(m[1]+a+(/^[+-]/.test(m[3])?m[3]:'+'+m[3])); }
   rest=rest.replace(re,' ').trim();
   if(rest){ const nums=rest.split(/\s+/); let ai=0;
-    for(const n of nums){ if(!NUMRE.test(n)) return null; while(ai<3&&used.has('XYZ'[ai])) ai++; if(ai>=3) return null; out.push('XYZ'[ai]+(/^[+-]/.test(n)?n:'+'+n)); used.add('XYZ'[ai]); ai++; } }
+    for(const t of nums){ const inc=/^I/.test(t), n=t.replace(/^I/,''); if(!NUMRE.test(n)) return null; while(ai<3&&used.has('XYZ'[ai])) ai++; if(ai>=3) return null;
+      out.push((inc?'I':'')+'XYZ'[ai]+(/^[+-]/.test(n)?n:'+'+n)); used.add('XYZ'[ai]); ai++; } }
   return out.length?out.join(' '):null;
+}
+/* ---- the coordinate keypad (TNC 426/430 keyboard, manual inside front cover: "Coordinate axes and numbers"):
+   axis keys X Y Z IV V, 0-9, decimal point, -/+, P polar, I incremental, Q parameter, actual-position capture,
+   NO ENT, ENT, END, CE, DEL. Every key works on the word being entered = the last word on the line.
+   The PC keyboard does the same: axis letters, I, P, + -, # = actual position, DELETE = CE, SHIFT+ENTER = NO ENT.
+   NOT verified against a control (key images only in the manual): I and -/+ toggle the word being entered;
+   CE pressed twice also drops the axis; "actual position" = the simulated tool position (DRO). ---- */
+const padStep=st=>!!st&&(st.type==='coords'||!!st.pol);
+function wizPad(st){
+  const C=st.type==='coords', ax=M().axes||['X','Y','Z'], roman=['IV','V'];
+  const axk=C?ax.slice(0,5).map((a,i)=>[i<3?a:roman[i-3]+'\n'+a,'wa:'+a]):[];   // 430: IV = B, V = A (machine axis order, machines.js)
+  while(axk.length<5) axk.push(['','']);
+  return axk.concat([['I','wi'],C?['P','wp']:['',''],['Q','wq']],
+    '12345678'.split('').map(d=>[d,'wd:'+d]),
+    [['9','wd:9'],['0','wd:0'],['.','wd:.'],['−/+','wsign'],C?['ACTUAL\nPOSITION','wact']:['',''],['CE','wce'],['',''],['','']]);
+}
+function cwGet(){ const v=dlgIn.value, m=v.match(/^(.*?)(\S*)$/), w=m[2].toUpperCase(), p=w.match(/^(I?)([XYZABC]?)([+-]?)(.*)$/);
+  return {v, head:m[1], w, i:p[1], a:p[2], s:p[3], n:p[4]}; }
+function cwSet(head,w){ dlgIn.value=head+w; dlgIn.focus(); const L=dlgIn.value.length; dlgIn.setSelectionRange(L,L); }
+function ckAxis(a){ if(!S.wiz) return; const c=cwGet();
+  if(!c.w) cwSet(c.head,a);                                                  // a new word
+  else if(c.i&&!c.a&&!c.s&&!c.n) cwSet(c.head,'I'+a);                         // I pressed first: IX
+  else if(c.a&&!c.n) cwSet(c.head,c.i+a+c.s);                                // axis chosen, no value yet: change the axis
+  else cwSet(c.v+' ',a); }
+function ckDigit(d){ if(!S.wiz) return; const c=cwGet(); if(d==='.'&&(/[.Q]/.test(c.n))) return; cwSet(c.head,c.w+d); }
+function ckSign(force){ if(!S.wiz) return; const c=cwGet(); cwSet(c.head,c.i+c.a+(force||(c.s==='-'?'+':'-'))+c.n); }
+function ckInc(){ if(!S.wiz) return; const c=cwGet();
+  if(c.i&&!c.a&&!c.s&&!c.n) cwSet(c.head,''); else cwSet(c.head,(c.i?'':'I')+c.a+c.s+c.n); }
+function ckQ(){ if(!S.wiz) return; const c=cwGet(); cwSet(c.head,c.i+c.a+c.s+'Q'); }   // Q in place of a number (manual 10.2): "X+Q10"
+function ckCE(){ if(!S.wiz) return; const c=cwGet();                         // CE: erase the number; once more: the word
+  if(c.n||c.s) cwSet(c.head,c.i+c.a); else cwSet(c.head.replace(/\s+$/,''),''); }
+function ckPolar(){ if(!S.wiz) return; const sp=S.wiz.spec, t=sp.polar&&DLG&&DLG.PATH[sp.polar];
+  if(wizStep().type!=='coords') return;
+  if(!t){ say(sp.key==='CC'?'P: THE POLE CC IS ENTERED IN CARTESIAN COORDINATES ONLY':'P: NO POLAR FORM OF '+sp.title); return; }
+  S.wiz={spec:t, i:0, v:{}}; wizShow(); say('POLAR COORDINATES — '+t.title); }
+/* the simulator's "actual position" = the tool position at the current point of the run (the DRO) */
+function actPos(){ const p=S.pos||{x:0,y:0,z:0}, s=S.seg, o={X:p.x,Y:p.y,Z:p.z}, u=s?clamp((S.t-s.t0)/Math.max(1e-9,s.t1-s.t0),0,1):0;
+  (M().axes||[]).filter(a=>/[ABC]/.test(a)).forEach(a=>{ const k=a.toLowerCase(); o[a]=s&&s.a&&s.a[k]!=null?s.a[k]+((s.b[k]||0)-s.a[k])*u:0; });
+  return o; }
+const fmtPos=n=>(n<-5e-4?'-':'+')+(+Math.abs(n).toFixed(3));
+function ckActual(){ if(!S.wiz||wizStep().type!=='coords') return; const c=cwGet(), P=actPos();
+  if(c.a&&!c.n){ cwSet(c.head,c.a+fmtPos(P[c.a])); say('ACTUAL POSITION '+c.a+fmtPos(P[c.a])); return; }   // the selected axis
+  const have=new Set((c.v.toUpperCase().match(/I?[XYZABC]/g)||[]).map(x=>x.slice(-1)));                        // no axis selected: the missing ones
+  const add=(S.wiz.spec.key==='CC'?['X','Y']:['X','Y','Z']).filter(a=>!have.has(a)).map(a=>a+fmtPos(P[a]));
+  if(!add.length) return; cwSet((c.v.trim()?c.v.trim()+' ':''),add.join(' ')); say('ACTUAL POSITION '+add.join(' ')); }
+function wizKey(e){
+  if(!S.wiz||e.ctrlKey||e.metaKey||e.altKey) return false;
+  const k=e.key;
+  if(k==='Enter'){ if(e.shiftKey) wizAccept('',true); else wizAccept(dlgIn.value); return true; }
+  if(k==='Escape'){ wizCancel(); return true; }
+  if(k==='End'){ wizEnd(); return true; }
+  const st=wizStep(); if(!padStep(st)) return false;
+  if(k==='Delete'){ ckCE(); return true; }
+  if(k==='#'&&st.type==='coords'){ ckActual(); return true; }
+  const L=dlgIn.value.length; if(dlgIn.selectionStart!==L||dlgIn.selectionEnd!==L||k.length!==1) return false;   // caret inside the line: plain text editing
+  const K=k.toUpperCase();
+  if(st.type==='coords'&&(M().axes||['X','Y','Z']).includes(K)){ ckAxis(K); return true; }
+  if(K==='I'){ ckInc(); return true; }
+  if(K==='P'&&st.type==='coords'){ ckPolar(); return true; }
+  if(k==='+'||k==='-'){ ckSign(k); return true; }
+  return false;
 }
 function wizEnd(){
   if(!S.wiz) return;
+  if(dlgIn.value.trim()){ const i0=S.wiz.i; wizAccept(dlgIn.value); if(!S.wiz||S.wiz.i===i0) return; }   // END takes the entry on the line first (manual p. 67)
   while(S.wiz&&S.wiz.i<S.wiz.spec.steps.length){
     const st=wizStep(), d=st.dflt!=null&&st.dflt!==''?st.dflt:null;
     if(d==null&&!(st.opt||st.type==='feed'||st.type==='m'||st.type==='choice')){ wizShow(); say('ENTRY REQUIRED — '+st.ask); return; }
@@ -1707,7 +1774,8 @@ scrub.addEventListener('input',()=>{ S.running=false; seek(+scrub.value/1000*S.t
 const KEYS=[['↑ ↓','Block cursor'],['← →','Scrub the run (Shift ×5)'],['ENTER','Step one block · edit in EDIT mode'],['ESC','Stop · cancel · close'],
   ['SPACE','NC START (what the mode does) / NC STOP'],['S · R','Single block · reset'],['E I D C','Edit · insert · delete · copy'],['CTRL+Z','Undo  (CTRL+SHIFT+Z / CTRL+Y redo)'],
   ['CTRL+S','Save as .H'],['CTRL+O','Load .H from your computer'],['TAB','Raw text editor'],['M','Programs'],['H','Help, lessons, manual'],
-  ['V','Flowchart view'],['G','3D / TOP / FRONT / SIDE'],['1 – 4','Operating mode'],['5 – 9','Speed 1× 4× 16× 64× MAX'],['T','Tool table'],['F','Focus view (listing + graphics)'],['PRG EDIT','Y CYCL DEF · W TOOL CALL · A APPR/DEP · Q Q-parameter · soft keys for L CC C CR CT CP RND CHF, TOOL DEF, LBL'],['+ / −','Feed override'],
+  ['V','Flowchart view'],['G','3D / TOP / FRONT / SIDE'],['1 – 4','Operating mode'],['5 – 9','Speed 1× 4× 16× 64× MAX'],['T','Tool table'],['F','Focus view (listing + graphics)'],['PRG EDIT','Y CYCL DEF · W TOOL CALL · A APPR/DEP · Q Q-parameter · soft keys for L CC C CR CT CP RND CHF, TOOL DEF, LBL'],
+  ['COORDINATES ?','X Y Z (B A) axis · I incremental · P polar · Q parameter · + − sign · # actual position · DELETE = CE · ENTER = ENT · ⇧ENTER = NO ENT · END · ESC = DEL'],['+ / −','Feed override'],
   ['P K B','Chips · coolant · smoke & fire'],['L','Labels'],['N','Next lesson step'],['HOME/END','First / last block'],['PGUP/PGDN','Page']];
 $('klist').innerHTML=KEYS.map(([k,d])=>`<div><kbd>${k}</kbd><span>${d}</span></div>`).join('');
 
@@ -1719,7 +1787,7 @@ addEventListener('keydown',e=>{
   if(openModalEl){ if(k==='Escape'){ e.preventDefault(); closeModal(); } return; }
   if(mod&&k.toLowerCase()==='s'){ e.preventDefault(); saveH(); return; }
   if(mod&&k.toLowerCase()==='o'){ e.preventDefault(); loadFromDisk(); return; }
-  if(S.wiz){ if(k==='Escape'){ e.preventDefault(); wizCancel(); } else if(k==='Enter'){ e.preventDefault(); wizAccept(dlgIn.value); } else if(e.target!==dlgIn) dlgIn.focus(); return; }
+  if(S.wiz){ if(e.target!==dlgIn) dlgIn.focus(); if(wizKey(e)) e.preventDefault(); return; }
   if(S.pick&&k==='Escape'){ e.preventDefault(); if(S.pickPath&&S.pickPath.length>2&&S.pickPath[1]==='CYCL DEF') act('cycldef'); else { S.pick=null; renderSK(); } return; }
   if(S.tt&&k==='Escape'){ e.preventDefault(); closeTT(); return; }
   if(S.editing&&e.target!==dlgIn){                               // editing a block: keys belong to the block line

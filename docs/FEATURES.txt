@@ -88,6 +88,15 @@ PROFILES AND PROGRAM I/O (profile.js, ui.js):
 PROGRAMMING DIALOGS AND UI (dialogs.js, viz.js, i18n.js, ui.js):
   - PRG EDIT mode has one-question-per-step dialogs for CYCL DEF, TOOL DEF,
     TOOL CALL and the path functions, in place of typing raw Klartext only.
+  - COORDINATES ? has the 426/430 coordinate keypad (manual inside front
+    cover): axis keys X Y Z (430: IV = B, V = A), 0-9, decimal point, -/+,
+    I incremental, P polar (L -> LP, C -> CP, CT -> CTP; CC stays Cartesian),
+    Q parameter, actual-position capture (the simulated DRO position), CE,
+    NO ENT, ENT, END (takes the entry on the line), DEL. Same on the PC
+    keyboard: axis letters, I, P, + -, # = actual position, DELETE = CE,
+    SHIFT+ENTER = NO ENT, END, ESC = DEL. Polar PR/PA questions get the same
+    keypad without axes. Key semantics beyond the manual's key list (toggling
+    I and -/+, CE twice) are not verified against a control (CONTINUE OPEN K1).
   - Tool list opens in the machine view (key T). Keys: 1-4 operating mode,
     5-9 speed, F focus view (hides the right pane).
   - Right pane tabs: Diagnostics, Reference (keys, cycles, tools, machine,

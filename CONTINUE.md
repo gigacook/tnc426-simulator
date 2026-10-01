@@ -61,6 +61,7 @@ META
 | T7 | core.js cycleThread | no error for M4 / spindle off on 262/263/264/267 |
 | P1–P7 | core.js TCH PROBE | MP 6140 = 2 mm; Q261 tip = Q261 − stylus R; Q305=0 keeps cycle 7 on top; Q303=0 tables not simulated; presets translation-only; touch order from the figures; 419/Q381 write no results |
 | V1 | stock.js VICE | jaw axis Y, grip 6, jaw 160×25 — standard guess, not the operator's vice |
+| K1 | ui.js coordinate keypad (wizPad/ck*) | key list is the manual's (inside front cover, p. 66–67, 151, 357); NOT verified: I and −/+ toggle the word being entered, CE twice drops the axis, ACTUAL POSITION with no axis selected fills X Y Z (CC: X Y) = the MOD %00111 case, IV = B / V = A (machines.js order), CTP asks RC like CT, PC-keyboard bindings (#, DELETE, ⇧ENTER) are sim-only |
 | V2 | stock.js HEAD_LEN | tilted head = 300 mm cylinder of holder radius |
 
 ## ASK — waiting on the user

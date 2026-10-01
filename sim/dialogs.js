@@ -6,7 +6,10 @@
 
    A spec: { id, key, title, steps:[step], build(values) -> text }
    A step: { k, ask, type, opts?, dflt?, opt? }
-     type 'coords'  "X+10 Y-5" (axis soft keys; bare numbers go to X Y Z in turn)
+     type 'coords'  "X+10 Y-5": the coordinate keypad of the 426/430 keyboard (manual inside front cover):
+                    axis keys X Y Z IV V, 0-9 . -/+, I (incremental), P (polar: the spec's .polar
+                    dialog), Q (parameter), actual-position capture, CE; bare numbers go to X Y Z in turn
+          pol:true  on a 'num' step: a polar coordinate (PR / PA) — the same keypad without axes/P/capture
           'num'     one number (Q allowed); dflt used on ENT
           'choice'  soft keys opts; ENT = dflt
           'feed'    number, FMAX / F AUTO soft keys; ENT = keep modal feed
@@ -24,24 +27,31 @@ var TNC_DIALOGS = (function () {
   var XY = { k: 'xyz', ask: 'COORDINATES ?', type: 'coords' };
   var DR = { k: 'dr', ask: 'DIRECTION OF ROTATION DR ?', type: 'choice', opts: ['DR+', 'DR-'], dflt: 'DR+' };
   var feedTxt = function (v) { return !v ? '' : (v === 'FMAX' || v === 'FAUTO' ? v : 'F' + String(v).replace(/^\+/, '')); };
+  /* a polar coordinate word: "30" -> PR+30, "I-60" -> IPA-60, "Q5" -> PR+Q5 (I = incremental, manual 4.1 / 6.5) */
+  var pw = function (name, v) { v = String(v).trim().toUpperCase().replace(/\s+/g, ''); var inc = /^I/.test(v); v = v.replace(/^I?(P[RA])?/, '');
+    var s = /^-/.test(v) ? '-' : '+'; v = v.replace(/^[+-]/, ''); return (inc ? 'I' : '') + name + s + (/^Q/.test(v) ? v : String(Math.abs(parseFloat(v)))); };
+  var PR = { k: 'pr', ask: 'POLAR COORDINATES RADIUS PR ?', type: 'num', pol: true }, PA = { k: 'pa', ask: 'POLAR COORDINATES ANGLE PA ?', type: 'num', pol: true };
   var mTxt = function (v) { return v ? String(v).split(/[\s,]+/).filter(Boolean).map(function (m) { return 'M' + m.replace(/^M/i, ''); }).join(' ') : ''; };
 
   var PATH = {
-    L:   { key: 'L', title: 'STRAIGHT LINE L', steps: [XY, RC, F, M], build: function (v) { return join(['L', v.xyz, v.rc, feedTxt(v.f), mTxt(v.m)]); } },
+    /* .polar: the P key during COORDINATES ? turns the block into its polar form (manual 6.5: L+P = LP, C+P = CP, CT+P = CTP; CC is Cartesian only) */
+    L:   { key: 'L', title: 'STRAIGHT LINE L', polar: 'LP', steps: [XY, RC, F, M], build: function (v) { return join(['L', v.xyz, v.rc, feedTxt(v.f), mTxt(v.m)]); } },
     CC:  { key: 'CC', title: 'CIRCLE CENTER CC', steps: [{ k: 'xyz', ask: 'COORDINATES ? (ENT = LAST POSITION)', type: 'coords', opt: true }], build: function (v) { return join(['CC', v.xyz]); } },
-    C:   { key: 'C', title: 'CIRCULAR ARC C', steps: [XY, DR, RC, F, M], build: function (v) { return join(['C', v.xyz, v.dr, v.rc, feedTxt(v.f), mTxt(v.m)]); } },
+    C:   { key: 'C', title: 'CIRCULAR ARC C', polar: 'CP', steps: [XY, DR, RC, F, M], build: function (v) { return join(['C', v.xyz, v.dr, v.rc, feedTxt(v.f), mTxt(v.m)]); } },
     CR:  { key: 'CR', title: 'CIRCULAR ARC CR', steps: [XY, { k: 'r', ask: 'CIRCLE RADIUS R ? (- = MORE THAN 180°)', type: 'num' }, DR, RC, F, M],
            build: function (v) { return join(['CR', v.xyz, 'R' + sg(v.r), v.dr, v.rc, feedTxt(v.f), mTxt(v.m)]); } },
-    CT:  { key: 'CT', title: 'TANGENTIAL ARC CT', steps: [XY, RC, F, M], build: function (v) { return join(['CT', v.xyz, v.rc, feedTxt(v.f), mTxt(v.m)]); } },
+    CT:  { key: 'CT', title: 'TANGENTIAL ARC CT', polar: 'CTP', steps: [XY, RC, F, M], build: function (v) { return join(['CT', v.xyz, v.rc, feedTxt(v.f), mTxt(v.m)]); } },
     RND: { key: 'RND', title: 'CORNER ROUNDING RND', steps: [{ k: 'r', ask: 'ROUNDING-OFF RADIUS ?', type: 'num' }, { k: 'f', ask: 'FEED RATE F=? (THIS BLOCK ONLY)', type: 'feed' }],
            build: function (v) { return join(['RND', 'R' + String(v.r).replace(/^\+/, ''), feedTxt(v.f)]); } },
     CHF: { key: 'CHF', title: 'CHAMFER CHF', steps: [{ k: 'l', ask: 'CHAMFER SIDE LENGTH ?', type: 'num' }, { k: 'f', ask: 'FEED RATE F=? (THIS BLOCK ONLY)', type: 'feed' }],
            build: function (v) { return join(['CHF', String(v.l).replace(/^\+/, ''), feedTxt(v.f)]); } },
-    LP:  { key: 'LP', title: 'POLAR LINE LP', steps: [{ k: 'pr', ask: 'POLAR COORDINATES RADIUS PR ?', type: 'num', opt: true }, { k: 'pa', ask: 'POLAR COORDINATES ANGLE PA ?', type: 'num', opt: true }, RC, F, M],
-           build: function (v) { return join(['LP', v.pr ? 'PR' + sg(v.pr) : '', v.pa ? 'PA' + sg(v.pa) : '', v.rc, feedTxt(v.f), mTxt(v.m)]); } },
-    CP:  { key: 'CP', title: 'POLAR ARC CP', steps: [{ k: 'pa', ask: 'POLAR COORDINATES ANGLE PA ? (I = INCREMENTAL)', type: 'text' }, { k: 'iz', ask: 'HELIX: INCREMENTAL Z ? (ENT = NONE)', type: 'num', opt: true }, DR, RC, F, M],
-           build: function (v) { var pa = String(v.pa || '').toUpperCase().replace(/\s+/g, ''); pa = /^I/.test(pa) ? 'IPA' + sg(pa.replace(/^IP?A?/, '')) : 'PA' + sg(pa.replace(/^P?A?/, ''));
-             return join(['CP', pa, v.iz ? 'IZ' + sg(v.iz) : '', v.dr, v.rc, feedTxt(v.f), mTxt(v.m)]); } },
+    LP:  { key: 'LP', title: 'POLAR LINE LP', steps: [{ k: 'pr', ask: PR.ask, type: 'num', pol: true, opt: true }, { k: 'pa', ask: PA.ask, type: 'num', pol: true, opt: true }, RC, F, M],
+           build: function (v) { return join(['LP', v.pr ? pw('PR', v.pr) : '', v.pa ? pw('PA', v.pa) : '', v.rc, feedTxt(v.f), mTxt(v.m)]); } },
+    CP:  { key: 'CP', title: 'POLAR ARC CP', steps: [PA, { k: 'iz', ask: 'HELIX: INCREMENTAL Z ? (ENT = NONE)', type: 'num', opt: true }, DR, RC, F, M],
+           build: function (v) { return join(['CP', pw('PA', v.pa), v.iz ? 'IZ' + sg(v.iz) : '', v.dr, v.rc, feedTxt(v.f), mTxt(v.m)]); } },
+    /* CTP: polar radius + polar angle of the arc end point (manual 6.5, p. 153); RC/F/M as in CT */
+    CTP: { key: 'CTP', title: 'TANGENTIAL ARC CTP', steps: [PR, PA, RC, F, M],
+           build: function (v) { return join(['CTP', pw('PR', v.pr), pw('PA', v.pa), v.rc, feedTxt(v.f), mTxt(v.m)]); } },
     APPR: { key: 'APPR\nDEP', title: 'CONTOUR APPROACH APPR', steps: [
              { k: 'form', ask: 'APPROACH: LT / LN / CT / LCT ?', type: 'choice', opts: ['LT', 'LN', 'CT', 'LCT'], dflt: 'LCT' },
              { k: 'xyz', ask: 'COORDINATES OF THE FIRST CONTOUR POINT ?', type: 'coords' },

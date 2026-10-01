@@ -528,6 +528,16 @@ console.log('Touch probe cycles (iTNC 530 manual ch. 13/15/19; results Q150-Q162
   ok(TNC_DIALOGS.probeList().every(c => { const s = TNC_DIALOGS.probeSpec(c.num), v = {}; s.steps.forEach(t => v[t.k] = t.dflt); return !R(s.build(v)).errors.length; }), 'dialog: every TCH PROBE spec with its example values runs clean');
 }
 
+console.log('Coordinate dialog — P turns L / C / CT into LP / CP / CTP (6.5); I = incremental polar words');
+{ const D = TNC_DIALOGS.PATH, hdr = 'BEGIN PGM P MM\nBLK FORM 0.1 Z X+0 Y+0 Z-20\nBLK FORM 0.2 X+100 Y+100 Z+0\nTOOL DEF 1 L+0 R+5\nTOOL CALL 1 Z S2000\nL Z+2 R0 FMAX M3\n';
+  ok(D.L.polar === 'LP' && D.C.polar === 'CP' && D.CT.polar === 'CTP' && !D.CC.polar && !D.CR.polar, 'P key targets: L→LP, C→CP, CT→CTP; CC (pole: Cartesian only) and CR have none');
+  const lp = D.LP.build({ pr: '30', pa: '0', rc: 'R0', f: '300' }), lpi = D.LP.build({ pa: 'I60' }), cp = D.CP.build({ pa: 'I-90', dr: 'DR-' }), ctp = D.CTP.build({ pr: '30', pa: '30' });
+  ok(lp === 'LP PR+30 PA+0 R0 F300' && lpi === 'LP IPA+60' && cp === 'CP IPA-90 DR-' && ctp === 'CTP PR+30 PA+30', 'polar words: ' + [lp, lpi, cp, ctp].join(' | '));
+  const r = TNC.run(hdr + 'CC X+40 Y+35\nL X+0 Y+35 F250\n' + D.LP.build({ pr: '25', pa: '120' }) + '\n' + ctp + '\nEND PGM P MM');
+  const lm = r.moves[r.moves.length - 1];
+  ok(!r.errors.length && lm.kind === 'arc' && near(lm.to.x, 40 + 30 * Math.cos(Math.PI / 6)) && near(lm.to.y, 35 + 15), 'manual p. 153 example built by the dialogs: LP PR+25 PA+120, CTP PR+30 PA+30 ends at the pole + 30 at 30 deg');
+}
+
 console.log('TNC 430 (operator\'s machine) — limits, arc tolerance 0.006, F cap 1500, cycle 19 tilts the head');
 { const M430 = { arcTol: 0.006, pocketK: 1.1, fMax: 1500, accel: 0.4, sMax: 2500, rapid: { x: 9000, y: 10000, z: 5000, a: 4000, b: 1000 },
     axes: ['X', 'Y', 'Z', 'B', 'A'], limits: { B: [-180.1, 0.1], A: [-195, 15] } };
