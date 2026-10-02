@@ -4,7 +4,7 @@
      STATUS ∈ todo | doing | blocked(<reason>) | done | dropped. Update this file in the same commit as the work. -->
 
 META
-- updated: 2026-09-30
+- updated: 2026-10-02
 - branch: main (fullstack merged)
 - entry: user says "continue" → read CLAUDE.md, then this file, then act on the top `todo` item in BACKLOG whose `blocked` is empty
 
@@ -61,7 +61,7 @@ META
 | T7 | core.js cycleThread | no error for M4 / spindle off on 262/263/264/267 |
 | P1–P7 | core.js TCH PROBE | MP 6140 = 2 mm; Q261 tip = Q261 − stylus R; Q305=0 keeps cycle 7 on top; Q303=0 tables not simulated; presets translation-only; touch order from the figures; 419/Q381 write no results |
 | V1 | stock.js VICE | jaw axis Y, grip 6, jaw 160×25 — standard guess, not the operator's vice |
-| K1 | ui.js coordinate keypad (wizPad/ck*) | key list is the manual's (inside front cover, p. 66–67, 151, 357); NOT verified: I and −/+ toggle the word being entered, CE twice drops the axis, ACTUAL POSITION with no axis selected fills X Y Z (CC: X Y) = the MOD %00111 case, IV = B / V = A (machines.js order), CTP asks RC like CT, PC-keyboard bindings (#, DELETE, ⇧ENTER) are sim-only |
+| K1 | ui.js coordinate keypad (wizPad/ck*), dialogs.js PAD | key list is the manual's (inside front cover, p. 66–67, 151, 357); NOT verified: END takes the typed entry before ending the dialog (p. 67 only says "end the dialog immediately"; p. 68 END = accept is about editing stored words), I and −/+ toggle the word being entered, I after a word with its value starts the next word (x10iy5 = X+10 IY+5), CE twice drops the axis, ACTUAL POSITION with no axis selected fills X Y Z (CC: X Y) = the MOD %00111 case, IV = B / V = A (machines.js order), CTP asks RC like CT, P during APPR/DEP coordinates → APPR P… / DEP PLCT keeping the form (block forms are the manual's, p. 155–157; the dialog route and the PLT/PLN forms rest on p. 134 "Cartesian or polar" only), PC-keyboard bindings (#, DELETE, ⇧ENTER) are sim-only |
 | V2 | stock.js HEAD_LEN | tilted head = 300 mm cylinder of holder radius |
 
 ## ASK — waiting on the user

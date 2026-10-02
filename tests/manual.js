@@ -538,6 +538,47 @@ console.log('Coordinate dialog — P turns L / C / CT into LP / CP / CTP (6.5); 
   ok(!r.errors.length && lm.kind === 'arc' && near(lm.to.x, 40 + 30 * Math.cos(Math.PI / 6)) && near(lm.to.y, 35 + 15), 'manual p. 153 example built by the dialogs: LP PR+25 PA+120, CTP PR+30 PA+30 ends at the pole + 30 at 30 deg');
 }
 
+console.log('Coordinate dialog — keypad words (PC keyboard + soft keys), whole polar words, APPR/DEP polar (6.3 p. 134, examples p. 155-157)');
+{ const D = TNC_DIALOGS.PATH, K = TNC_DIALOGS.PAD, AX = ['X', 'Y', 'Z'];
+  /* the PC keyboard: each character typed at the end of the line; null = the browser types it as is (ui.js wizKey) */
+  const typed = (keys, coords) => [...keys].reduce((l, ch) => { const n = K.type(l, ch, coords, AX); return n == null ? l + ch : n; }, '');
+  const coordsOf = keys => K.coords(typed(keys, true), AX);
+  ok(coordsOf('x10iy5') === 'X+10 IY+5', 'x10iy5 (no spaces) -> X+10 IY+5, got ' + coordsOf('x10iy5'));
+  ok(coordsOf('x10 iy5') === 'X+10 IY+5' && coordsOf('ix10y-5') === 'IX+10 Y-5' && coordsOf('xi10') === 'IX+10' && coordsOf('10i5') === 'X+10 IY+5',
+     'x10 iy5 / ix10y-5 / xi10 / 10i5 -> ' + ['x10 iy5', 'ix10y-5', 'xi10', '10i5'].map(coordsOf).join(' | '));
+  /* the on-screen keys: X 1 0 I Y 5 and I before the axis */
+  let l = ''; l = K.axis(l, 'X'); l = K.digit(l, '1'); l = K.digit(l, '0'); l = K.inc(l, true); l = K.axis(l, 'Y'); l = K.digit(l, '5');
+  let l2 = ''; l2 = K.inc(l2, true); l2 = K.axis(l2, 'X'); l2 = K.digit(l2, '7'); l2 = K.sign(l2); l2 = K.inc(l2, true); l2 = K.inc(l2, true);
+  ok(K.coords(l, AX) === 'X+10 IY+5' && l2 === 'IX-7 ' && K.inc('X', true) === 'IX' && K.inc('IX', true) === 'X', 'soft keys X 1 0 I Y 5 -> ' + K.coords(l, AX) + '; I X 7 -/+ I I -> "' + l2 + '"; I before the value toggles');
+  /* PR / PA questions: one word, typed whole or bare */
+  const pol = ['-90', 'i-90', 'PA-90', 'IPA+60', 'pa+q5'].map(k => typed(k, false));
+  ok(pol.join(' ') === '-90 I-90 PA-90 IPA+60 PA+q5', 'PA question typing: ' + pol.join(' | '));
+  ok(pol.every(v => K.polar(v, 'PA') === '') && typed('PR+25', false) === 'PR+25' && typed('IPR-5', false) === 'IPR-5' && K.polar('IPR-5', 'PR') === '',
+     'whole and bare polar words pass the PR/PA check');
+  ok(K.polar('PR+25', 'PA') !== '' && K.polar('I+PA60', 'PA') !== '' && K.polar('-PA90', 'PA') !== '', 'PR on the PA question and the old broken forms are refused');
+  const cp = D.CP.build({ pa: typed('IPA+60', false), dr: 'DR+' }), lp = D.LP.build({ pr: typed('IPR-5', false), pa: typed('PA-90', false) });
+  ok(cp === 'CP IPA+60 DR+' && lp === 'LP IPR-5 PA-90', 'built: ' + cp + ' | ' + lp);
+  /* APPR / DEP polar */
+  ok(D.APPR.polar === 'APPRP' && D.DEP.polar === 'DEPP' && D.DEP.polarIf({ form: 'LCT' }) === '' && ['LT', 'LN', 'CT'].every(f => D.DEP.polarIf({ form: f })),
+     'P targets: APPR -> APPR P.. (all forms), DEP -> DEP PLCT only');
+  ok(Object.keys(D).filter(k => D[k].polar).every(k => { const s = D[k].steps, t = D[D[k].polar].steps, i = s.findIndex(x => x.type === 'coords');
+    return t[i] && t[i].pol && s.slice(0, i).every((x, j) => x.k === t[j].k); }), 'every polar spec has its PR/PA step where the coordinates step was (answers so far kept)');
+  const aplct = D.APPRP.build({ form: 'LCT', pr: '45', pa: '180', r: '5', rc: 'RL', f: '250' }), dplct = D.DEPP.build({ form: 'LCT', pr: '60', pa: '180', r: '5', f: '1000' });
+  const apct = D.APPRP.build({ form: 'CT', pr: '32', pa: '-180', cca: '180', r: '2', rc: 'RL', f: '100' });
+  ok(aplct === 'APPR PLCT PR+45 PA+180 R+5 RL F250' && dplct === 'DEP PLCT PR+60 PA+180 R+5 F1000' && apct === 'APPR PCT PR+32 PA-180 CCA180 R+2 RL F100', 'built: ' + [aplct, dplct, apct].join(' | '));
+  const same = (a, b) => a.moves.length === b.moves.length && a.moves.every((m, i) => !m.to || (near(m.to.x, b.moves[i].to.x) && near(m.to.y, b.moves[i].to.y) && near(m.to.z, b.moves[i].to.z)));
+  const lpo = P.LINEARPO.replace('APPR PLCT PR+45 PA+180 R5 RL F250', aplct).replace('DEP PLCT PR+60 PA+180 R5 F1000', dplct);
+  const hx = P.HELIX.replace('APPR PCT PR+32 PA-180 CCA180 R+2 RL F100', apct);
+  const r1 = TNC.run(lpo), r0 = TNC.run(P.LINEARPO), r2 = TNC.run(hx), r3 = TNC.run(P.HELIX);
+  ok(lpo !== P.LINEARPO && !r1.errors.length && same(r1, r0), 'LINEARPO (p. 155) with the dialog-built APPR PLCT / DEP PLCT runs and moves exactly as the manual blocks');
+  ok(P.HELIX.includes('\n' + apct + '\n') && !r2.errors.length && same(r2, r3), 'HELIX (p. 156): the dialog-built APPR PCT is the manual block character for character, and runs');
+  for (const f of ['LT', 'LN']) {   // PLT / PLN: polar by p. 134 ("position data ... Cartesian or polar"); no manual example
+    const b = D.APPRP.build({ form: f, pr: '45', pa: '180', len: '10', rc: 'RL', f: '250' }), cart = P.LINEARPO.replace('APPR PLCT PR+45 PA+180 R5 RL F250', 'APPR ' + f + ' X+5 Y+50 LEN10 RL F250');
+    const rp = TNC.run(P.LINEARPO.replace('APPR PLCT PR+45 PA+180 R5 RL F250', b)), rc = TNC.run(cart);
+    ok(b === 'APPR P' + f + ' PR+45 PA+180 LEN10 RL F250' && !rp.errors.length && same(rp, rc), b + ' runs like APPR ' + f + ' X+5 Y+50 (the same point)');
+  }
+}
+
 console.log('TNC 430 (operator\'s machine) — limits, arc tolerance 0.006, F cap 1500, cycle 19 tilts the head');
 { const M430 = { arcTol: 0.006, pocketK: 1.1, fMax: 1500, accel: 0.4, sMax: 2500, rapid: { x: 9000, y: 10000, z: 5000, a: 4000, b: 1000 },
     axes: ['X', 'Y', 'Z', 'B', 'A'], limits: { B: [-180.1, 0.1], A: [-195, 15] } };

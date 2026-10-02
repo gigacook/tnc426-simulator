@@ -1546,7 +1546,7 @@ function wizAccept(raw,skip){
     else if(skip&&d!=null&&!st.opt) v=d;
   }
   if(v!==''){
-    if(st.pol){ if(!/^I?(?:P[RA])?[+-]?(?:\d+\.?\d*|\.\d+|Q\d+)$/i.test(v)){ say('POLAR COORDINATE: A NUMBER OR Q PARAMETER, I = INCREMENTAL'); dlgIn.select(); return; } }
+    if(st.pol){ const e=DLG.PAD.polar(v,st.k.toUpperCase()); if(e){ say(e); dlgIn.select(); return; } }
     else if(st.type==='num'||st.type==='tool'){ if(!NUMRE.test(v)){ say('ENTER A NUMBER (OR Q PARAMETER)'); dlgIn.select(); return; } }
     else if(st.type==='choice'){ const u=v.toUpperCase(); v=st.opts.find(o=>o===u||o.replace(/[^A-Z0-9]/g,'')===u.replace(/[^A-Z0-9]/g,''))||(d!=null?d:st.opts[0]); }
     else if(st.type==='feed'){ const u=v.toUpperCase().replace(/\s+/g,''); v=/^F?MAX$/.test(u)?'FMAX':/^F?AUTO$/.test(u)?'FAUTO':u.replace(/^F/,''); if(!/^(FMAX|FAUTO)$/.test(v)&&!NUMRE.test(v)){ say('FEED RATE: A NUMBER, F MAX OR F AUTO'); dlgIn.select(); return; } }
@@ -1556,23 +1556,16 @@ function wizAccept(raw,skip){
   S.wiz.v[st.k]=v; S.wiz.i++;
   if(S.wiz.i>=S.wiz.spec.steps.length) wizFinish(); else wizShow();
 }
-/* "X10 Y-5", "x+10y-5", "10 -5" (bare numbers fill X, Y, Z in turn), "IX5", "I5", Q parameters */
-function wizCoords(v){
-  const axes=(M().axes||['X','Y','Z']), out=[], used=new Set(); let m, rest=v.toUpperCase();
-  const re=/(I?)([XYZABC])\s*([+-]?(?:\d+\.?\d*|\.\d+|Q\d+))/g;
-  while((m=re.exec(rest))){ const a=m[2]; if(!axes.includes(a)&&!'XYZ'.includes(a)) return null; used.add(a); out.push(m[1]+a+(/^[+-]/.test(m[3])?m[3]:'+'+m[3])); }
-  rest=rest.replace(re,' ').trim();
-  if(rest){ const nums=rest.split(/\s+/); let ai=0;
-    for(const t of nums){ const inc=/^I/.test(t), n=t.replace(/^I/,''); if(!NUMRE.test(n)) return null; while(ai<3&&used.has('XYZ'[ai])) ai++; if(ai>=3) return null;
-      out.push((inc?'I':'')+'XYZ'[ai]+(/^[+-]/.test(n)?n:'+'+n)); used.add('XYZ'[ai]); ai++; } }
-  return out.length?out.join(' '):null;
-}
+/* the COORDINATES ? answer -> block words: TNC_DIALOGS.PAD.coords (dialogs.js) */
+function wizCoords(v){ return DLG.PAD.coords(v,M().axes||['X','Y','Z']); }
 /* ---- the coordinate keypad (TNC 426/430 keyboard, manual inside front cover: "Coordinate axes and numbers"):
    axis keys X Y Z IV V, 0-9, decimal point, -/+, P polar, I incremental, Q parameter, actual-position capture,
    NO ENT, ENT, END, CE, DEL. Every key works on the word being entered = the last word on the line.
    The PC keyboard does the same: axis letters, I, P, + -, # = actual position, DELETE = CE, SHIFT+ENTER = NO ENT.
-   NOT verified against a control (key images only in the manual): I and -/+ toggle the word being entered;
-   CE pressed twice also drops the axis; "actual position" = the simulated tool position (DRO). ---- */
+   NOT verified against a control (key images only in the manual): I and -/+ toggle the word being entered,
+   I after a word that has its value starts the next word (X 1 0 I Y 5 = X+10 IY+5, as typing x10iy5);
+   CE pressed twice also drops the axis; "actual position" = the simulated tool position (DRO).
+   PR / PA questions take bare (-90, I-90) and whole words (PA-90, IPA+60). ---- */
 const padStep=st=>!!st&&(st.type==='coords'||!!st.pol);
 function wizPad(st){
   const C=st.type==='coords', ax=M().axes||['X','Y','Z'], roman=['IV','V'];
@@ -1582,35 +1575,30 @@ function wizPad(st){
     '12345678'.split('').map(d=>[d,'wd:'+d]),
     [['9','wd:9'],['0','wd:0'],['.','wd:.'],['−/+','wsign'],C?['ACTUAL\nPOSITION','wact']:['',''],['CE','wce'],['',''],['','']]);
 }
-function cwGet(){ const v=dlgIn.value, m=v.match(/^(.*?)(\S*)$/), w=m[2].toUpperCase(), p=w.match(/^(I?)([XYZABC]?)([+-]?)(.*)$/);
-  return {v, head:m[1], w, i:p[1], a:p[2], s:p[3], n:p[4]}; }
-function cwSet(head,w){ dlgIn.value=head+w; dlgIn.focus(); const L=dlgIn.value.length; dlgIn.setSelectionRange(L,L); }
-function ckAxis(a){ if(!S.wiz) return; const c=cwGet();
-  if(!c.w) cwSet(c.head,a);                                                  // a new word
-  else if(c.i&&!c.a&&!c.s&&!c.n) cwSet(c.head,'I'+a);                         // I pressed first: IX
-  else if(c.a&&!c.n) cwSet(c.head,c.i+a+c.s);                                // axis chosen, no value yet: change the axis
-  else cwSet(c.v+' ',a); }
-function ckDigit(d){ if(!S.wiz) return; const c=cwGet(); if(d==='.'&&(/[.Q]/.test(c.n))) return; cwSet(c.head,c.w+d); }
-function ckSign(force){ if(!S.wiz) return; const c=cwGet(); cwSet(c.head,c.i+c.a+(force||(c.s==='-'?'+':'-'))+c.n); }
-function ckInc(){ if(!S.wiz) return; const c=cwGet();
-  if(c.i&&!c.a&&!c.s&&!c.n) cwSet(c.head,''); else cwSet(c.head,(c.i?'':'I')+c.a+c.s+c.n); }
-function ckQ(){ if(!S.wiz) return; const c=cwGet(); cwSet(c.head,c.i+c.a+c.s+'Q'); }   // Q in place of a number (manual 10.2): "X+Q10"
-function ckCE(){ if(!S.wiz) return; const c=cwGet();                         // CE: erase the number; once more: the word
-  if(c.n||c.s) cwSet(c.head,c.i+c.a); else cwSet(c.head.replace(/\s+$/,''),''); }
+/* the word logic is TNC_DIALOGS.PAD (dialogs.js, tested in tests/manual.js); these put its result on the line */
+function cwSet(line){ dlgIn.value=line; dlgIn.focus(); const L=dlgIn.value.length; dlgIn.setSelectionRange(L,L); }
+function ckAxis(a){ if(S.wiz) cwSet(DLG.PAD.axis(dlgIn.value,a)); }
+function ckDigit(d){ if(S.wiz) cwSet(DLG.PAD.digit(dlgIn.value,d)); }
+function ckSign(force){ if(S.wiz) cwSet(DLG.PAD.sign(dlgIn.value,force)); }
+function ckInc(){ if(S.wiz) cwSet(DLG.PAD.inc(dlgIn.value,wizStep().type==='coords')); }
+function ckQ(){ if(S.wiz) cwSet(DLG.PAD.q(dlgIn.value)); }
+function ckCE(){ if(S.wiz) cwSet(DLG.PAD.ce(dlgIn.value)); }
 function ckPolar(){ if(!S.wiz) return; const sp=S.wiz.spec, t=sp.polar&&DLG&&DLG.PATH[sp.polar];
   if(wizStep().type!=='coords') return;
   if(!t){ say(sp.key==='CC'?'P: THE POLE CC IS ENTERED IN CARTESIAN COORDINATES ONLY':'P: NO POLAR FORM OF '+sp.title); return; }
-  S.wiz={spec:t, i:0, v:{}}; wizShow(); say('POLAR COORDINATES — '+t.title); }
+  const no=sp.polarIf&&sp.polarIf(S.wiz.v); if(no){ say(no); return; }
+  S.wiz={spec:t, i:S.wiz.i, v:S.wiz.v}; wizShow();                       // answers so far are kept (APPR/DEP: the form)
+  say('POLAR COORDINATES — '+(S.wiz.v.form?t.key.split(' ')[0]+' P'+S.wiz.v.form:t.title)); }
 /* the simulator's "actual position" = the tool position at the current point of the run (the DRO) */
 function actPos(){ const p=S.pos||{x:0,y:0,z:0}, s=S.seg, o={X:p.x,Y:p.y,Z:p.z}, u=s?clamp((S.t-s.t0)/Math.max(1e-9,s.t1-s.t0),0,1):0;
   (M().axes||[]).filter(a=>/[ABC]/.test(a)).forEach(a=>{ const k=a.toLowerCase(); o[a]=s&&s.a&&s.a[k]!=null?s.a[k]+((s.b[k]||0)-s.a[k])*u:0; });
   return o; }
 const fmtPos=n=>(n<-5e-4?'-':'+')+(+Math.abs(n).toFixed(3));
-function ckActual(){ if(!S.wiz||wizStep().type!=='coords') return; const c=cwGet(), P=actPos();
-  if(c.a&&!c.n){ cwSet(c.head,c.a+fmtPos(P[c.a])); say('ACTUAL POSITION '+c.a+fmtPos(P[c.a])); return; }   // the selected axis
+function ckActual(){ if(!S.wiz||wizStep().type!=='coords') return; const c=DLG.PAD.word(dlgIn.value), P=actPos();
+  if(c.a&&!c.n){ cwSet(c.head+c.a+fmtPos(P[c.a])); say('ACTUAL POSITION '+c.a+fmtPos(P[c.a])); return; }   // the selected axis
   const have=new Set((c.v.toUpperCase().match(/I?[XYZABC]/g)||[]).map(x=>x.slice(-1)));                        // no axis selected: the missing ones
   const add=(S.wiz.spec.key==='CC'?['X','Y']:['X','Y','Z']).filter(a=>!have.has(a)).map(a=>a+fmtPos(P[a]));
-  if(!add.length) return; cwSet((c.v.trim()?c.v.trim()+' ':''),add.join(' ')); say('ACTUAL POSITION '+add.join(' ')); }
+  if(!add.length) return; cwSet((c.v.trim()?c.v.trim()+' ':'')+add.join(' ')); say('ACTUAL POSITION '+add.join(' ')); }
 function wizKey(e){
   if(!S.wiz||e.ctrlKey||e.metaKey||e.altKey) return false;
   const k=e.key;
@@ -1621,16 +1609,13 @@ function wizKey(e){
   if(k==='Delete'){ ckCE(); return true; }
   if(k==='#'&&st.type==='coords'){ ckActual(); return true; }
   const L=dlgIn.value.length; if(dlgIn.selectionStart!==L||dlgIn.selectionEnd!==L||k.length!==1) return false;   // caret inside the line: plain text editing
-  const K=k.toUpperCase();
-  if(st.type==='coords'&&(M().axes||['X','Y','Z']).includes(K)){ ckAxis(K); return true; }
-  if(K==='I'){ ckInc(); return true; }
-  if(K==='P'&&st.type==='coords'){ ckPolar(); return true; }
-  if(k==='+'||k==='-'){ ckSign(k); return true; }
-  return false;
+  if(k.toUpperCase()==='P'&&st.type==='coords'){ ckPolar(); return true; }
+  const nl=DLG.PAD.type(dlgIn.value,k,st.type==='coords',M().axes||['X','Y','Z']);   // axis letters, I, + - (dialogs.js PAD)
+  if(nl==null) return false; cwSet(nl); return true;
 }
 function wizEnd(){
   if(!S.wiz) return;
-  if(dlgIn.value.trim()){ const i0=S.wiz.i; wizAccept(dlgIn.value); if(!S.wiz||S.wiz.i===i0) return; }   // END takes the entry on the line first (manual p. 67)
+  if(dlgIn.value.trim()){ const i0=S.wiz.i; wizAccept(dlgIn.value); if(!S.wiz||S.wiz.i===i0) return; }   // END takes the entry on the line first — NOT VERIFIED: p. 67 says only "end the dialog immediately" (CONTINUE OPEN K1)
   while(S.wiz&&S.wiz.i<S.wiz.spec.steps.length){
     const st=wizStep(), d=st.dflt!=null&&st.dflt!==''?st.dflt:null;
     if(d==null&&!(st.opt||st.type==='feed'||st.type==='m'||st.type==='choice')){ wizShow(); say('ENTRY REQUIRED — '+st.ask); return; }

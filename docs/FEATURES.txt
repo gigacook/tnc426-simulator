@@ -89,14 +89,33 @@ PROGRAMMING DIALOGS AND UI (dialogs.js, viz.js, i18n.js, ui.js):
   - PRG EDIT mode has one-question-per-step dialogs for CYCL DEF, TOOL DEF,
     TOOL CALL and the path functions, in place of typing raw Klartext only.
   - COORDINATES ? has the 426/430 coordinate keypad (manual inside front
-    cover): axis keys X Y Z (430: IV = B, V = A), 0-9, decimal point, -/+,
-    I incremental, P polar (L -> LP, C -> CP, CT -> CTP; CC stays Cartesian),
-    Q parameter, actual-position capture (the simulated DRO position), CE,
-    NO ENT, ENT, END (takes the entry on the line), DEL. Same on the PC
-    keyboard: axis letters, I, P, + -, # = actual position, DELETE = CE,
-    SHIFT+ENTER = NO ENT, END, ESC = DEL. Polar PR/PA questions get the same
-    keypad without axes. Key semantics beyond the manual's key list (toggling
-    I and -/+, CE twice) are not verified against a control (CONTINUE OPEN K1).
+    cover, p. 66-67): axis keys X Y Z IV V, 0-9, decimal point, -/+,
+    I incremental, P polar, Q parameter, actual-position capture (the
+    simulated DRO position), CE, NO ENT, ENT, END, DEL.
+    P gives the polar form: L -> LP, C -> CP, CT -> CTP (6.5), APPR -> APPR
+    PLT / PLN / PCT / PLCT and DEP LCT -> DEP PLCT (6.3 p. 134: position data
+    Cartesian or polar; examples p. 155-157); CC stays Cartesian (p. 151);
+    DEP LT / LN / CT have no position, so no polar form.
+    PR / PA questions get the same keypad without axes, and take bare
+    (-90, I-90) and whole words (PA-90, IPA+60, PR+25, IPR-5).
+    The PC keyboard does the same: axis letters, I, P, + -; x10iy5 typed
+    without spaces gives X+10 IY+5.
+    NOT VERIFIED against a 426/430 or the programming station (CONTINUE
+    OPEN K1), i.e. simulator choices, not manual facts:
+      - 430 key mapping IV = B, V = A (machines.js axis order);
+      - PC shortcuts # = actual position, DELETE = CE, SHIFT+ENTER = NO ENT,
+        ESC = DEL (simulator-only; the control has its own keys);
+      - END takes the entry typed on the line before ending the dialog
+        (manual p. 67 says only "End the dialog immediately"; the "press
+        END to accept" text on p. 68 is about editing words in a stored
+        block, not dialog entry);
+      - I and -/+ toggle the word being entered; I after a word with its
+        value starts the next word;
+      - CE pressed twice also drops the axis;
+      - ACTUAL POSITION with no axis selected fills X Y Z (CC: X Y);
+      - the route to APPR/DEP polar forms through P during the coordinates;
+        APPR PLT / PLN have no manual example (they follow from p. 134 only;
+        PLCT, PCT and DEP PLCT are the manual's block forms).
   - Tool list opens in the machine view (key T). Keys: 1-4 operating mode,
     5-9 speed, F focus view (hides the right pane).
   - Right pane tabs: Diagnostics, Reference (keys, cycles, tools, machine,

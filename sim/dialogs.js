@@ -32,9 +32,20 @@ var TNC_DIALOGS = (function () {
     var s = /^-/.test(v) ? '-' : '+'; v = v.replace(/^[+-]/, ''); return (inc ? 'I' : '') + name + s + (/^Q/.test(v) ? v : String(Math.abs(parseFloat(v)))); };
   var PR = { k: 'pr', ask: 'POLAR COORDINATES RADIUS PR ?', type: 'num', pol: true }, PA = { k: 'pa', ask: 'POLAR COORDINATES ANGLE PA ?', type: 'num', pol: true };
   var mTxt = function (v) { return v ? String(v).split(/[\s,]+/).filter(Boolean).map(function (m) { return 'M' + m.replace(/^M/i, ''); }).join(' ') : ''; };
+  var AFORM = { k: 'form', ask: 'APPROACH: LT / LN / CT / LCT ?', type: 'choice', opts: ['LT', 'LN', 'CT', 'LCT'], dflt: 'LCT' };
+  var DFORM = { k: 'form', ask: 'DEPARTURE: LT / LN / CT / LCT ?', type: 'choice', opts: ['LT', 'LN', 'CT', 'LCT'], dflt: 'LCT' };
+  var ATAIL = [{ k: 'len', ask: 'LEN (LT/LN) ? ENT = NONE', type: 'num', opt: true },
+               { k: 'r', ask: 'RADIUS R (CT/LCT) ? ENT = NONE', type: 'num', opt: true },
+               { k: 'cca', ask: 'CENTER ANGLE CCA (CT) ? ENT = NONE', type: 'num', opt: true },
+               { k: 'rc', ask: 'RADIUS COMP.: RL/RR ?', type: 'choice', opts: ['RL', 'RR', 'R0'], dflt: 'RL' }, F, M];
+  /* p = '' (Cartesian: v.xyz) or 'P' (polar: v.pr, v.pa) */
+  var apprBuild = function (p) { return function (v) { return join(['APPR ' + p + v.form].concat(p ? [pw('PR', v.pr), pw('PA', v.pa)] : [v.xyz],
+    [v.len ? 'LEN' + String(v.len).replace(/^\+/, '') : '', v.cca ? 'CCA' + String(v.cca).replace(/^\+/, '') : '', v.r ? 'R' + sg(v.r) : '', v.rc, feedTxt(v.f), mTxt(v.m)])); }; };
 
   var PATH = {
-    /* .polar: the P key during COORDINATES ? turns the block into its polar form (manual 6.5: L+P = LP, C+P = CP, CT+P = CTP; CC is Cartesian only) */
+    /* .polar: the P key during COORDINATES ? turns the block into its polar form (manual 6.5: L+P = LP, C+P = CP, CT+P = CTP; CC is Cartesian only).
+       The polar spec keeps the answers given so far: its first PR/PA step sits at the index of the coordinates step.
+       .polarIf(v): '' = allowed, else the message why not (DEP LT/LN/CT). */
     L:   { key: 'L', title: 'STRAIGHT LINE L', polar: 'LP', steps: [XY, RC, F, M], build: function (v) { return join(['L', v.xyz, v.rc, feedTxt(v.f), mTxt(v.m)]); } },
     CC:  { key: 'CC', title: 'CIRCLE CENTER CC', steps: [{ k: 'xyz', ask: 'COORDINATES ? (ENT = LAST POSITION)', type: 'coords', opt: true }], build: function (v) { return join(['CC', v.xyz]); } },
     C:   { key: 'C', title: 'CIRCULAR ARC C', polar: 'CP', steps: [XY, DR, RC, F, M], build: function (v) { return join(['C', v.xyz, v.dr, v.rc, feedTxt(v.f), mTxt(v.m)]); } },
@@ -52,21 +63,22 @@ var TNC_DIALOGS = (function () {
     /* CTP: polar radius + polar angle of the arc end point (manual 6.5, p. 153); RC/F/M as in CT */
     CTP: { key: 'CTP', title: 'TANGENTIAL ARC CTP', steps: [PR, PA, RC, F, M],
            build: function (v) { return join(['CTP', pw('PR', v.pr), pw('PA', v.pa), v.rc, feedTxt(v.f), mTxt(v.m)]); } },
-    APPR: { key: 'APPR\nDEP', title: 'CONTOUR APPROACH APPR', steps: [
-             { k: 'form', ask: 'APPROACH: LT / LN / CT / LCT ?', type: 'choice', opts: ['LT', 'LN', 'CT', 'LCT'], dflt: 'LCT' },
-             { k: 'xyz', ask: 'COORDINATES OF THE FIRST CONTOUR POINT ?', type: 'coords' },
-             { k: 'len', ask: 'LEN (LT/LN) ? ENT = NONE', type: 'num', opt: true },
-             { k: 'r', ask: 'RADIUS R (CT/LCT) ? ENT = NONE', type: 'num', opt: true },
-             { k: 'cca', ask: 'CENTER ANGLE CCA (CT) ? ENT = NONE', type: 'num', opt: true },
-             { k: 'rc', ask: 'RADIUS COMP.: RL/RR ?', type: 'choice', opts: ['RL', 'RR', 'R0'], dflt: 'RL' }, F, M],
-           build: function (v) { return join(['APPR ' + v.form, v.xyz, v.len ? 'LEN' + String(v.len).replace(/^\+/, '') : '', v.cca ? 'CCA' + String(v.cca).replace(/^\+/, '') : '', v.r ? 'R' + sg(v.r) : '', v.rc, feedTxt(v.f), mTxt(v.m)]); } },
-    DEP: { key: 'DEP', title: 'CONTOUR DEPARTURE DEP', steps: [
-             { k: 'form', ask: 'DEPARTURE: LT / LN / CT / LCT ?', type: 'choice', opts: ['LT', 'LN', 'CT', 'LCT'], dflt: 'LCT' },
+    /* APPR / DEP (manual 6.3, p. 133-138). "You can enter the position data in absolute or incremental coordinates
+       and in Cartesian or polar coordinates" (p. 134): P during the coordinates gives APPR PLT / PLN / PCT / PLCT and
+       DEP PLCT (block forms from the examples p. 155-157: APPR PLCT, DEP PLCT, APPR PCT; PLT / PLN follow from p. 134 only). DEP LT / LN / CT carry no
+       position, so they have no polar form. */
+    APPR: { key: 'APPR\nDEP', title: 'CONTOUR APPROACH APPR', polar: 'APPRP', steps: [AFORM, { k: 'xyz', ask: 'COORDINATES OF THE FIRST CONTOUR POINT ?', type: 'coords' }].concat(ATAIL), build: apprBuild('') },
+    APPRP: { key: 'APPR P', title: 'CONTOUR APPROACH APPR, POLAR', steps: [AFORM, PR, PA].concat(ATAIL), build: apprBuild('P') },
+    DEP: { key: 'DEP', title: 'CONTOUR DEPARTURE DEP', polar: 'DEPP', polarIf: function (v) { return v.form === 'LCT' ? '' : 'P: DEP ' + v.form + ' HAS NO END POINT — POLAR ONLY AS DEP PLCT'; }, steps: [
+             DFORM,
              { k: 'xyz', ask: 'END POINT (LCT) ? ENT = NONE', type: 'coords', opt: true },
              { k: 'len', ask: 'LEN (LT/LN) ? ENT = NONE', type: 'num', opt: true },
              { k: 'r', ask: 'RADIUS R (CT/LCT) ? ENT = NONE', type: 'num', opt: true },
              { k: 'cca', ask: 'CENTER ANGLE CCA (CT) ? ENT = NONE', type: 'num', opt: true }, F, M],
            build: function (v) { return join(['DEP ' + v.form, v.xyz, v.len ? 'LEN' + String(v.len).replace(/^\+/, '') : '', v.cca ? 'CCA' + String(v.cca).replace(/^\+/, '') : '', v.r ? 'R' + sg(v.r) : '', feedTxt(v.f), mTxt(v.m)]); } },
+    /* DEP PLCT: end point PN in polar coordinates + arc radius R (p. 138; example p. 155: DEP PLCT PR+60 PA+180 R5 F1000) */
+    DEPP: { key: 'DEP P', title: 'CONTOUR DEPARTURE DEP PLCT', steps: [DFORM, PR, PA, { k: 'r', ask: 'RADIUS R ?', type: 'num' }, F, M],
+           build: function (v) { return join(['DEP P' + v.form, pw('PR', v.pr), pw('PA', v.pa), 'R' + sg(v.r), feedTxt(v.f), mTxt(v.m)]); } },
     TOOLDEF: { key: 'TOOL\nDEF', title: 'TOOL DEF', steps: [{ k: 't', ask: 'TOOL NUMBER ?', type: 'num' }, { k: 'l', ask: 'TOOL LENGTH L ?', type: 'num', dflt: '0' }, { k: 'r', ask: 'TOOL RADIUS R ?', type: 'num' }],
            build: function (v) { return 'TOOL DEF ' + String(v.t).replace(/^\+/, '') + ' L' + sg(v.l || 0) + ' R' + sg(v.r); } },
     TOOLCALL: { key: 'TOOL\nCALL', title: 'TOOL CALL', steps: [
@@ -202,6 +214,54 @@ var TNC_DIALOGS = (function () {
         return out.join('\n'); } };
   }
 
-  return { PATH: PATH, GROUPS: GROUPS, cycleList: cycleList, cycleSpec: cycleSpec, probeList: probeList, probeSpec: probeSpec };
+  /* ---- the coordinate keypad as pure functions on the dialog line; ui.js wires the soft keys and the PC keyboard to them.
+     The word being entered = the last word on the line: [I][axis or PR/PA][sign][number or Q…].
+     NOT verified against a control (the manual shows only the keys): I and -/+ act on the word being entered;
+     I after a word that has its value starts the next word (X10 I Y5 = X+10 IY+5); CE twice drops the axis. ---- */
+  var NUMRE = /^[+-]?(?:\d+\.?\d*|\.\d+|Q\d+)$/i;
+  function cword(line) { line = String(line); var m = line.match(/^(.*?)(\S*)$/), w = m[2].toUpperCase(), p = w.match(/^(I?)(P[RA]|[XYZABC])?([+-]?)(.*)$/);
+    return { v: line, head: m[1], w: w, i: p[1], a: p[2] || '', s: p[3], n: p[4] }; }
+  var PAD = {
+    word: cword,
+    axis: function (line, a) { var c = cword(line);
+      if (!c.w) return c.head + a;                                         // a new word
+      if (c.i && !c.a && !c.s && !c.n) return c.head + 'I' + a;            // I pressed first: IX
+      if (c.a && !c.n) return c.head + c.i + a + c.s;                      // axis chosen, no value yet: change the axis
+      return c.v + ' ' + a; },
+    digit: function (line, d) { var c = cword(line); return d === '.' && /[.Q]/.test(c.n) ? c.v : c.head + c.w + d; },
+    sign: function (line, force) { var c = cword(line); return c.head + c.i + c.a + (force || (c.s === '-' ? '+' : '-')) + c.n; },
+    /* coords: true on COORDINATES ? (several words), false on a PR / PA question (one word) */
+    inc: function (line, coords) { var c = cword(line);
+      if (coords && /\d/.test(c.n)) return c.v + ' I';                    // the word has its value: I starts the next word
+      if (c.i && !c.a && !c.s && !c.n) return c.head;                      // a lone I: off again
+      return c.head + (c.i ? '' : 'I') + c.a + c.s + c.n; },
+    q: function (line) { var c = cword(line); return c.head + c.i + c.a + c.s + 'Q'; },   // Q in place of a number (manual 10.2): "X+Q10"
+    ce: function (line) { var c = cword(line); return c.n || c.s ? c.head + c.i + c.a : c.head.replace(/\s+$/, ''); },   // the number; once more: the word
+    /* one PC-keyboard character typed at the end of the line: the new line, or null = an ordinary character */
+    type: function (line, ch, coords, axes) { var K = String(ch).toUpperCase();
+      if (coords && (axes || ['X', 'Y', 'Z']).indexOf(K) >= 0) return PAD.axis(line, K);
+      if (K === 'I') return PAD.inc(line, coords);
+      if (ch === '+' || ch === '-') return PAD.sign(line, ch);
+      return null; },
+    /* the COORDINATES ? answer -> block words, or null: "X10 Y-5", "x+10y-5", "10 -5" (bare numbers fill X, Y, Z in turn),
+       "IX5", "I5", Q parameters; axes = the machine's axes (A / B only where it has them) */
+    coords: function (v, axes) {
+      axes = axes || ['X', 'Y', 'Z']; var out = [], used = {}, m, rest = String(v).toUpperCase(), ai = 0;
+      var re = /(I?)([XYZABC])\s*([+-]?(?:\d+\.?\d*|\.\d+|Q\d+))/g;
+      while ((m = re.exec(rest))) { var a = m[2]; if (axes.indexOf(a) < 0 && 'XYZ'.indexOf(a) < 0) return null; used[a] = 1; out.push(m[1] + a + (/^[+-]/.test(m[3]) ? m[3] : '+' + m[3])); }
+      rest = rest.replace(re, ' ').trim();
+      if (rest) { var nums = rest.split(/\s+/);
+        for (var k = 0; k < nums.length; k++) { var t = nums[k], inc = /^I/.test(t), n = t.replace(/^I/, '');
+          if (!NUMRE.test(n)) return null; while (ai < 3 && used['XYZ'[ai]]) ai++; if (ai >= 3) return null;
+          out.push((inc ? 'I' : '') + 'XYZ'[ai] + (/^[+-]/.test(n) ? n : '+' + n)); used['XYZ'[ai]] = 1; ai++; } }
+      return out.length ? out.join(' ') : null; },
+    /* a PR / PA answer: "-90", "I-90", "PA-90", "IPA+60", "Q5", "IPR-Q5"; '' = valid, else the message */
+    polar: function (v, name) { var m = /^(I?)(P[RA])?([+-]?(?:\d+\.?\d*|\.\d+|Q\d+))$/i.exec(String(v).trim().replace(/\s+/g, ''));
+      if (!m) return 'POLAR COORDINATE: A NUMBER OR Q PARAMETER, I = INCREMENTAL';
+      if (m[2] && name && m[2].toUpperCase() !== name) return 'THIS QUESTION IS ' + name + ', NOT ' + m[2].toUpperCase();
+      return ''; }
+  };
+
+  return { PATH: PATH, PAD: PAD, GROUPS: GROUPS, cycleList: cycleList, cycleSpec: cycleSpec, probeList: probeList, probeSpec: probeSpec };
 })();
 if (typeof module !== 'undefined') module.exports = TNC_DIALOGS;
