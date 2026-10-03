@@ -46,11 +46,24 @@ for the operator, no server, no install.
   drag-and-drop; save with `Ctrl+S` as a numbered TNC listing.
 - **AI program generation.** Bring your own OpenRouter key (never sent anywhere but
   `openrouter.ai`; never Anthropic direct). Default model `deepseek/deepseek-v4.1-flash`, with a
-  picker for a few other OpenRouter models or any model id. Streams progress, grows the path in
-  3D block by block, and feeds a failed compile back for one repair pass. Only exercised so far
-  against a mocked OpenRouter in the QA suite — not yet run against the live API end to end in
-  this repo's own testing.
+  picker for any OpenRouter model. The model gets the tool table as **constraints** (type, Ø,
+  reach before the holder touches, smallest inside corner, plunge rules, safe S/F) and the list of
+  what the control does *not* have. It first **plans the part** as a spec (faces, pockets, holes,
+  slots, outside profiles, engraved text — the "interim 3-D model"); lettering is expanded into the
+  simulator's own single-stroke capitals so the model never has to invent letter shapes. Then it
+  writes the program, the simulator runs every check, **machines it on the height field and
+  measures the result against the spec** in mm (what is not cut, what is cut that should stay, per
+  feature and by position), and up to 3 refinement rounds send that back. Answers cut off by the
+  token limit are continued instead of dropped (default budget 32 000 tokens per request, thinking
+  included). See "AI accuracy" below for measured numbers.
 - **Swedish and English** interface language, set from the profile dialog.
+- **Phones and tablets.** Under 900 px the simulator becomes three workspaces — Program,
+  Graphics, Status — in the page's own vertical scroll, picked with tabs or a sideways swipe. The
+  soft keys (and the block line in PRG EDIT) sit in a dock at the bottom of every workspace, eight
+  at a time like the control's soft-key row, so NC START / STOP / RESET are always one tap away.
+  The header keeps the four modes, the program, the run state and the check count; DEV, + New,
+  Lessons, AI, Help, Focus and the profile live behind **Menu**. Dialogs become full-height sheets
+  that stay above the software keyboard. The desktop layout is unchanged.
 
 ## The programs
 
@@ -110,6 +123,28 @@ These are deliberate, and they are why the disclaimer at the bottom matters.
 - **Cycle time excludes dwell**, tool-change time and acceleration; the estimate is
   `sum(length / feed)` over the toolpath, so it reads optimistic against a real machine.
 
+## Fresh checkout
+
+Everything needed is tracked or regenerable; nothing depends on a developer's machine.
+
+```sh
+npm ci                                  # build + QA tooling (three, three.quarks, esbuild, playwright, axe, tauri-cli)
+python3 build.py                        # -> index.html (also fetches JSZip + idb-keyval into .libcache/ once)
+node tests/manual.js && node tests/part.js && node tests/ai/loop.js
+(cd server && cargo test)               # Rust server: 27 tests, temporary SQLite databases
+(cd web && npm ci && npm run build)     # web app -> web/dist
+node tests/ui/run.mjs                   # browser suite (Chromium; WebKit when Playwright has it)
+```
+
+Not in the repository, on purpose: `research/` and `search-heidenhain/` (the 426/430 manual and
+the 2,806-program corpus — licensed / third-party; `tests/corpus.js` needs them and cannot run
+without), `private/` (keys, operator notes), `.libcache/`, `node_modules/`, build output. The
+server creates and migrates its own SQLite database on first start (`server/.env.example` lists
+every setting). A local OpenRouter key goes in `private/.env` (`OPENROUTER_API_KEY=…`); `build.py`
+then also writes `index.local.html` with it (gitignored) and refuses to build if the key ever
+appears in the public `index.html`. No key is needed to build, run or test: AI tests use a mocked
+OpenRouter.
+
 ## Testing
 
 - `node tests/manual.js` — the HEIDENHAIN 426/430 manual's own worked examples (linear, circular,
@@ -119,8 +154,30 @@ These are deliberate, and they are why the disclaimer at the bottom matters.
 - `node tests/corpus.js` (`AUTOTOOLS=1` to auto-create missing tools, as an import would) —
   2,806 real-world CAM-exported programs, 2,767 clean. The rest are broken programs (prose in NC
   lines, bracket formulas, bad `BEGIN PGM` names) that a real TNC would reject too.
-- `.tools/qa/qa.mjs` — a Playwright pass over profile, program I/O, tool table and AI (against a
-  mocked OpenRouter). 93/93 checks pass against a built `index.html`, separate from `tests/`.
+- `node tests/part.js` — the AI's interim 3-D model: a correct program scores high against its
+  part spec, a wrong one low, misses and gouges are located; lettering from the stroke font.
+- `node tests/ai/loop.js` — the AI loop against a mocked OpenRouter: cut-off answers continued,
+  plan → write → measure → refine, the best program kept. No network.
+- `node tests/ui/run.mjs` — browser regression suite (tracked; replaces the old untracked
+  `.tools/qa/qa.mjs`, which is not in the repository and was not restored): no page-level
+  horizontal overflow at 320 / 360 / 390 / 430 / 768 / 1440 px and a 844 × 390 landscape, in
+  English and Swedish; touch-target sizes; the phone drawer (modal: focus, inert background, Esc,
+  focus return); workspace tabs (keyboard, ARIA); swipes (and that they never fire from the 3-D view
+  or a vertical drag); state kept across workspaces (cursor, scroll, the same WebGL context);
+  soft-key paging; NC START from the dock; editing a block on a phone; dialog focus traps;
+  shortcuts vs typing; AI against a mocked OpenRouter; axe-core scans; and, when the Rust server is
+  built, the simulator and web app under the desktop app's CSP. Screenshots in `local/ui-shots/`.
+  Emulation is not a device test: Chromium phone emulation is not Android Chrome + TalkBack, and
+  Playwright WebKit (CI only) is not iOS Safari + VoiceOver.
+- `node tests/ai/bench.mjs` — **live** AI benchmark (needs a key, costs a few cents, never in CI):
+  scores generated programs against hand-written reference geometry.
+
+## AI accuracy
+
+Measured with `tests/ai/bench.mjs` (DeepSeek V4.1 Flash, 2026-10-03; "match" = removed-volume
+overlap of the final program's cut with a hand-written reference part, 100 % = exact):
+
+AI_BENCH_TABLE
 
 ## Build
 
@@ -128,9 +185,8 @@ These are deliberate, and they are why the disclaimer at the bottom matters.
 `sim/` is one line in `MODULES`. three.js r186, its addons (OrbitControls, RoomEnvironment,
 FXAA/EffectComposer) and the [three.quarks](https://github.com/Alchemist0823/three.quarks)
 particle library are bundled by esbuild from `sim/vendor/three-entry.mjs` into one classic script
-exposing `window.THREE` / `window.QUARKS` (needs `.tools/node_modules` — `cd .tools && npm i
-three@0.186.1 three.quarks@0.17.1 esbuild@0.28.2`; `build.py` prints the exact command if it's
-missing). JSZip and idb-keyval are fetched once into `.libcache/` and inlined the same way.
+exposing `window.THREE` / `window.QUARKS` (versions pinned in the root `package.json` /
+`package-lock.json`: `npm ci`; the older untracked `.tools/node_modules` layout still works). JSZip and idb-keyval are fetched once into `.libcache/` and inlined the same way.
 `fx.js` runs its particles on `window.QUARKS` (three.quarks), falling back to its own built-in
 renderer if that's missing.
 
@@ -153,6 +209,7 @@ python3 build.py      # -> index.html (public), index.local.html (only if .env h
 | `sim/materials.js` | Alloy/industry presets and the material picker. |
 | `sim/look.js` | Environment map, ACES tone mapping, FXAA. |
 | `sim/profile.js` | Per-browser profile, program storage, tool table, import/export. |
+| `sim/part.js` | Part spec for the AI: target height field, single-stroke lettering, program-vs-target measurement. |
 | `sim/ai.js` | OpenRouter-only AI program generation, BYOK. |
 | `sim/bridge.js` | Bridge to the server and web app below (inactive without a server). |
 | `sim/viz.js` | Axis vectors from program zero to the tool, click-to-pick coordinates. |
@@ -169,8 +226,37 @@ python3 build.py      # -> index.html (public), index.local.html (only if .env h
   library, per-machine tool tables, share links, and an AI proxy to OpenRouter.
 - `web/` — a React app (Vite, TypeScript) that talks to the server: sign in, edit and check
   programs, browse and restore versions, share a program by link.
-- A desktop app is planned, not built yet: the server's router is written so a shell such as
-  Tauri 2 can embed it directly.
+- `desktop/` — the **desktop app** (Tauri 2; macOS, Linux, Windows). It runs the server's own crate
+  in-process on `127.0.0.1` with a SQLite database in the platform's app-data folder, signs the
+  local operator in by a one-time link, and shows the web app with the simulator — no separate
+  server, no install of anything else. See "Desktop app" below.
+
+## Desktop app
+
+```sh
+npm ci                                   # once: installs the Tauri CLI (and the build tooling)
+cd desktop && npx tauri dev              # debug window; builds web/dist + index.html first
+cd desktop && npx tauri build            # release bundles in desktop/src-tauri/target/release/bundle/
+```
+
+Linux needs WebKitGTK 4.1 (`libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
+librsvg2-dev libxdo-dev libssl-dev`); macOS needs Xcode command-line tools; Windows needs the
+MSVC build tools and WebView2 (preinstalled on Windows 10/11). The bundles are **unsigned**:
+code signing and notarisation need certificates as CI secrets and are not set up.
+
+How it works: the window opens a bundled splash page, the app opens the database (data folder:
+`~/.local/share/io.github.gigacook.tnc426simulator` on Linux, `~/Library/Application Support/…`
+on macOS, `%APPDATA%\…` on Windows), makes sure the local operator account exists, starts the
+server on a remembered loopback port (8427 first; browser storage is per port, so it is kept),
+waits for `/api/health`, then navigates to a one-time sign-in link. Hardening: loopback only;
+requests whose `Host` is not our own `127.0.0.1:<port>` / `localhost:<port>` are refused (no DNS
+rebinding); a Content-Security-Policy on every response (`connect-src` only self and
+`openrouter.ai`); the page gets no Tauri IPC at all; links to anything else open in the system
+browser; a second launch focuses the first window instead of starting a second server. AI in the
+desktop app is BYOK (the key stays in the simulator, straight to OpenRouter) unless
+`OPENROUTER_API_KEY` is set in the environment, which routes it through the in-process proxy.
+
+Native iOS / Android (Tauri mobile) targets are not set up; on phones use the browser.
 
 The GitHub Pages simulator above stays a self-contained single file either way — the server and
 web app are an optional layer around it, not a replacement for it.

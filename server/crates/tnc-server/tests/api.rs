@@ -503,7 +503,14 @@ async fn local_mode_one_time_sign_in_link() {
     // idempotent: the second start finds the same account
     assert_eq!(tnc_server::local::ensure_local_user(&st).await.unwrap().id, u.id);
     let link = tnc_server::local::issue_sign_in_link(&st, &u.id);
+    let deep = tnc_server::local::issue_sign_in_link(&st, &u.id);
+    let evil = tnc_server::local::issue_sign_in_link(&st, &u.id);
     let t = T { app: tnc_server::router(st), _dir: dir };
+    // `next` lands on a path of this site only, never on another host
+    let r = t.call(Method::GET, &format!("/api/v1/auth/once?t={deep}&next=/simulator"), None, None).await;
+    assert_eq!(r.headers.get(header::LOCATION).unwrap(), "/simulator");
+    let r = t.call(Method::GET, &format!("/api/v1/auth/once?t={evil}&next=//evil.example/x"), None, None).await;
+    assert_eq!(r.headers.get(header::LOCATION).unwrap(), "/");
 
     let r = t.call(Method::GET, &format!("/api/v1/auth/once?t={link}"), None, None).await;
     assert_eq!(r.status, StatusCode::SEE_OTHER);

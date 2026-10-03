@@ -309,14 +309,17 @@ async function aiMocked(browser, tag) {
   const L = `[${tag}] AI (mocked)`;
   const PROGRAM = ['BEGIN PGM MOCK MM', 'BLK FORM 0.1 Z X+0 Y+0 Z-20', 'BLK FORM 0.2 X+100 Y+80 Z+0', 'TOOL CALL 4 Z S3000',
     'L Z+50 R0 FMAX M3', 'L X+10 Y+10 R0 FMAX', 'L Z+2 R0 FMAX', 'L Z-1 R0 F150', 'L X+90 R0 F500', 'L Z+50 R0 FMAX M5', 'M30', 'END PGM MOCK MM'].join('\n');
+  const SPEC = { blank: { x: [0, 100], y: [0, 80], z: [-20, 0] }, features: [{ id: 'S1', type: 'slot', from: [10, 10], to: [90, 10], w: 6, z: -1 }] };
   let calls = 0, sawKey = false;
   await page.route('https://openrouter.ai/**', async (route) => {
     const u = route.request().url();
     if (u.endsWith('/models')) return route.fulfill({ json: { data: [{ id: 'deepseek/deepseek-v4.1-flash', name: 'DeepSeek: V4.1 Flash', created: 1, pricing: { prompt: '0.000000035', completion: '0.00000029' }, context_length: 128000 }] } });
     if (u.endsWith('/chat/completions')) {
       calls++; sawKey = (route.request().headers().authorization || '') === 'Bearer test-key-not-real';
+      const req = JSON.parse(route.request().postData() || '{}'), planStep = /STEP 1 of 2/.test(JSON.stringify(req.messages || []));
       const chunk = (o) => 'data: ' + JSON.stringify(o) + '\n\n';
-      const body = chunk({ choices: [{ delta: { content: '```klartext\n' + PROGRAM + '\n```' } }] }) + chunk({ choices: [], usage: { prompt_tokens: 10, completion_tokens: 20, cost: 0 } }) + 'data: [DONE]\n\n';
+      const content = planStep ? '```partspec\n' + JSON.stringify(SPEC) + '\n```' : '```klartext\n' + PROGRAM + '\n```';
+      const body = chunk({ choices: [{ delta: { content }, finish_reason: 'stop' }] }) + chunk({ choices: [], usage: { prompt_tokens: 10, completion_tokens: 20, cost: 0 } }) + 'data: [DONE]\n\n';
       return route.fulfill({ status: 200, headers: { 'content-type': 'text/event-stream' }, body });
     }
     return route.fulfill({ status: 404, body: '{}' });
@@ -329,7 +332,9 @@ async function aiMocked(browser, tag) {
   ok(pb && pb.y >= 0 && pb.y + pb.height <= 844, `${L}: Generate button on screen without scrolling`, JSON.stringify(pb));
   await page.click('#ai-go');
   await page.waitForFunction(() => /MOCK/.test(document.getElementById('hdr-stat').textContent), null, { timeout: 15000 }).catch(() => {});
-  ok(calls === 1 && sawKey, `${L}: one request to the mocked endpoint with the BYOK header`, `calls=${calls} key=${sawKey}`);
+  ok(calls === 2 && sawKey, `${L}: plan + program = two requests to the mocked endpoint with the BYOK header`, `calls=${calls} key=${sawKey}`);
+  ok(await page.evaluate(() => /Measured against the spec: 1\d\d|Measured against the spec: 9\d/.test(document.getElementById('ailive') ? document.getElementById('ailive').textContent : '')),
+    `${L}: the program is measured against the planned part (high match)`, await page.evaluate(() => (document.getElementById('ailive') || {}).textContent));
   ok(await page.evaluate(() => /MOCK/.test(document.getElementById('hdr-stat').textContent)), `${L}: generated program opened`);
   ok(errors.length === 0, `${L}: no page errors`, errors.slice(0, 3).join(' | '));
   await ctx.close();

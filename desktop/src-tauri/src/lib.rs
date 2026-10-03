@@ -144,6 +144,10 @@ async fn start(data_dir: PathBuf, resources: PathBuf, running: &Mutex<Running>) 
     let link = tnc_server::local::issue_sign_in_link(&st, &user.id);
     let mut url = origin.join("api/v1/auth/once")?;
     url.query_pairs_mut().append_pair("t", &link);
+    // TNC_DESKTOP_START=/simulator opens a page other than the library (the server only accepts a local path)
+    if let Ok(next) = std::env::var("TNC_DESKTOP_START") {
+        url.query_pairs_mut().append_pair("next", &next);
+    }
     let mut r = running.lock().unwrap();
     r.stop = Some(stop_tx);
     r.done = Some(done);

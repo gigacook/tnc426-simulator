@@ -21,6 +21,10 @@ jobs:
       - run: npm ci
       - name: Interpreter (426/430 manual examples)
         run: node tests/manual.js
+      - name: Part spec measurement + AI loop (mocked OpenRouter, no key)
+        run: |
+          node tests/part.js
+          node tests/ai/loop.js
       - name: Simulator single file is reproducible from sim/
         run: |
           python3 build.py

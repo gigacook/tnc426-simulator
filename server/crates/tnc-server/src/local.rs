@@ -43,6 +43,8 @@ pub fn issue_sign_in_link(st: &AppState, user_id: &str) -> String {
 #[derive(Deserialize)]
 pub struct Once {
     t: String,
+    /// where to land after signing in: a path on this site only (no `//host`, no scheme)
+    next: Option<String>,
 }
 
 pub async fn redeem(State(st): State<AppState>, headers: HeaderMap, Query(q): Query<Once>) -> ApiResult<Response> {
@@ -52,5 +54,7 @@ pub async fn redeem(State(st): State<AppState>, headers: HeaderMap, Query(q): Qu
     };
     let ua = headers.get(header::USER_AGENT).and_then(|v| v.to_str().ok());
     let token = auth::create_session(&st, &user_id, ua).await?;
-    Ok((StatusCode::SEE_OTHER, [(header::SET_COOKIE, auth::session_cookie(&st, &token)), (header::LOCATION, "/".parse().unwrap())]).into_response())
+    let next = q.next.filter(|n| n.starts_with('/') && !n.starts_with("//") && !n.contains('\\') && n.len() < 200).unwrap_or_else(|| "/".into());
+    let loc = axum::http::HeaderValue::from_str(&next).unwrap_or(axum::http::HeaderValue::from_static("/"));
+    Ok((StatusCode::SEE_OTHER, [(header::SET_COOKIE, auth::session_cookie(&st, &token)), (header::LOCATION, loc)]).into_response())
 }

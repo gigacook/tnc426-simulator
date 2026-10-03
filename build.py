@@ -49,6 +49,7 @@ MODULES = [
     ('materials.js', 'Materials'),
     ('look.js',      'Look: environment, antialiasing'),
     ('profile.js',   'User profile storage'),
+    ('part.js',      'Part spec: target geometry, lettering, measured comparison (AI loop)'),
     ('ai.js',        'AI program generation (OpenRouter)'),
     ('bridge.js',    'Bridge to the TNC server and web app (inactive without a server)'),
     ('viz.js',       'View aids: axis vectors, click to pick'),

@@ -1223,19 +1223,26 @@ async function aiGenerate(){
   if(!AI){ flog('<span class="bad">The AI module is not in this build.</span>'); return; }
   if(!key){ flog('<span class="bad">No key yet.</span> Open <b>AI setup</b> first — it takes five minutes.'); return; }
   if(prompt.length<8){ flog('<span class="bad">Describe the part in a sentence or two.</span>'); return; }
-  const mc=M().machine, sys=(AI.system?AI.system(mtools()):AI.FALLBACK_SYSTEM)+(mc?`\n\nTHIS MACHINE (${M().label}): spindle max S${mc.sMax}, feed max F${mc.fMax}, rotary axes B ${mc.limits.B.join('..')} deg and A ${mc.limits.A.join('..')} deg (swivel head; B+ tilts the tip to X+, A+ to Y+).
+  const plan=!!window.TNC_PART&&S.aiMode!=='modify', mc=M().machine, hA=window.TNC_TOOLS3D&&TNC_TOOLS3D.holderStack?TNC_TOOLS3D.holderStack(3):100;
+  const sys=(AI.system?AI.system(mtools(),{plan,holderA:hA,sMax:mc&&mc.sMax}):AI.FALLBACK_SYSTEM)+(mc?`\n\nTHIS MACHINE (${M().label}): spindle max S${mc.sMax}, feed max F${mc.fMax}, rotary axes B ${mc.limits.B.join('..')} deg and A ${mc.limits.A.join('..')} deg (swivel head; B+ tilts the tip to X+, A+ to Y+).
 For tilted machining use CYCL DEF 19.0 WORKING PLANE / CYCL DEF 19.1 A+.. B+.. C+0 (it also positions the head); reset with 19.1 A+0 B+0 C+0. Never use M128.`:'');
   const modify=S.aiMode==='modify', before=S.text, beforePgm=S.pgm;
   const full=modify?'Here is the current program:\n```klartext\n'+S.text+'\n```\nChange it as follows: '+prompt+'\nKeep everything else as it is. Return the COMPLETE changed program.':prompt;
   closeModal(); if(S.editing) endEdit(false); if(S.mgt) closeMgt(); if(S.tt) closeTT();
   aiLiveOpen(); S.aiLive.mode=modify?'modify':'new'; aiAbort=new AbortController(); showPane('gfx');
-  aiLog(`<span class="dim">${esc(getModel())} · thinking ${esc(aiThink())} · max ${aiMaxTok()} tokens · ${esc(M().label)}</span>`);
+  aiLog(`<span class="dim">${esc(getModel())} · thinking ${esc(aiThink())} · max ${aiMaxTok()} tokens · ${plan?'plan + measure, ':''}${aiRounds()} refine round(s) · ${esc(M().label)}</span>`);
   let res=null;
   try{
-    res=await AI.generate({key,model:getModel(),prompt:full,system:sys,verify:verifyProgram,signal:aiAbort.signal,maxRepairs:1,
+    res=await AI.generate({key,model:getModel(),prompt:full,system:sys,tools:mtools(),verify:verifyProgram,measure:measureProgram,plan,rounds:aiRounds(),signal:aiAbort.signal,
       reasoning:aiThink()==='default'?undefined:aiThink(), maxTokens:aiMaxTok(),
       onStep:s=>{
-        if(s.phase==='request'){ S.aiLive.reqs.push(s.body); aiLog(s.attempt?'<b>Round 2</b> — the simulator\'s errors went back to the model for one repair (see Request).':'<b>Round 1</b> — request sent (see Request).'); }
+        if(s.phase==='request'){ S.aiLive.reqs.push(s.body); aiLog(s.stage==='plan'?'<b>Plan</b> — the model describes the finished part first (see Request).'
+          :s.attempt?`<b>Round ${s.attempt+1}</b> — the checks${plan?' and the measured result':''} went back to the model (see Request).`:'<b>Program</b> — request sent (see Request).'); }
+        if(s.phase==='continued') aiLog(s.retry?`<span class="dim">Only thinking fit in the token limit — asked again with ${s.maxTokens} tokens.</span>`:`<span class="dim">The answer hit the token limit — asked for the rest (${s.n}).</span>`);
+        if(s.phase==='planned') aiLog(s.error?`<span class="bad">No usable part spec (${esc(s.error)}) — writing without measuring.</span>`
+          :`<span class="ok">${s.revised?'Spec revised':'Spec'}: ${s.spec.features.length} feature(s) — ${esc(s.spec.features.map(f=>f.id+' '+f.type+(f.text?' "'+f.text+'"':'')).join(', '))}.</span>`+(s.notes&&s.notes.length?`<pre style="margin:2px 0 0;white-space:pre-wrap">${esc(s.notes.join('\n'))}</pre>`:''));
+        if(s.phase==='measured'){ const m=s.measure; aiLog(`<span class="${m.score>=97?'ok':'bad'}">Measured against the spec: ${m.score==null?'—':m.score.toFixed(1)+' %'} match`+
+          ` · ${(m.missing/1000).toFixed(2)} cm³ not cut · ${(m.extra/1000).toFixed(2)} cm³ cut that should stay.</span>`); }
         if(s.phase==='progress'){ S.aiLive.lastP=s; aiLiveRender(s); aiLiveProgram(aiPartial(s.text)); }
         if(s.phase==='checked'){ const r=s.report;
           aiLog(r.ok?`<span class="ok">Checked: ${r.moves} moves, no errors, no crashes${r.warns.length?', '+r.warns.length+' warning(s)':''}.</span>`
@@ -1247,15 +1254,20 @@ For tilted machining use CYCL DEF 19.0 WORKING PLANE / CYCL DEF 19.1 A+.. B+.. C
     if(modify){ nm=beforePgm; S.pgm=beforePgm; S.text=before; raw.value=before; if(S.mode!=='edit') setMode('edit'); edit(res.src,0,'AI CHANGED '+nm+' — CTRL+Z UNDOES IT'); }
     else nm=addPgm((res.report.name||'AI_PART'),res.src,{open:true});
     download(nm,new Blob([listing(res.src)],{type:'text/plain'}),'AI-GEN');
-    aiLog(`<span class="${res.report.ok?'ok':'bad'}">${res.report.ok?(modify?'Changed':'Saved'):'Done — still has problems, see Checks'} ${modify?'':'as '}${esc(nm)} · also saved to TNC-SIMULATOR/AI-GEN.</span> Cost about $${(res.cost||0).toFixed(4)} · ${Math.round((Date.now()-S.aiLive.t0)/1000)} s.`);
+    aiLog(`<span class="${res.report.ok?'ok':'bad'}">${res.report.ok?(modify?'Changed':'Saved'):'Done — still has problems, see Checks'} ${modify?'':'as '}${esc(nm)} · also saved to TNC-SIMULATOR/AI-GEN.</span>${res.measure&&res.measure.score!=null?' Best match '+res.measure.score.toFixed(1)+' %.':''} Cost about $${(res.cost||0).toFixed(4)} · ${Math.round((Date.now()-S.aiLive.t0)/1000)} s.`);
     if(res.report.ok){ setMode('test'); reset(); if(S.speed===0) setSpeed(16,true); start(); }         // and it runs
   } else { S.pgm=beforePgm; S.text=pg()[beforePgm]; raw.value=S.text; compile(); }
   if(S.aiLive){ S.aiLive.done=true; S.aiLive.lastP=null; aiLiveRender(); }
   aiAbort=null;
 }
 /* thinking effort and the answer cap: a budget guard for slow reasoning models */
-function aiThink(){ return local.get('tnc426.aithink')||'low'; }
-function aiMaxTok(){ return +(local.get('tnc426.aimaxtok')||12000); }
+function aiThink(){ return local.get('tnc426.aithink')||'medium'; }
+function aiMaxTok(){ return +(local.get('tnc426.aimaxtok')||32000); }
+/* refinement rounds after the first program: each one sends the checks and the measured misses / gouges back */
+function aiRounds(){ const v=local.get('tnc426.airounds'); return v==null||v===''?3:Math.max(0,Math.min(6,+v)); }
+/* the program's real cut against the model's part spec (TNC_PART) */
+function measureProgram(spec,src){ if(!window.TNC_PART) return null; const m=M(); let r;
+  try{ r=m.run(src); if(r.errors.length) return null; return TNC_PART.compare(spec,r,m.expand(r)); }catch(e){ return null; } }
 
 /* ---------- NEW PROGRAM ---------- */
 function openNew(which){
@@ -1374,10 +1386,12 @@ function aiModelUI(){
   if($('ai-think')){ mpMount($('ai-mp')); return; }
   const mp=document.createElement('div'); mp.id='ai-mp'; mp.style.marginTop='16px';
   const box=document.createElement('div'); box.className='fgrid'; box.style.marginTop='12px';
-  box.innerHTML=`<label class="fld"><span>THINKING (REASONING MODELS)</span><select id="ai-think"><option value="off">Off — fastest, cheapest</option><option value="low">Low (recommended)</option><option value="medium">Medium</option><option value="high">High — slow, can cost more</option></select></label>
-    <label class="fld"><span>MAX ANSWER TOKENS (BUDGET GUARD)</span><input id="ai-maxtok" inputmode="numeric" value="12000"></label>`;
+  box.innerHTML=`<label class="fld"><span>THINKING (REASONING MODELS)</span><select id="ai-think"><option value="off">Off — fastest, cheapest</option><option value="low">Low</option><option value="medium">Medium (recommended)</option><option value="high">High — slow, can cost more</option></select></label>
+    <label class="fld"><span>MAX ANSWER TOKENS PER REQUEST (THINKING COUNTS)</span><input id="ai-maxtok" inputmode="numeric" value="32000"></label>
+    <label class="fld"><span>MEASURE &amp; REFINE ROUNDS</span><select id="ai-rounds"><option value="0">0 — first answer only</option><option value="1">1</option><option value="2">2</option><option value="3">3 (recommended)</option><option value="4">4</option><option value="6">6 — slow</option></select></label>`;
   const ta=$('ai-prompt').closest('.fld'); ta.parentNode.insertBefore(box,ta.nextSibling); ta.parentNode.insertBefore(mp,box);
   $('ai-think').value=aiThink(); $('ai-think').onchange=()=>{ local.set('tnc426.aithink',$('ai-think').value); };
+  $('ai-rounds').value=String(aiRounds()); $('ai-rounds').onchange=()=>{ local.set('tnc426.airounds',$('ai-rounds').value); };
   $('ai-maxtok').value=aiMaxTok(); $('ai-maxtok').addEventListener('keydown',e=>e.stopPropagation());
   $('ai-maxtok').onchange=()=>{ const v=Math.round(+$('ai-maxtok').value); if(v>=1000&&v<=200000) local.set('tnc426.aimaxtok',v); else { say('MAX TOKENS 1000–200000'); $('ai-maxtok').value=aiMaxTok(); } };
   mpMount(mp);

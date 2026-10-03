@@ -37,8 +37,9 @@ pub struct Config {
     pub ai_models: Vec<String>,
     #[arg(long, env = "TNC_AI_DEFAULT_MODEL", default_value = "deepseek/deepseek-v4.1-flash")]
     pub ai_default_model: String,
-    /// Upper bound on max_tokens per request.
-    #[arg(long, env = "TNC_AI_MAX_TOKENS", default_value_t = 16000)]
+    /// Upper bound on max_tokens per request. Reasoning models spend part of it thinking: too low and the
+    /// program is cut off (the simulator then asks for the rest, which costs another request).
+    #[arg(long, env = "TNC_AI_MAX_TOKENS", default_value_t = 64000)]
     pub ai_max_tokens: u64,
     /// Per user per calendar month, in US$ as OpenRouter reports it.
     #[arg(long, env = "TNC_AI_MONTHLY_BUDGET_USD", default_value_t = 5.0)]
@@ -90,7 +91,7 @@ impl Config {
             openrouter_base: "https://openrouter.ai/api/v1".into(),
             ai_models: vec![],
             ai_default_model: "deepseek/deepseek-v4.1-flash".into(),
-            ai_max_tokens: 16000,
+            ai_max_tokens: 64000,
             ai_monthly_budget_usd: 5.0,
             engine_workers: 1,
             allowed_hosts: vec![],
