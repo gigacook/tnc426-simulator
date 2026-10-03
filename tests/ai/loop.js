@@ -49,6 +49,13 @@ const steps = [];
   const steps2 = [];
   const res2 = await AI.generate({ key: 'k', model: 'm', prompt: 'a slot', tools, verify, measure, plan: true, rounds: 2, onStep: (s) => steps2.push(s) });
   ok(res2 && /X\+50/.test(res2.src) && steps2.some((s) => s.phase === 'failed'), 'a failed refinement returns the best program so far');
+  // a dropped connection is retried once
+  answers.push({ text: '```klartext\n' + prog(80) + '\n```' });
+  let drop = 1; const f2 = global.fetch;
+  global.fetch = async (u, i) => { if (drop-- > 0) { const e = new TypeError('Network connection lost.'); throw e; } return f2(u, i); };
+  const steps3 = [];
+  const res3 = await AI.generate({ key: 'k', model: 'm', prompt: 'x', tools, verify, rounds: 0, retryDelayMs: 0, onStep: (s) => steps3.push(s) });
+  ok(res3 && /X\+80/.test(res3.src) && steps3.some((s) => s.phase === 'continued' && s.network), 'a dropped connection is retried once');
   console.log(fails ? `\n${fails} FAILED` : '\nALL AI LOOP CHECKS PASS (mocked, no network)');
   process.exit(fails ? 1 : 0);
 })().catch((e) => { console.error(e); process.exit(1); });

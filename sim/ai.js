@@ -162,6 +162,14 @@ var TNC_AI = (function () {
           return chatFull(Object.assign({}, o, { _retried: true, maxTokens: Math.min(TOKEN_CAP, (o.maxTokens || 16000) * 2) }), onCont)
             .then(function (r) { r.cost += cost; return r; });
         }
+        /* a dropped connection or a provider hiccup (5xx): one more try after a short pause; never for 4xx or a cancel */
+        var transient = e && e.name !== 'AbortError' && !e.cutOff && !(e.status >= 400 && e.status < 500) && !/TIMED OUT/.test(e.message || '');
+        if (transient && !o._netRetried) {
+          if (onCont) onCont({ n: 0, network: true, error: String(e.message || e) });
+          return new Promise(function (r) { setTimeout(r, o.retryDelayMs != null ? o.retryDelayMs : 2000); })
+            .then(function () { return chatFull(Object.assign({}, o, { _netRetried: true }), onCont); })
+            .then(function (r) { r.cost += cost; return r; });
+        }
         throw e;
       });
     }
@@ -403,11 +411,11 @@ toolSheet(tools, opts),
     var sys = { role: 'system', content: o.system || system(o.tools, { plan: plan }) };
     var ask = { role: 'user', content: 'Write the program for this part:\n\n' + o.prompt };
     function call(messages, stage) {
-      var req = { key: o.key, model: model, messages: messages, signal: o.signal, timeoutMs: o.timeoutMs, reasoning: o.reasoning, maxTokens: o.maxTokens };
+      var req = { key: o.key, model: model, messages: messages, signal: o.signal, timeoutMs: o.timeoutMs, reasoning: o.reasoning, maxTokens: o.maxTokens, retryDelayMs: o.retryDelayMs };
       onStep({ phase: 'request', attempt: attempt, stage: stage, body: JSON.parse(JSON.stringify(requestBody(req))) });
       return chatFull(Object.assign(req, {
         onProgress: function (p) { onStep({ phase: 'progress', attempt: attempt, stage: p.stage, secs: p.secs, chars: p.chars, reasoningChars: p.reasoningChars, text: p.text, reasoningTail: p.reasoningTail }); }
-      }), function (c) { onStep({ phase: 'continued', attempt: attempt, n: c.n, retry: !!c.retry, maxTokens: c.maxTokens }); })
+      }), function (c) { onStep({ phase: 'continued', attempt: attempt, n: c.n, retry: !!c.retry, maxTokens: c.maxTokens, network: !!c.network, error: c.error }); })
         .then(function (r) { cost += r.cost; return r; });
     }
     function rank(c) { return (c.report.ok ? 1000 : 0) + (c.measure && c.measure.score != null ? c.measure.score : 0) - c.report.errs.length - c.report.crashes.length; }
