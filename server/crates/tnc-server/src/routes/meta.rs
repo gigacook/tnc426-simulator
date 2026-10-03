@@ -26,7 +26,8 @@ async fn info(State(st): State<AppState>) -> ApiResult<Json<Value>> {
         "api": 1,
         "interpreter": st.engine.as_ref().map(|_| tnc_engine::interpreter_version()),
         "machines": tnc_formats::MACHINES,
-        "needs_setup": users == 0,
+        "needs_setup": users == 0 && !st.cfg.local_mode,
+        "local": st.cfg.local_mode,
         "signup": users == 0 || st.cfg.allow_signup,
         "ai": {
             "enabled": st.cfg.ai_enabled(),

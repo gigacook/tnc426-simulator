@@ -1,6 +1,6 @@
 /* Vendor bundle: three.js + the addons the simulator uses + three.quarks, exposed as the
    classic globals window.THREE and window.QUARKS so every module stays a plain script.
-   Built by build.py with esbuild (.tools/node_modules) into .libcache/three-vendor.js. */
+   Built by build.py with esbuild (root node_modules, `npm ci`) into .libcache/three-vendor-<ver>.js. */
 import * as T from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';

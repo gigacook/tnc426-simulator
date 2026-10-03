@@ -517,6 +517,122 @@ body.focus .fxmenu,body.focus .lgd,body.focus #callouts,body.focus .sub-ttl{disp
 /* soft keys: the hotkey, low contrast */
 .sk .kh{display:block;font-size:.74em;opacity:.5;letter-spacing:.06em;margin-top:2px;font-weight:400}
 .sk.go .kh,.sk.stop .kh{opacity:.7}
+
+/* ================= shell: header drawer, workspaces, dock (phones), a11y ================= */
+.sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0 0 0 0)!important;white-space:nowrap!important;border:0!important}
+.hdr-m,.hdr-menu,.dhead,.dock,.skpager{display:none}
+.hmore{display:contents}                       /* wide screens: its buttons sit in the header row as before */
+h1.ttlbox{margin:0;font:inherit}
+.bar .ttlbox{order:1} .bar #b-prof{order:2}
+.tbadge{display:inline-block;min-width:1.6em;padding:0 .4em;margin-left:4px;border-radius:9px;background:var(--red);color:#fff;
+  font-family:var(--mono);font-size:12px;letter-spacing:0;line-height:1.5}
+.tbadge.warn{background:var(--amber);color:#1f1400}
+.hdr-err{align-items:center;gap:4px;font-family:var(--mono);font-size:14px;background:var(--panel-2);color:var(--mint);
+  border:1px solid var(--line);border-radius:2px;padding:0 10px;min-height:44px;min-width:44px;justify-content:center}
+.hdr-err.bad{color:#ffd6d2;border-color:var(--red);background:#3a0b09}
+.hdr-err.warn{color:#ffe2b0;border-color:var(--amber);background:#3a2604}
+.hdr-stat{min-width:0;flex:1 1 0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-family:var(--mono);font-size:13px;color:var(--ink-dim)}
+.hdr-stat b{color:var(--cyan);font-weight:500}
+/* keyboard focus must always show, also on the dark CRT and on pressed keys */
+.sk:focus-visible,.mode:focus-visible,.hbtn:focus-visible,.chb:focus-visible,.mtabs button:focus-visible,.stabs button:focus-visible,
+.tb:focus-visible,.spd button:focus-visible,.skpager button:focus-visible{outline:3px solid var(--amber);outline-offset:-3px}
+.modal [role=tablist] button:focus-visible{outline:3px solid var(--amber);outline-offset:-3px}
+@media (pointer:coarse){
+  .hbtn,.mode,.chb,.stabs button,.tb,.mhead .x,.alarm button,.cbtn{min-height:44px}
+  .spd button,.alarm button{min-width:44px;min-height:44px}
+  .pgroup>summary,.fxmenu>summary,.help-manual summary{min-height:44px;display:flex;align-items:center}
+  .hmenu button{min-height:44px}
+  .lgd span.hint{display:none}
+}
+/* iOS zooms into inputs under 16px; keep 16px wherever a finger types (pinch zoom stays on) */
+@media (max-width:900px),(pointer:coarse){
+  input:not([type=range]):not([type=checkbox]):not([type=radio]),select,textarea{font-size:16px!important}
+}
+@media (max-width:900px){
+  html,body{height:auto;min-height:100%}
+  /* a sideways swipe switches workspace; it must never also be the browser's "back" gesture (that loses the session) */
+  html,body{overscroll-behavior-x:none}
+  body{overflow:visible}
+  .app{height:auto;min-height:100vh;min-height:100dvh;display:block;padding-bottom:var(--dock-h,0px)}
+  /* header: title · program and state · checks · MENU, then the four modes */
+  .bar{gap:6px 8px;padding:calc(6px + env(safe-area-inset-top,0px)) calc(10px + env(safe-area-inset-right,0px)) 6px calc(10px + env(safe-area-inset-left,0px))}
+  .logo,.bar .sub-ttl{display:none}
+  .bar .ttlbox{order:1;margin:0;opacity:1;align-items:flex-start}
+  .bar .ttlbox .ttl{font-size:17px}
+  .hdr-stat{display:block;order:2}
+  .hdr-err{display:inline-flex;order:3}
+  .hdr-menu{display:inline-flex;align-items:center;gap:6px;order:4;letter-spacing:.1em;padding:0 12px;min-height:44px}
+  .bar .modes{order:9;width:100%;margin:0!important;flex-wrap:nowrap}
+  .mode{flex:1 1 0;min-width:0;min-height:44px;padding:8px 4px;text-align:center}
+  /* the drawer: everything furthest from the machine code */
+  .hmore{display:flex;flex-direction:column;align-items:stretch;gap:8px;position:fixed;top:0;right:0;bottom:0;z-index:55;
+    width:min(330px,88vw);padding:calc(10px + env(safe-area-inset-top,0px)) calc(14px + env(safe-area-inset-right,0px)) calc(16px + env(safe-area-inset-bottom,0px)) 14px;
+    background:var(--panel);border-left:1px solid var(--line-2);box-shadow:-20px 0 40px rgba(0,0,0,.5);overflow-y:auto;overscroll-behavior:contain;
+    transform:translateX(105%);visibility:hidden;transition:transform .2s ease,visibility 0s linear .2s}
+  .hmore.open{transform:none;visibility:visible;transition:transform .2s ease}
+  .hmore .hbtn{width:100%;max-width:none;text-align:left;min-height:48px;order:0}
+  .hmore .devbtn{animation:none}
+  .dhead{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+  .dtitle{flex:1;font-family:var(--disp);font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint)}
+  .hmore .dclose{width:auto}
+  .scrim:not([hidden]){display:block;position:fixed;inset:0;z-index:54;background:rgba(2,5,10,.62)}
+  /* workspace tabs: sticky under the (scrolling) header */
+  .mtabs{display:grid;grid-template-columns:repeat(3,1fr);position:sticky;top:0;z-index:20;background:var(--panel);
+    border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:0 env(safe-area-inset-right,0px) 0 env(safe-area-inset-left,0px)}
+  .mtabs button{min-height:48px;padding:0 4px;box-shadow:none}
+  .mtabs button[aria-selected="true"]{box-shadow:inset 0 -3px 0 var(--cyan)}
+  /* one workspace at a time, in the page's own vertical scroll */
+  .main{display:block;position:static;background:none}
+  .main>.col{position:static;display:none;min-height:0}
+  .main[data-pane="pgm"]>.col-pgm,.main[data-pane="gfx"]>.col-gfx{display:flex}
+  .main[data-pane="side"]>.col-side{display:block;max-height:none;overflow:visible}
+  .col{padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+  .crt{flex:none;overflow-x:auto;overflow-y:hidden;min-height:40vh}
+  .scan{min-height:0}
+  .blk{white-space:pre-wrap;overflow-wrap:anywhere;grid-template-columns:36px 1fr;gap:6px;padding:1px 8px}   /* phones: long blocks wrap, no sideways reading */
+  .blk{scroll-margin-top:calc(var(--tabs-h,48px) + 8px);scroll-margin-bottom:calc(var(--dock-h,120px) + 8px)}
+  textarea#raw{flex:none;height:60vh;height:max(260px,calc(100svh - var(--dock-h,120px) - var(--tabs-h,48px) - 70px))}
+  .gfx{flex:none;height:56vh;height:max(240px,min(62svh,calc(100svh - var(--dock-h,120px) - var(--tabs-h,48px) - 150px)))}
+  .stabs{top:var(--tabs-h,48px)}
+  .stabs button{min-height:44px}
+  .toast{bottom:calc(var(--dock-h,0px) + 12px)}
+  /* the dock: soft keys (and the block line in PRG EDIT) under every workspace, above the software keyboard */
+  .dock{display:block;position:fixed;left:0;right:0;bottom:var(--kb,0px);z-index:30;background:var(--panel);border-top:1px solid var(--line-2);
+    padding:0 env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);box-shadow:0 -10px 24px rgba(0,0,0,.45)}
+  .dock .sks{grid-template-columns:repeat(4,minmax(0,1fr));padding:4px;gap:3px}
+  .dock .sk{min-height:48px;font-size:12.5px;padding:4px 2px}
+  .dock .sk .kh{display:none}
+  .dock .skpager:not([hidden]){display:flex;align-items:center;gap:4px;padding:0 4px 4px}
+  .skpager button{flex:1;min-height:44px;background:var(--panel-2);color:var(--ink-dim);border:1px solid var(--line);border-radius:2px;font-size:15px}
+  .skpager span{flex:2;text-align:center;font-family:var(--mono);font-size:13px;color:var(--ink-dim)}
+  body:not([data-mode="edit"]) .dock .dlg{display:none}
+  .dock .dlg .hint{display:none}
+  .dock .skpath{font-size:12px}
+  /* dialogs: a full-height sheet that follows the visual viewport (software keyboard) */
+  .modal{padding:0;place-items:stretch;inset:auto;top:var(--vvt,0px);left:0;width:100%;height:100%;height:var(--vvh,100dvh)}
+  .mcard{width:100%;max-height:none;height:100%;border-radius:0;border-left:0;border-right:0;
+    padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) 0 env(safe-area-inset-left,0px)}
+  .mbody{padding-bottom:calc(16px + env(safe-area-inset-bottom,0px));overscroll-behavior:contain}
+  .mbody pre{white-space:pre-wrap;word-break:break-word}
+  /* the dialog's main action stays on screen (and above the keyboard) while the form scrolls */
+  #new-ai>.actrow,#new-scratch>.actrow{position:sticky;bottom:calc(-16px - env(safe-area-inset-bottom,0px));z-index:2;background:var(--void-2);margin:0 -16px;padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line)}
+  .hmenu{max-width:calc(100vw - 16px)}
+}
+@media (max-width:600px){ .hdr-menu [data-i18n="btn.menu"]{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap} .hdr-menu{min-width:48px;justify-content:center} }
+@media (min-width:601px) and (max-width:900px){
+  .bar .modes{order:2;width:auto;flex:0 1 auto}
+  .hdr-stat{order:3}.hdr-err{order:4}.hdr-menu{order:5}
+}
+@media (max-width:900px) and (max-height:500px){       /* short landscape: smaller header, the tab bar stays */
+  .bar{padding-top:calc(3px + env(safe-area-inset-top,0px));padding-bottom:3px}
+  .mode{min-height:40px}
+  .gfx{height:max(180px,calc(100svh - var(--dock-h,60px) - var(--tabs-h,44px) - 8px))}
+  .mtabs button{min-height:44px}
+  .dock .sks{grid-template-columns:repeat(8,minmax(0,1fr))}
+  .dock .sk{min-height:44px;font-size:11.5px}
+  .col-gfx>.ch{display:none}
+}
+@media (prefers-reduced-motion:reduce){ .hmore{transition:none!important} }
 </style>
 
 <style>html{color-scheme:dark} img{max-width:100%} [hidden]{display:none!important}</style>
@@ -524,26 +640,43 @@ body.focus .fxmenu,body.focus .lgd,body.focus #callouts,body.focus .sub-ttl{disp
 <body>
 <div class="app">
  <header class="bar">
-   <span class="logo">HDH</span>
-   <div class="modes" id="modes">
-     <button class="mode" data-m="edit"   aria-pressed="false"><b>1</b><span class="lg" data-i18n="mode.edit">PRG EDIT</span><span class="sm">PRG EDIT</span></button>
-     <button class="mode" data-m="test"   aria-pressed="true"><b>2</b><span class="lg" data-i18n="mode.test">TEST</span><span class="sm">TEST</span></button>
-     <button class="mode" data-m="single" aria-pressed="false"><b>3</b><span class="lg" data-i18n="mode.single">SINGLE-BLOCK</span><span class="sm">SINGLE</span></button>
-     <button class="mode" data-m="full"   aria-pressed="false"><b>4</b><span class="lg" data-i18n="mode.full">FULL-RUN</span><span class="sm">FULL</span></button>
+   <span class="logo" aria-hidden="true">HDH</span>
+   <div class="modes" id="modes" role="group" aria-label="Operating mode" data-i18n="aria.modes" data-i18n-attr="aria-label">
+     <button class="mode" data-m="edit"   aria-pressed="false"><b>1</b><span class="lg" data-i18n="mode.edit">PRG EDIT</span><span class="sm" data-i18n="mode.edit.s">PRG EDIT</span></button>
+     <button class="mode" data-m="test"   aria-pressed="true"><b>2</b><span class="lg" data-i18n="mode.test">TEST</span><span class="sm" data-i18n="mode.test.s">TEST</span></button>
+     <button class="mode" data-m="single" aria-pressed="false"><b>3</b><span class="lg" data-i18n="mode.single">SINGLE-BLOCK</span><span class="sm" data-i18n="mode.single.s">SINGLE</span></button>
+     <button class="mode" data-m="full"   aria-pressed="false"><b>4</b><span class="lg" data-i18n="mode.full">FULL-RUN</span><span class="sm" data-i18n="mode.full.s">FULL</span></button>
    </div>
+   <!-- phones: program + state + checks at a glance; everything else is behind MENU -->
+   <span class="hdr-m hdr-stat" id="hdr-stat" aria-hidden="true"></span>
+   <button class="hdr-m hdr-err" id="hdr-err" type="button" title="Checks" aria-describedby="hdr-err-d"><span id="hdr-err-t">0</span></button>
+   <span class="sr-only" id="hdr-err-d" data-i18n="hdr.errdesc">Opens the checks in the Status workspace</span>
+   <!-- secondary features: inline in the header on wide screens, a drawer (MENU) on phones -->
+   <div class="hmore" id="hmore" aria-labelledby="hmore-t">
+   <div class="dhead"><span class="dtitle" id="hmore-t" data-i18n="drawer.title">Menu</span>
+     <button class="hbtn dclose" id="hmore-x" type="button" data-i18n="btn.close">Close</button></div>
    <button class="hbtn devbtn" id="b-dev" title="Feature log, version history, release plan" data-i18n="btn.dev">DEV</button>
    <button class="hbtn new" id="b-new" title="New program: manual or AI" aria-haspopup="menu">+ New ▾</button>
    <button class="hbtn lessons" id="b-lessons" title="Lessons and BREAK IT" aria-haspopup="menu">Lessons ▾</button>
    <button class="hbtn aibtn" id="b-ai" title="AI: change this program or write a new one" aria-haspopup="menu">AI ▾</button>
    <button class="hbtn" id="b-help" title="Lessons, pitfalls, manual, AI setup (H)" data-i18n="btn.help">Help</button>
    <button class="hbtn" id="b-focus" aria-pressed="false" title="Focus view (F)" data-i18n="btn.focus">Focus</button>
-   <span class="ttlbox"><span class="ttl">TNC 426</span><span class="sub-ttl">NC SW 280 476-17</span></span>
    <button class="hbtn prof" id="b-prof" title="Your profile: name, programs, tool table, export / import">Profile</button>
+   </div>
+   <h1 class="ttlbox"><span class="ttl">TNC 426</span><span class="sub-ttl">NC SW 280 476-17</span></h1>
+   <button class="hbtn hdr-menu" id="b-menu" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="hmore"><span aria-hidden="true">&#9776;</span> <span data-i18n="btn.menu">Menu</span></button>
  </header>
 
- <div class="main" data-pane="gfx">
+ <!-- phones and small tablets: one workspace at a time (swipe left / right, or these tabs) -->
+ <div class="mtabs" id="mtabs" role="tablist" aria-label="Workspace" data-i18n="aria.workspace" data-i18n-attr="aria-label">
+   <button role="tab" id="mt-pgm" data-pane="pgm" aria-controls="ws-pgm" aria-selected="false"><span data-i18n="ws.program">Program</span></button>
+   <button role="tab" id="mt-gfx" data-pane="gfx" aria-controls="ws-gfx" aria-selected="true"><span data-i18n="ws.graphics">Graphics</span></button>
+   <button role="tab" id="mt-side" data-pane="side" aria-controls="ws-side" aria-selected="false"><span data-i18n="ws.status">Status</span> <span class="tbadge" id="mt-badge" hidden></span></button>
+ </div>
+
+ <main class="main" data-pane="gfx">
    <!-- PROGRAM -->
-   <section class="col col-pgm" aria-label="Program">
+   <section class="col col-pgm" id="ws-pgm" aria-label="Program">
      <div class="ch">
        <span data-i18n="panel.program">Program</span>
        <span class="rt" id="pgm-path">TNC:\</span>
@@ -552,7 +685,7 @@ body.focus .fxmenu,body.focus .lgd,body.focus #callouts,body.focus .sub-ttl{disp
        <button class="chb" id="b-tools" title="Tool list — TOOL.T (T)" data-i18n="btn.tools">Tool list</button>
        <button class="chb" id="b-save" title="Save as .H (Ctrl+S)" data-i18n="btn.save">Save .H</button>
      </div>
-     <div class="crt" id="crt">
+     <div class="crt" id="crt" tabindex="0" role="region" aria-label="Program listing">
        <div class="plist scan" id="plist"></div>
        <div class="mgt scan" id="mgt" hidden></div>
        <div class="flowhost" id="flow" hidden></div>
@@ -564,19 +697,24 @@ body.focus .fxmenu,body.focus .lgd,body.focus #callouts,body.focus .sub-ttl{disp
        <span class="hint" id="dlg-hint">E edit &middot; I insert &middot; D delete</span>
      </div>
      <div class="skpath" id="skpath" hidden></div>
-     <div class="sks" id="sks"></div>
+     <div class="sks" id="sks" role="group" aria-label="Soft keys"></div>
+     <div class="skpager" id="skpager" hidden>
+       <button type="button" id="sk-prev" aria-label="Previous soft-key row" data-i18n="sk.prev" data-i18n-attr="aria-label">&#9664;</button>
+       <span id="sk-page"></span>
+       <button type="button" id="sk-next" aria-label="Next soft-key row" data-i18n="sk.next" data-i18n-attr="aria-label">&#9654;</button>
+     </div>
    </section>
 
    <!-- GRAPHICS -->
-   <section class="col col-gfx" aria-label="Test graphics">
+   <section class="col col-gfx" id="ws-gfx" aria-label="Test graphics">
      <div class="ch"><span data-i18n="panel.testgfx">Test graphics</span><span class="grow"></span><span class="rt" id="gfx-rt">3-D VIEW</span></div>
      <div class="gfx" id="gfx">
-       <canvas id="gl"></canvas>
+       <canvas id="gl" role="img" aria-label="3-D test graphics: blank, tool and tool path" aria-describedby="ovl-l ovl-r" data-i18n="aria.canvas" data-i18n-attr="aria-label"></canvas>
        <div class="callouts" id="callouts"></div>
        <div class="ovl ovl-tl" id="ovl-l"></div>
        <div class="ovl ovl-tr" id="ovl-r"></div>
-       <div class="ovl ovl-dro" id="dro" aria-label="Position"></div>
-       <div class="alarm" id="alarm" hidden></div>
+       <div class="ovl ovl-dro" id="dro" role="group" aria-label="Position"></div>
+       <div class="alarm" id="alarm" role="alert" hidden></div>
        <div class="coach" id="coach" hidden>
          <div class="coach-hd"><span class="k" id="coach-k">LEARN</span><span class="t" id="coach-t"></span>
            <button id="coach-x" title="Close lesson" aria-label="Close lesson">&times;</button></div>
@@ -618,13 +756,13 @@ body.focus .fxmenu,body.focus .lgd,body.focus #callouts,body.focus .sub-ttl{disp
    </section>
 
    <!-- SIDE -->
-   <aside class="col col-side" aria-label="Status">
-     <div class="stabs" role="tablist" id="stabs">
-       <button role="tab" data-tab="diag" aria-selected="true" data-i18n="tab.diag">Diagnostics</button>
-       <button role="tab" data-tab="ref" aria-selected="false" data-i18n="tab.ref">Reference</button>
-       <button role="tab" data-tab="progs" aria-selected="false" id="tab-progs">Programs</button>
+   <aside class="col col-side" id="ws-side" aria-label="Status">
+     <div class="stabs" role="tablist" id="stabs" aria-label="Status">
+       <button role="tab" data-tab="diag" id="st-diag" aria-controls="sp-diag" aria-selected="true" data-i18n="tab.diag">Diagnostics</button>
+       <button role="tab" data-tab="ref" id="st-ref" aria-controls="sp-ref" aria-selected="false" data-i18n="tab.ref">Reference</button>
+       <button role="tab" data-tab="progs" aria-controls="sp-progs" aria-selected="false" id="tab-progs">Programs</button>
      </div>
-     <div class="spane" id="sp-diag">
+     <div class="spane" id="sp-diag" role="tabpanel" aria-labelledby="st-diag">
      <div class="card card-run"><h3><span data-i18n="panel.run">Run</span> <span class="tagx" id="run-state">READY</span></h3>
        <div class="in"><dl class="kv" id="runkv"></dl></div></div>
      <div class="card card-checks"><h3><span data-i18n="panel.checks">Checks</span> <span class="tagx" id="errc">0</span></h3>
@@ -634,12 +772,12 @@ body.focus .fxmenu,body.focus .lgd,body.focus #callouts,body.focus .sub-ttl{disp
          <button class="mini" id="b-snap" data-i18n="btn.snap">Store finished run as reference A</button>
          <button class="mini" id="b-restore" data-i18n="btn.restore">Open reference program</button></div></div>
      </div>
-     <div class="spane" id="sp-ref" hidden>
+     <div class="spane" id="sp-ref" role="tabpanel" aria-labelledby="st-ref" hidden>
        <div class="refbar"><select id="ref-sel" aria-label="What to show"></select></div>
        <div class="refbody" id="ref-body"></div>
        <div class="klist" id="klist" hidden></div>
      </div>
-     <div class="spane" id="sp-progs" hidden>
+     <div class="spane" id="sp-progs" role="tabpanel" aria-labelledby="tab-progs" hidden>
        <details class="pgroup" id="up-box"><summary><span id="up-t">Programs</span> <span class="cnt" id="up-n">0</span></summary>
          <div class="uplist" id="uplist"></div></details>
        <details class="pgroup" id="pj-box"><summary>Projects <span class="cnt" id="proj-t"></span></summary>
@@ -655,22 +793,21 @@ body.focus .fxmenu,body.focus .lgd,body.focus #callouts,body.focus .sub-ttl{disp
          Not affiliated with DR. JOHANNES HEIDENHAIN GmbH. &ldquo;HEIDENHAIN&rdquo; and &ldquo;TNC&rdquo; are their trademarks.</div>
      </div>
    </aside>
- </div>
+ </main>
 
- <nav class="mtabs" id="mtabs" aria-label="Panes">
-   <button data-pane="pgm" aria-selected="false">Program</button>
-   <button data-pane="gfx" aria-selected="true">Graphics</button>
-   <button data-pane="side" aria-selected="false">Status</button>
- </nav>
+ <!-- phones: the soft keys (and the block line in PRG EDIT) live here, under every workspace -->
+ <div class="dock" id="dock" role="region" aria-label="Soft keys" data-i18n="aria.dock" data-i18n-attr="aria-label"></div>
 </div>
+<div class="scrim" id="scrim" hidden></div>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="sr-only" id="sr-live" aria-live="polite" aria-atomic="true"></div>
 
 <!-- ================= NEW PROGRAM ================= -->
 <div class="modal" id="m-new" hidden>
  <div class="mcard" role="dialog" aria-modal="true" aria-labelledby="m-new-t">
   <div class="mhead"><span class="mt" id="m-new-t" data-i18n="title.newprogram">New program</span>
-    <button class="x" data-close>Close <small>ESC</small></button></div>
+    <button class="x" type="button" data-close><span data-i18n="btn.close">Close</span> <small aria-hidden="true">ESC</small></button></div>
   <div class="mbody">
     <div class="opts" id="new-opts" hidden>
       <div class="opt" data-opt="scratch"><span class="on">1 &middot; THE TNC WAY</span><h4>From scratch</h4>
@@ -723,14 +860,14 @@ body.focus .fxmenu,body.focus .lgd,body.focus #callouts,body.focus .sub-ttl{disp
 <div class="modal" id="m-help" hidden>
  <div class="mcard" role="dialog" aria-modal="true" aria-labelledby="m-help-t">
   <div class="mhead"><span class="mt" id="m-help-t" data-i18n="title.help">Help</span>
-    <button class="x" data-close>Close <small>ESC</small></button></div>
-  <div class="mtabs2" role="tablist" id="help-tabs">
+    <button class="x" type="button" data-close><span data-i18n="btn.close">Close</span> <small aria-hidden="true">ESC</small></button></div>
+  <div class="mtabs2" role="tablist" id="help-tabs" aria-label="Help">
     <button role="tab" data-tab="learn" aria-selected="true">Learn</button>
     <button role="tab" data-tab="break" aria-selected="false">Break it</button>
     <button role="tab" data-tab="manual" aria-selected="false">Manual</button>
     <button role="tab" data-tab="ai" aria-selected="false">AI setup</button>
   </div>
-  <div class="mbody" id="help-body"></div>
+  <div class="mbody" id="help-body" role="tabpanel" aria-label="Help"></div>
  </div>
 </div>
 
@@ -738,7 +875,7 @@ body.focus .fxmenu,body.focus .lgd,body.focus #callouts,body.focus .sub-ttl{disp
 <div class="modal" id="m-prof" hidden>
  <div class="mcard" role="dialog" aria-modal="true" aria-labelledby="m-prof-t">
   <div class="mhead"><span class="mt" id="m-prof-t" data-i18n="title.profile">Profile</span>
-    <button class="x" data-close>Close <small>ESC</small></button></div>
+    <button class="x" type="button" data-close><span data-i18n="btn.close">Close</span> <small aria-hidden="true">ESC</small></button></div>
   <div class="mbody" id="prof-body"></div>
  </div>
 </div>
@@ -746,13 +883,13 @@ body.focus .fxmenu,body.focus .lgd,body.focus #callouts,body.focus .sub-ttl{disp
 <div class="modal" id="m-dev" hidden>
  <div class="mcard dev" role="dialog" aria-modal="true" aria-labelledby="m-dev-t">
   <div class="mhead"><span class="mt" id="m-dev-t" data-i18n="title.dev">DEV</span>
-    <button class="x" data-close>Close <small>ESC</small></button></div>
-  <div class="mtabs2" role="tablist" id="dev-tabs">
+    <button class="x" type="button" data-close><span data-i18n="btn.close">Close</span> <small aria-hidden="true">ESC</small></button></div>
+  <div class="mtabs2" role="tablist" id="dev-tabs" aria-label="DEV">
     <button role="tab" data-tab="features" aria-selected="true">Features</button>
     <button role="tab" data-tab="history" aria-selected="false">Version history</button>
     <button role="tab" data-tab="releases" aria-selected="false">Release plan</button>
   </div>
-  <div class="mbody"><pre id="dev-pre"></pre></div>
+  <div class="mbody" role="tabpanel" aria-label="DEV"><pre id="dev-pre" tabindex="0"></pre></div>
  </div>
 </div>
 
@@ -15233,7 +15370,31 @@ var TNC_I18N = (function () {
       'title.newprogram': 'New program',
       'title.help': 'Help',
       'title.profile': 'Profile',
-      'title.dev': 'DEV'
+      'title.dev': 'DEV',
+      /* shell: phones (workspaces, drawer, dock) and accessible names */
+      'btn.menu': 'Menu',
+      'btn.close': 'Close',
+      'drawer.title': 'Menu',
+      'aria.modes': 'Operating mode',
+      'aria.workspace': 'Workspace',
+      'aria.dock': 'Soft keys',
+      'aria.canvas': '3-D test graphics: blank, tool and tool path',
+      'ws.program': 'Program',
+      'ws.graphics': 'Graphics',
+      'ws.status': 'Status',
+      'mode.edit.s': 'PRG EDIT',
+      'mode.test.s': 'TEST',
+      'mode.single.s': 'SINGLE',
+      'mode.full.s': 'FULL',
+      'sk.prev': 'Previous soft-key row',
+      'sk.next': 'Next soft-key row',
+      'sk.row': 'Row',
+      'hdr.errdesc': 'Opens the checks in the Status workspace',
+      'chk.clear': 'all clear',
+      'chk.error': 'error',
+      'chk.errors': 'errors',
+      'chk.warning': 'warning',
+      'chk.warnings': 'warnings'
     },
     sv: {
       /* unofficial Swedish -- see file header */
@@ -15275,7 +15436,30 @@ var TNC_I18N = (function () {
       'title.newprogram': 'Nytt program',
       'title.help': 'Hjälp',
       'title.profile': 'Profil',
-      'title.dev': 'UTV'
+      'title.dev': 'UTV',
+      'btn.menu': 'Meny',
+      'btn.close': 'Stäng',
+      'drawer.title': 'Meny',
+      'aria.modes': 'Driftläge',
+      'aria.workspace': 'Arbetsyta',
+      'aria.dock': 'Funktionstangenter',
+      'aria.canvas': '3D-testgrafik: ämne, verktyg och verktygsbana',
+      'ws.program': 'Program',
+      'ws.graphics': 'Grafik',
+      'ws.status': 'Status',
+      'mode.edit.s': 'REDIGERA',
+      'mode.test.s': 'TEST',
+      'mode.single.s': 'ENKEL',
+      'mode.full.s': 'HEL',
+      'sk.prev': 'Föregående rad funktionstangenter',
+      'sk.next': 'Nästa rad funktionstangenter',
+      'sk.row': 'Rad',
+      'hdr.errdesc': 'Öppnar kontrollerna i arbetsytan Status',
+      'chk.clear': 'inga fel',
+      'chk.error': 'fel',
+      'chk.errors': 'fel',
+      'chk.warning': 'varning',
+      'chk.warnings': 'varningar'
     }
   };
 
@@ -15360,6 +15544,7 @@ var TNC_I18N = (function () {
     lang = l;
     api.lang = l;
     try { if (typeof localStorage !== 'undefined') localStorage.setItem(LS_KEY, l); } catch (e) {}
+    if (typeof document !== 'undefined' && document.documentElement) document.documentElement.lang = l;
     applyDom();
   }
 
@@ -15939,7 +16124,7 @@ function stepBlock(){                                   // NC START in SINGLE-BL
   S.k=k+1; S.cursor=S.k<E.length?E[S.k]:Math.max(0,S.res.blocks.length-1); S.execB=S.cursor; markRows(true); flowHighlight(); traceFor(S.cursor);
   setState(S.k>=E.length?'PROGRAM END':'SINGLE BLOCK');
 }
-function setState(s){ $('run-state').textContent=s; }
+function setState(s){ $('run-state').textContent=s; if(s!==setState.last){ setState.last=s; hdrStat(); announce(s); } }
 
 /* ================= alarms ================= */
 const alarmEl=$('alarm'); let alarmT=0;
@@ -15959,6 +16144,7 @@ function showAlarm(kind,title,text,ms){
   alarmEl.innerHTML=`<b>${esc(title)}</b><span>${esc(text)}</span><button type="button" aria-label="Acknowledge">CE</button>`;
   alarmEl.querySelector('button').onclick=()=>hideAlarm();
   clearTimeout(alarmT); if(ms) alarmT=setTimeout(()=>hideAlarm(kind),ms);
+  if(isPhone()&&paneNow()!=='gfx') say(title+' · '+text);
 }
 function hideAlarm(kind){ if(kind&&!alarmEl.classList.contains(kind)) return; alarmEl.hidden=true; }
 
@@ -15992,7 +16178,8 @@ function markRows(scroll){
   const fset=new Set(S.focus||[]);
   for(let i=0;i<rows.length;i++) rows[i].classList.toggle('focus', fset.size>0 && fset.has(S.res.blocks[i].n) && !S.res.blocks[i].indent);
   if(scroll!==false){ const el=rows[S.cursor]; if(el){ const r=el.offsetTop, h=crt.clientHeight;
-    if(r<crt.scrollTop+12||r>crt.scrollTop+h-30) crt.scrollTop=r-h/2; } }
+    if(isPhone()){ if(paneNow()==='pgm') el.scrollIntoView({block:'nearest'}); }
+    else if(r<crt.scrollTop+12||r>crt.scrollTop+h-30) crt.scrollTop=r-h/2; } }
   if(!S.running) traceFor(S.cursor);
   if(S.flowView) flowHighlight();
 }
@@ -16022,6 +16209,7 @@ function renderChecks(){
                ...ev.map(e=>({cls:e.sev==='crash'?'':e.sev,t:e.t,block:e.block,msg:e.msg}))];
   const nCrash=ev.filter(e=>e.sev==='crash').length, nWarn=ev.filter(e=>e.sev==='warn').length;
   $('errc').textContent=errs.length+nCrash+nWarn?`${errs.length} err · ${nCrash} crash · ${nWarn} warn`:'all clear';
+  checksBadge(errs.length,nCrash,nWarn);
   const tr=m=>window.TNC_I18N?TNC_I18N.tr(m):m;
   $('elist').innerHTML=items.length?items.map((x,i)=>`<div class="${x.cls}" data-k="${i}">BLOCK ${nOf(x.block)} &nbsp;${esc(tr(x.msg))}</div>`).join('')
     :'<div class="ok">PROGRAM CHECKED · NO ERRORS · NO CRASHES</div>';
@@ -16092,7 +16280,7 @@ function skClass(a){ const on=(a==='rawt'&&S.raw)||(a==='flow'&&S.flowView)||(a=
   return (a==='start'||(a==='step'&&S.mode==='single'))?' go':(a==='stop'?' stop':(on?' on':'')); }
 function renderSK(){ const tr=window.TNC_I18N?(x=>TNC_I18N.tr(x)):(x=>x);
   sks.innerHTML=skRows().map(([l,a])=>{ const k=skKey(a); return `<button class="sk${skClass(a)}" data-a="${esc(a)}">${esc(tr(l.replace(/\n/g,' '))===l.replace(/\n/g,' ')?l:tr(l.replace(/\n/g,' '))).replace(/\n/g,'<br>')}${k?`<small class="kh">${esc(k)}</small>`:''}</button>`; }).join('');
-  renderPath(); }
+  pageSK(); renderPath(); }
 function renderPath(){
   const el=$('skpath'); if(!el) return; let path=null, back='';
   if(S.wiz){ path=['PROGRAM',S.wiz.spec.title,'QUESTION '+(S.wiz.i+1)+' / '+S.wiz.spec.steps.length]; back='DEL (ESC) = ABORT · END = FINISH'; }
@@ -16447,9 +16635,25 @@ $('coach-next').onclick=()=>{ if(S.lesson.i>=S.lesson.steps.length-1){ endLesson
 
 /* ================= modals ================= */
 let openModalEl=null;
-function openModal(id){ closeModal(); const m=$(id); m.hidden=false; openModalEl=m; S.running=false;
+let modalReturn=null;
+function openModal(id){ const back=openModalEl?modalReturn:document.activeElement; closeModal(true); closeDrawer(true); closeMenu();
+  const m=$(id); m.hidden=false; openModalEl=m; modalReturn=back; S.running=false; setInert(true);
   const f=m.querySelector('[data-close]'); f&&f.focus(); }
-function closeModal(){ if(openModalEl){ openModalEl.hidden=true; openModalEl=null; } }
+function closeModal(keep){ if(!openModalEl) return; openModalEl.hidden=true; openModalEl=null; setInert(false);
+  if(keep) return; const r=modalReturn; modalReturn=null; restoreFocus(r); }
+/* background of a modal: not clickable, not focusable, not read */
+function setInert(on){ ['.app','#scrim'].forEach(q=>{ const el=document.querySelector(q); if(el) el.inert=on; }); }
+function restoreFocus(el){ if(!el||el===document.body) return;
+  const ok=el.isConnected&&(el.checkVisibility?el.checkVisibility({visibilityProperty:true}):el.offsetParent!==null)&&!el.closest('[inert]');
+  const t=ok?el:(isPhone()&&$('b-menu').offsetParent?$('b-menu'):null); if(t) try{ t.focus({preventScroll:true}); }catch(e){} }
+/* Tab stays inside an open modal (WAI-ARIA dialog pattern) */
+document.addEventListener('keydown',e=>{ if(e.key!=='Tab'||!openModalEl) return;
+  const card=openModalEl.querySelector('.mcard')||openModalEl;
+  const f=[...card.querySelectorAll('button,[href],input,select,textarea,summary,[tabindex]:not([tabindex="-1"])')].filter(x=>!x.disabled&&x.offsetParent!==null);
+  if(!f.length) return; const first=f[0], lastF=f[f.length-1];
+  if(!card.contains(document.activeElement)){ e.preventDefault(); first.focus(); }
+  else if(e.shiftKey&&document.activeElement===first){ e.preventDefault(); lastF.focus(); }
+  else if(!e.shiftKey&&document.activeElement===lastF){ e.preventDefault(); first.focus(); } },true);
 document.querySelectorAll('.modal').forEach(m=>{
   m.addEventListener('click',e=>{ if(e.target===m||e.target.closest('[data-close]')) closeModal(); });
 });
@@ -17098,14 +17302,16 @@ if($('b-tools')) $('b-tools').onclick=()=>act('tt');
 
 /* ================= header menus: + NEW · LESSONS · AI ================= */
 let menuEl=null;
-function closeMenu(){ if(menuEl){ menuEl.remove(); menuEl=null; } }
+function closeMenu(){ if(menuEl){ const b=$(menuEl.dataset.for); if(b) b.setAttribute('aria-expanded','false'); menuEl.remove(); menuEl=null; } }
 function openMenu(btn,items){
   if(menuEl&&menuEl.dataset.for===btn.id){ closeMenu(); return; } closeMenu();
   const m=document.createElement('div'); m.className='hmenu'; m.setAttribute('role','menu'); m.dataset.for=btn.id;
   m.innerHTML=items.map((it,i)=>it.head?`<div class="mh">${esc(it.head)}</div>`:`<button role="menuitem" data-i="${i}">${esc(it.label)}</button>`).join('');
   document.body.appendChild(m); const r=btn.getBoundingClientRect();
-  m.style.left=Math.min(r.left,innerWidth-m.offsetWidth-8)+'px'; m.style.top=(r.bottom+4)+'px';
-  m.onclick=e=>{ const b=e.target.closest('[data-i]'); if(!b) return; const it=items[+b.dataset.i]; closeMenu(); it.act(); };
+  m.style.left=Math.max(8,Math.min(r.left,innerWidth-m.offsetWidth-8))+'px';
+  m.style.top=(r.bottom+4+m.offsetHeight>innerHeight-8&&r.top>innerHeight/2?Math.max(8,r.top-4-m.offsetHeight):r.bottom+4)+'px';
+  btn.setAttribute('aria-expanded','true');
+  m.onclick=e=>{ const b=e.target.closest('[data-i]'); if(!b) return; const it=items[+b.dataset.i]; closeMenu(); closeDrawer(true); it.act(); };
   m.addEventListener('keydown',e=>{ e.stopPropagation(); const bs=[...m.querySelectorAll('button')], i=bs.indexOf(document.activeElement);
     if(e.key==='ArrowDown'){ e.preventDefault(); (bs[i+1]||bs[0]).focus(); } else if(e.key==='ArrowUp'){ e.preventDefault(); (bs[i-1]||bs[bs.length-1]).focus(); }
     else if(e.key==='Escape'){ e.preventDefault(); closeMenu(); btn.focus(); } });
@@ -17136,7 +17342,7 @@ if(Object.keys(MACHINES).length>1){
 }
 
 /* ================= modes, toggles, keyboard ================= */
-function setMode(m){ if(m!=='edit'){ if(S.wiz) wizCancel(); S.pick=null; } S.mode=m;
+function setMode(m){ if(m!=='edit'){ if(S.wiz) wizCancel(); S.pick=null; } S.mode=m; document.body.dataset.mode=m;
   const tps=$('tp-state'); if(tps) tps.textContent={edit:'1 PRG EDIT · soft keys write blocks · Y CYCL DEF · W TOOL CALL',test:'2 TEST · SPACE = NC START / STOP',single:'3 SINGLE-BLOCK · SPACE = next block · ↑↓ moves the machine',full:'4 FULL-RUN · SPACE = NC START / STOP'}[m]||''; [...document.querySelectorAll('.mode')].forEach(b=>b.setAttribute('aria-pressed',b.dataset.m===m));
   if(!S.mgt) renderSK(); if(m==='edit'){ S.running=false; setState('EDITING'); } else setState('READY'); writePrefs(); }
 $('modes').addEventListener('click',e=>{ const b=e.target.closest('.mode'); if(b) setMode(b.dataset.m); });
@@ -17168,6 +17374,9 @@ addEventListener('keydown',e=>{
   if(!$('boot').hidden){ e.preventDefault(); dismissBoot(); return; }
   if(S.aiLive&&!S.aiLive.done&&!openModalEl){ if(k==='Escape'&&aiAbort){ e.preventDefault(); aiAbort.abort(); } return; }
   if(openModalEl){ if(k==='Escape'){ e.preventDefault(); closeModal(); } return; }
+  if(drawerOpen()){ if(k==='Escape'){ e.preventDefault(); closeDrawer(); } return; }
+  if(e.target.closest&&e.target.closest('[role=tablist]')&&/^(Arrow|Home$|End$)/.test(k)) return;
+  if((k==='Enter'||k===' ')&&e.target.matches&&e.target.matches('button:focus-visible,a:focus-visible,summary:focus-visible,[role=tab]:focus-visible')) return;
   if(mod&&k.toLowerCase()==='s'){ e.preventDefault(); saveH(); return; }
   if(mod&&k.toLowerCase()==='o'){ e.preventDefault(); loadFromDisk(); return; }
   if(S.wiz){ if(e.target!==dlgIn) dlgIn.focus(); if(wizKey(e)) e.preventDefault(); return; }
@@ -17217,11 +17426,134 @@ addEventListener('keydown',e=>{
   }
 });
 
-/* ================= mobile panes ================= */
-const mainEl=document.querySelector('.main');
-function showPane(p){ if(!matchMedia('(max-width:900px)').matches) return; mainEl.dataset.pane=p;
-  [...$('mtabs').children].forEach(b=>b.setAttribute('aria-selected',b.dataset.pane===p)); requestAnimationFrame(resize); }
-$('mtabs').addEventListener('click',e=>{ const b=e.target.closest('button'); if(b) showPane(b.dataset.pane); });
+/* ================= phones: workspaces, drawer, dock, swipes =================
+ * At ≤ 900 px the three columns become three workspaces (Program · Graphics · Status) in the page's
+ * own vertical scroll, picked by the tab bar or a horizontal swipe. The soft keys (and the block line
+ * in PRG EDIT) move into a dock fixed at the bottom so NC START / STOP / RESET are reachable from every
+ * workspace; rows of more than 8 keys page like the control's soft-key row switch. The header keeps the
+ * modes, the program, the run state and the check count; DEV, + NEW, LESSONS, AI, HELP, FOCUS and the
+ * profile go into a drawer (MENU). Nodes are moved, never copied: one id, one handler, one state.
+ * Wide screens are untouched. */
+/* var + lookups, not const: these run from functions that may fire before this point of the file has executed */
+var PHONE=matchMedia('(max-width:900px)');
+function isPhone(){ return matchMedia('(max-width:900px)').matches; }
+var mainEl=document.querySelector('.main');
+function paneNow(){ return document.querySelector('.main').dataset.pane||'gfx'; }
+var PANES=['pgm','gfx','side'], paneScroll={};
+function paneTabs(){ return [...$('mtabs').querySelectorAll('[role=tab]')]; }
+function showPane(p,how){ how=how||{}; if(!isPhone()||!PANES.includes(p)) return;
+  if(p==='side'&&S.focusView) p='gfx';
+  const was=paneNow(); if(was!==p) paneScroll[was]=scrollY;
+  mainEl.dataset.pane=p;
+  paneTabs().forEach(b=>{ const on=b.dataset.pane===p; b.setAttribute('aria-selected',on); b.tabIndex=on?0:-1; });
+  if(was!==p) scrollTo(0,paneScroll[p]||0);
+  if(how.focus) $('mt-'+p).focus();
+  requestAnimationFrame(resize); }
+$('mtabs').addEventListener('click',e=>{ const b=e.target.closest('[role=tab]'); if(b) showPane(b.dataset.pane); });
+/* Program → Graphics → Status: the neighbour in a direction, or null at the ends */
+function paneStep(d){ const vis=PANES.filter(p=>!(p==='side'&&S.focusView)); const i=vis.indexOf(paneNow())+d; return vis[i]||null; }
+
+/* tab lists (workspaces, status, help, DEV): arrow keys / Home / End move and select (WAI-ARIA tabs, automatic activation) */
+document.addEventListener('keydown',e=>{ const list=e.target.closest&&e.target.closest('[role=tablist]'); if(!list||e.altKey||e.ctrlKey||e.metaKey) return;
+  const tabs=[...list.querySelectorAll('[role=tab]')].filter(t=>t.offsetParent!==null), i=tabs.indexOf(e.target); if(i<0) return;
+  const j={ArrowRight:i+1,ArrowLeft:i-1,Home:0,End:tabs.length-1}[e.key]; if(j==null) return;
+  e.preventDefault(); e.stopPropagation(); const t=tabs[(j+tabs.length)%tabs.length]; t.focus(); t.click(); });
+/* roving tabindex: only the selected tab is in the Tab order */
+function rove(list){ const tabs=[...list.querySelectorAll('[role=tab]')]; if(!tabs.some(t=>t.getAttribute('aria-selected')==='true')) return;
+  tabs.forEach(t=>t.tabIndex=t.getAttribute('aria-selected')==='true'?0:-1); }
+document.querySelectorAll('[role=tablist]').forEach(l=>{ rove(l); new MutationObserver(()=>rove(l)).observe(l,{subtree:true,attributes:true,attributeFilter:['aria-selected']}); });
+
+/* header: program · state, and the check count as a button that opens the checks */
+function hdrStat(){ const el=$('hdr-stat'); if(!el) return; const t=S.pgm+'|'+setState.last; if(el.dataset.t===t) return; el.dataset.t=t;
+  el.innerHTML=`<b>${esc(S.pgm)}</b> · ${esc(setState.last||'')}`; }
+var lastChecks=null;
+function checksBadge(nErr,nCrash,nWarn){
+  const bad=nErr+nCrash, n=bad+nWarn, tt=x=>window.TNC_I18N?TNC_I18N.t(x):x;
+  const txt=n?(bad?bad+' '+tt(bad===1?'chk.error':'chk.errors'):'')+(bad&&nWarn?' · ':'')+(nWarn?nWarn+' '+tt(nWarn===1?'chk.warning':'chk.warnings'):''):tt('chk.clear');
+  const he=$('hdr-err'); he.className='hdr-m hdr-err'+(bad?' bad':nWarn?' warn':'');
+  $('hdr-err-t').textContent=n?(bad?'⚠ '+bad:'! '+nWarn):'✓'; he.setAttribute('aria-label',tt('panel.checks')+': '+txt);
+  const bd=$('mt-badge'); bd.hidden=!n; bd.className='tbadge'+(bad?'':' warn'); bd.textContent=n?String(n):''; bd.setAttribute('aria-label',txt);
+  const key=nErr+'/'+nCrash+'/'+nWarn; if(lastChecks!==null&&key!==lastChecks) announce(tt('panel.checks')+': '+txt); lastChecks=key; }
+$('hdr-err').onclick=()=>{ if(isPhone()) showPane('side'); setSideTab('diag'); const el=$('elist'); if(el) el.scrollIntoView({block:'nearest'}); };
+
+/* polite announcements: state changes and check counts only — never coordinates, frames or scrubbing */
+function announce(msg){ const el=$('sr-live'); if(!el||!msg) return; clearTimeout(announce._t);
+  announce._t=setTimeout(()=>{ el.textContent=''; requestAnimationFrame(()=>{ el.textContent=msg; }); },350); }
+
+/* soft keys on phones: 8 at a time (2 × 4), ◀ ▶ switch the row */
+var skPage=0, skSig='';
+function pageSK(){ const sks=$('sks'), keys=[...sks.children], pager=$('skpager'), rows=Math.ceil(keys.length/8);
+  const sig=keys.map(k=>k.dataset.a).join('|'); if(sig!==skSig){ skSig=sig; skPage=0; }
+  if(!isPhone()||rows<2){ keys.forEach(k=>k.hidden=false); pager.hidden=true; return; }
+  skPage=Math.min(skPage,rows-1); keys.forEach((k,i)=>k.hidden=Math.floor(i/8)!==skPage);
+  pager.hidden=false; $('sk-page').textContent=(window.TNC_I18N?TNC_I18N.t('sk.row'):'Row')+' '+(skPage+1)+' / '+rows; }
+$('sk-prev').onclick=()=>{ const rows=Math.ceil(sks.children.length/8); skPage=(skPage-1+rows)%rows; pageSK(); };
+$('sk-next').onclick=()=>{ const rows=Math.ceil(sks.children.length/8); skPage=(skPage+1)%rows; pageSK(); };
+
+/* the drawer (phones): a modal dialog — focus inside, the rest inert, Esc / scrim / swipe right close it */
+var hmore=$('hmore'), scrim=$('scrim');
+function drawerOpen(){ return $('hmore').classList.contains('open'); }
+function openDrawer(){ if(!isPhone()||drawerOpen()) return; closeMenu();
+  hmore.setAttribute('role','dialog'); hmore.setAttribute('aria-modal','true'); hmore.classList.add('open'); scrim.hidden=false;
+  $('b-menu').setAttribute('aria-expanded','true'); drawerInert(true); $('hmore-x').focus(); }
+function closeDrawer(quiet){ if(!drawerOpen()) return; const hmore=$('hmore'), scrim=$('scrim'); hmore.classList.remove('open'); scrim.hidden=true; drawerInert(false);
+  $('b-menu').setAttribute('aria-expanded','false'); closeMenu(); if(!quiet) $('b-menu').focus(); }
+function drawerInert(on){ [document.querySelector('.main'),$('mtabs'),$('dock'),...[...document.querySelector('.bar').children].filter(c=>c!==hmore)].forEach(el=>{ if(el) el.inert=on; }); }
+$('b-menu').onclick=openDrawer; $('hmore-x').onclick=()=>closeDrawer(); scrim.onclick=()=>closeDrawer();
+hmore.addEventListener('keydown',e=>{ if(!drawerOpen()) return;
+  if(e.key==='Escape'){ e.preventDefault(); e.stopPropagation(); closeDrawer(); return; }
+  if(e.key!=='Tab') return; const f=[...hmore.querySelectorAll('button')].filter(b=>!b.hidden&&b.offsetParent!==null); if(!f.length) return;
+  if(e.shiftKey&&document.activeElement===f[0]){ e.preventDefault(); f[f.length-1].focus(); }
+  else if(!e.shiftKey&&document.activeElement===f[f.length-1]){ e.preventDefault(); f[0].focus(); } });
+/* drawer buttons that open a dialog or start something close the drawer first (menus stay on top of it) */
+['b-dev','b-help','b-prof','b-focus'].forEach(id=>{ const b=$(id); if(b) b.addEventListener('click',()=>closeDrawer(true),true); });
+
+/* swipes: left / right on a workspace switches workspace; right on the drawer closes it.
+ * Passive listeners only (vertical scroll and pinch zoom are never blocked). Ignored when the touch
+ * starts on the 3-D view, a slider, a text field, the soft keys or anything that scrolls sideways,
+ * when two fingers are down, while zoomed in, or when text is selected. A swipe only ever navigates. */
+function swipeable(el,root){
+  for(let n=el;n&&n!==root;n=n.parentElement){
+    if(n.matches('canvas,input,textarea,select,[contenteditable],.sks,.skpager,.dlg,.tp,.ghost')) return false;
+    if(n.scrollWidth>n.clientWidth+2){ const ox=getComputedStyle(n).overflowX; if(ox==='auto'||ox==='scroll') return false; } }
+  return true; }
+function onSwipe(root,fn){ let s0=null;
+  root.addEventListener('touchstart',e=>{ s0=null; if(e.touches.length!==1||!isPhone()) return;
+    if(window.visualViewport&&visualViewport.scale>1.05) return; if(!swipeable(e.target,root)) return;
+    const t=e.touches[0]; s0={x:t.clientX,y:t.clientY,t:performance.now(),dead:false}; },{passive:true});
+  root.addEventListener('touchmove',e=>{ if(!s0) return; if(e.touches.length!==1){ s0=null; return; }
+    const t=e.touches[0], dx=t.clientX-s0.x, dy=t.clientY-s0.y; if(Math.abs(dy)>30&&Math.abs(dy)>Math.abs(dx)) s0.dead=true; },{passive:true});
+  root.addEventListener('touchcancel',()=>{ s0=null; },{passive:true});
+  root.addEventListener('touchend',e=>{ if(!s0||s0.dead) { s0=null; return; } const t=e.changedTouches[0], dx=t.clientX-s0.x, dy=t.clientY-s0.y, dt=performance.now()-s0.t; s0=null;
+    const sel=getSelection&&getSelection(); if(sel&&!sel.isCollapsed&&String(sel).trim()) return;
+    if(Math.abs(dx)>=Math.max(64,innerWidth*.18)&&Math.abs(dx)>Math.abs(dy)*2&&dt<2500) fn(dx<0?1:-1); },{passive:true}); }
+onSwipe(mainEl,d=>{ if(drawerOpen()||openModalEl) return; const p=paneStep(d); if(p) showPane(p); });
+onSwipe(hmore,d=>{ if(d<0) closeDrawer(); });
+
+/* layout follows the breakpoint: dock in or out, ARIA roles on the workspaces, canvas size */
+const pgmCol=document.querySelector('.col-pgm'), dlgEl=document.querySelector('.col-pgm .dlg');
+function layout(){ const phone=isPhone(), dock=$('dock'), act=document.activeElement;
+  const parts=[dlgEl,$('skpath'),sks,$('skpager')];
+  if(phone&&parts[0].parentElement!==dock) parts.forEach(n=>dock.appendChild(n));
+  if(!phone&&parts[0].parentElement===dock) parts.forEach(n=>pgmCol.appendChild(n));
+  if(act&&act!==document.activeElement&&act.isConnected) try{ act.focus({preventScroll:true}); }catch(e){}
+  PANES.forEach(p=>{ const sec=$('ws-'+p); if(phone){ sec.setAttribute('role','tabpanel'); sec.setAttribute('aria-labelledby','mt-'+p); sec.removeAttribute('aria-label'); }
+    else { sec.removeAttribute('role'); sec.removeAttribute('aria-labelledby'); sec.setAttribute('aria-label',{pgm:'Program',gfx:'Test graphics',side:'Status'}[p]); } });
+  if(phone){ hmore.removeAttribute('aria-labelledby'); hmore.setAttribute('aria-labelledby','hmore-t'); showPane(paneNow()); }
+  else { closeDrawer(true); hmore.removeAttribute('role'); hmore.removeAttribute('aria-modal'); hmore.removeAttribute('aria-labelledby'); }
+  pageSK(); measure(); requestAnimationFrame(resize); }
+/* CSS sizes: dock height, tab-bar height, and how much of the screen the software keyboard covers */
+function measure(){ const r=document.documentElement.style, d=$('dock'), tb=$('mtabs');
+  r.setProperty('--dock-h',(isPhone()?d.offsetHeight:0)+'px'); r.setProperty('--tabs-h',(isPhone()?tb.offsetHeight:0)+'px');
+  const vv=window.visualViewport; if(vv){ r.setProperty('--vvh',vv.height+'px'); r.setProperty('--vvt',vv.offsetTop+'px');
+    r.setProperty('--kb',Math.max(0,Math.round(innerHeight-vv.height-vv.offsetTop))+'px'); } }
+new ResizeObserver(measure).observe($('dock'));
+if(window.visualViewport){ visualViewport.addEventListener('resize',measure); visualViewport.addEventListener('scroll',measure); }
+PHONE.addEventListener('change',layout);
+/* a field that gets focus inside a dialog or the dock stays above the software keyboard */
+document.addEventListener('focusin',e=>{ if(!isPhone()) return; const t=e.target; if(!t.matches||!t.matches('input,textarea,select')) return;
+  if(t.closest('.modal,.dock')) setTimeout(()=>{ measure(); if(t.closest('.modal')) t.scrollIntoView({block:'nearest'}); },300); });
+layout();
 
 /* ================= boot screen ================= */
 function dismissBoot(){ $('boot').hidden=true; sess.set(BOOT_SS,'1'); if(PROF&&!PROF.name) openProfile(); }
@@ -17258,6 +17590,7 @@ function tick(now){
     const b=S.res.blocks[S.cursor];
     $('ovl-l').innerHTML=`PGM <b style="color:var(--cyan)">${esc(S.pgm)}</b><br>BLOCK <b>${b&&b.n!=null?b.n:'--'}</b> / ${(S.res.blocks.filter(x=>x.n!=null).pop()||{n:0}).n}<br>`+
       `BLANK <b>${fmt(ST.x1-ST.x0)}×${fmt(ST.y1-ST.y0)}×${fmt(ST.z1-ST.z0)}</b> mm`;
+    hdrStat();
     $('ovl-r').innerHTML=`${S.view} · ${S.speed?S.speed+'×':'MAX'}<br>${fmtT(S.t)} / ${fmtT(S.total)}<br>OVR <b style="color:var(--amber)">${S.ovr}%</b>`; }
   controls.update();
   if(CO) try{ CO.update(); }catch(e){}

@@ -1,0 +1,80 @@
+# Checks every push and PR. No secrets are used: AI tests run against mocks, desktop builds are unsigned.
+name: CI
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  core:
+    name: Interpreter, simulator build, server, web, browser UI
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: "package-lock.json\nweb/package-lock.json" }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with: { workspaces: server }
+      - run: npm ci
+      - name: Interpreter (426/430 manual examples)
+        run: node tests/manual.js
+      - name: Simulator single file is reproducible from sim/
+        run: |
+          python3 build.py
+          git diff --exit-code --stat index.html || (echo "index.html is stale: run python3 build.py and commit" && exit 1)
+      - name: Public build carries no OpenRouter key
+        run: "! grep -E 'sk-or-v1-[A-Za-z0-9]{20,}' index.html"
+      - name: Server tests
+        working-directory: server
+        run: cargo test --locked
+      - name: Web app typecheck + build
+        working-directory: web
+        run: npm ci && npm run build
+      - name: Browser UI regression (Chromium + WebKit, mocked AI)
+        run: |
+          npx playwright install --with-deps chromium webkit
+          node tests/ui/run.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: ui-screenshots, path: local/ui-shots, if-no-files-found: ignore }
+
+  desktop:
+    # Unsigned build validation only. Code signing / notarisation / store distribution are NOT set up
+    # (they need certificates as repository secrets; see README "Desktop app").
+    name: Desktop (Tauri 2) ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: "package-lock.json\nweb/package-lock.json" }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with: { workspaces: desktop/src-tauri }
+      - name: Linux system libraries (WebKitGTK 4.1)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev librsvg2-dev libxdo-dev libssl-dev patchelf
+      - run: npm ci
+      - name: tauri build (unsigned)
+        working-directory: desktop
+        run: npx tauri build --ci
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.os }}
+          path: |
+            desktop/src-tauri/target/release/bundle/**/*.deb
+            desktop/src-tauri/target/release/bundle/**/*.AppImage
+            desktop/src-tauri/target/release/bundle/**/*.dmg
+            desktop/src-tauri/target/release/bundle/**/*.msi
+            desktop/src-tauri/target/release/bundle/**/*.exe
+          if-no-files-found: warn

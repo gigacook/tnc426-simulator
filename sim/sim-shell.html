@@ -511,30 +511,163 @@ body.focus .fxmenu,body.focus .lgd,body.focus #callouts,body.focus .sub-ttl{disp
 /* soft keys: the hotkey, low contrast */
 .sk .kh{display:block;font-size:.74em;opacity:.5;letter-spacing:.06em;margin-top:2px;font-weight:400}
 .sk.go .kh,.sk.stop .kh{opacity:.7}
+
+/* ================= shell: header drawer, workspaces, dock (phones), a11y ================= */
+.sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0 0 0 0)!important;white-space:nowrap!important;border:0!important}
+.hdr-m,.hdr-menu,.dhead,.dock,.skpager{display:none}
+.hmore{display:contents}                       /* wide screens: its buttons sit in the header row as before */
+h1.ttlbox{margin:0;font:inherit}
+.bar .ttlbox{order:1} .bar #b-prof{order:2}
+.tbadge{display:inline-block;min-width:1.6em;padding:0 .4em;margin-left:4px;border-radius:9px;background:var(--red);color:#fff;
+  font-family:var(--mono);font-size:12px;letter-spacing:0;line-height:1.5}
+.tbadge.warn{background:var(--amber);color:#1f1400}
+.hdr-err{align-items:center;gap:4px;font-family:var(--mono);font-size:14px;background:var(--panel-2);color:var(--mint);
+  border:1px solid var(--line);border-radius:2px;padding:0 10px;min-height:44px;min-width:44px;justify-content:center}
+.hdr-err.bad{color:#ffd6d2;border-color:var(--red);background:#3a0b09}
+.hdr-err.warn{color:#ffe2b0;border-color:var(--amber);background:#3a2604}
+.hdr-stat{min-width:0;flex:1 1 0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-family:var(--mono);font-size:13px;color:var(--ink-dim)}
+.hdr-stat b{color:var(--cyan);font-weight:500}
+/* keyboard focus must always show, also on the dark CRT and on pressed keys */
+.sk:focus-visible,.mode:focus-visible,.hbtn:focus-visible,.chb:focus-visible,.mtabs button:focus-visible,.stabs button:focus-visible,
+.tb:focus-visible,.spd button:focus-visible,.skpager button:focus-visible{outline:3px solid var(--amber);outline-offset:-3px}
+.modal [role=tablist] button:focus-visible{outline:3px solid var(--amber);outline-offset:-3px}
+@media (pointer:coarse){
+  .hbtn,.mode,.chb,.stabs button,.tb,.mhead .x,.alarm button,.cbtn{min-height:44px}
+  .spd button,.alarm button{min-width:44px;min-height:44px}
+  .pgroup>summary,.fxmenu>summary,.help-manual summary{min-height:44px;display:flex;align-items:center}
+  .hmenu button{min-height:44px}
+  .lgd span.hint{display:none}
+}
+/* iOS zooms into inputs under 16px; keep 16px wherever a finger types (pinch zoom stays on) */
+@media (max-width:900px),(pointer:coarse){
+  input:not([type=range]):not([type=checkbox]):not([type=radio]),select,textarea{font-size:16px!important}
+}
+@media (max-width:900px){
+  html,body{height:auto;min-height:100%}
+  /* a sideways swipe switches workspace; it must never also be the browser's "back" gesture (that loses the session) */
+  html,body{overscroll-behavior-x:none}
+  body{overflow:visible}
+  .app{height:auto;min-height:100vh;min-height:100dvh;display:block;padding-bottom:var(--dock-h,0px)}
+  /* header: title · program and state · checks · MENU, then the four modes */
+  .bar{gap:6px 8px;padding:calc(6px + env(safe-area-inset-top,0px)) calc(10px + env(safe-area-inset-right,0px)) 6px calc(10px + env(safe-area-inset-left,0px))}
+  .logo,.bar .sub-ttl{display:none}
+  .bar .ttlbox{order:1;margin:0;opacity:1;align-items:flex-start}
+  .bar .ttlbox .ttl{font-size:17px}
+  .hdr-stat{display:block;order:2}
+  .hdr-err{display:inline-flex;order:3}
+  .hdr-menu{display:inline-flex;align-items:center;gap:6px;order:4;letter-spacing:.1em;padding:0 12px;min-height:44px}
+  .bar .modes{order:9;width:100%;margin:0!important;flex-wrap:nowrap}
+  .mode{flex:1 1 0;min-width:0;min-height:44px;padding:8px 4px;text-align:center}
+  /* the drawer: everything furthest from the machine code */
+  .hmore{display:flex;flex-direction:column;align-items:stretch;gap:8px;position:fixed;top:0;right:0;bottom:0;z-index:55;
+    width:min(330px,88vw);padding:calc(10px + env(safe-area-inset-top,0px)) calc(14px + env(safe-area-inset-right,0px)) calc(16px + env(safe-area-inset-bottom,0px)) 14px;
+    background:var(--panel);border-left:1px solid var(--line-2);box-shadow:-20px 0 40px rgba(0,0,0,.5);overflow-y:auto;overscroll-behavior:contain;
+    transform:translateX(105%);visibility:hidden;transition:transform .2s ease,visibility 0s linear .2s}
+  .hmore.open{transform:none;visibility:visible;transition:transform .2s ease}
+  .hmore .hbtn{width:100%;max-width:none;text-align:left;min-height:48px;order:0}
+  .hmore .devbtn{animation:none}
+  .dhead{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+  .dtitle{flex:1;font-family:var(--disp);font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint)}
+  .hmore .dclose{width:auto}
+  .scrim:not([hidden]){display:block;position:fixed;inset:0;z-index:54;background:rgba(2,5,10,.62)}
+  /* workspace tabs: sticky under the (scrolling) header */
+  .mtabs{display:grid;grid-template-columns:repeat(3,1fr);position:sticky;top:0;z-index:20;background:var(--panel);
+    border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:0 env(safe-area-inset-right,0px) 0 env(safe-area-inset-left,0px)}
+  .mtabs button{min-height:48px;padding:0 4px;box-shadow:none}
+  .mtabs button[aria-selected="true"]{box-shadow:inset 0 -3px 0 var(--cyan)}
+  /* one workspace at a time, in the page's own vertical scroll */
+  .main{display:block;position:static;background:none}
+  .main>.col{position:static;display:none;min-height:0}
+  .main[data-pane="pgm"]>.col-pgm,.main[data-pane="gfx"]>.col-gfx{display:flex}
+  .main[data-pane="side"]>.col-side{display:block;max-height:none;overflow:visible}
+  .col{padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+  .crt{flex:none;overflow-x:auto;overflow-y:hidden;min-height:40vh}
+  .scan{min-height:0}
+  .blk{white-space:pre-wrap;overflow-wrap:anywhere;grid-template-columns:36px 1fr;gap:6px;padding:1px 8px}   /* phones: long blocks wrap, no sideways reading */
+  .blk{scroll-margin-top:calc(var(--tabs-h,48px) + 8px);scroll-margin-bottom:calc(var(--dock-h,120px) + 8px)}
+  textarea#raw{flex:none;height:60vh;height:max(260px,calc(100svh - var(--dock-h,120px) - var(--tabs-h,48px) - 70px))}
+  .gfx{flex:none;height:56vh;height:max(240px,min(62svh,calc(100svh - var(--dock-h,120px) - var(--tabs-h,48px) - 150px)))}
+  .stabs{top:var(--tabs-h,48px)}
+  .stabs button{min-height:44px}
+  .toast{bottom:calc(var(--dock-h,0px) + 12px)}
+  /* the dock: soft keys (and the block line in PRG EDIT) under every workspace, above the software keyboard */
+  .dock{display:block;position:fixed;left:0;right:0;bottom:var(--kb,0px);z-index:30;background:var(--panel);border-top:1px solid var(--line-2);
+    padding:0 env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);box-shadow:0 -10px 24px rgba(0,0,0,.45)}
+  .dock .sks{grid-template-columns:repeat(4,minmax(0,1fr));padding:4px;gap:3px}
+  .dock .sk{min-height:48px;font-size:12.5px;padding:4px 2px}
+  .dock .sk .kh{display:none}
+  .dock .skpager:not([hidden]){display:flex;align-items:center;gap:4px;padding:0 4px 4px}
+  .skpager button{flex:1;min-height:44px;background:var(--panel-2);color:var(--ink-dim);border:1px solid var(--line);border-radius:2px;font-size:15px}
+  .skpager span{flex:2;text-align:center;font-family:var(--mono);font-size:13px;color:var(--ink-dim)}
+  body:not([data-mode="edit"]) .dock .dlg{display:none}
+  .dock .dlg .hint{display:none}
+  .dock .skpath{font-size:12px}
+  /* dialogs: a full-height sheet that follows the visual viewport (software keyboard) */
+  .modal{padding:0;place-items:stretch;inset:auto;top:var(--vvt,0px);left:0;width:100%;height:100%;height:var(--vvh,100dvh)}
+  .mcard{width:100%;max-height:none;height:100%;border-radius:0;border-left:0;border-right:0;
+    padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) 0 env(safe-area-inset-left,0px)}
+  .mbody{padding-bottom:calc(16px + env(safe-area-inset-bottom,0px));overscroll-behavior:contain}
+  .mbody pre{white-space:pre-wrap;word-break:break-word}
+  /* the dialog's main action stays on screen (and above the keyboard) while the form scrolls */
+  #new-ai>.actrow,#new-scratch>.actrow{position:sticky;bottom:calc(-16px - env(safe-area-inset-bottom,0px));z-index:2;background:var(--void-2);margin:0 -16px;padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line)}
+  .hmenu{max-width:calc(100vw - 16px)}
+}
+@media (max-width:600px){ .hdr-menu [data-i18n="btn.menu"]{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap} .hdr-menu{min-width:48px;justify-content:center} }
+@media (min-width:601px) and (max-width:900px){
+  .bar .modes{order:2;width:auto;flex:0 1 auto}
+  .hdr-stat{order:3}.hdr-err{order:4}.hdr-menu{order:5}
+}
+@media (max-width:900px) and (max-height:500px){       /* short landscape: smaller header, the tab bar stays */
+  .bar{padding-top:calc(3px + env(safe-area-inset-top,0px));padding-bottom:3px}
+  .mode{min-height:40px}
+  .gfx{height:max(180px,calc(100svh - var(--dock-h,60px) - var(--tabs-h,44px) - 8px))}
+  .mtabs button{min-height:44px}
+  .dock .sks{grid-template-columns:repeat(8,minmax(0,1fr))}
+  .dock .sk{min-height:44px;font-size:11.5px}
+  .col-gfx>.ch{display:none}
+}
+@media (prefers-reduced-motion:reduce){ .hmore{transition:none!important} }
 </style>
 
 <div class="app">
  <header class="bar">
-   <span class="logo">HDH</span>
-   <div class="modes" id="modes">
-     <button class="mode" data-m="edit"   aria-pressed="false"><b>1</b><span class="lg" data-i18n="mode.edit">PRG EDIT</span><span class="sm">PRG EDIT</span></button>
-     <button class="mode" data-m="test"   aria-pressed="true"><b>2</b><span class="lg" data-i18n="mode.test">TEST</span><span class="sm">TEST</span></button>
-     <button class="mode" data-m="single" aria-pressed="false"><b>3</b><span class="lg" data-i18n="mode.single">SINGLE-BLOCK</span><span class="sm">SINGLE</span></button>
-     <button class="mode" data-m="full"   aria-pressed="false"><b>4</b><span class="lg" data-i18n="mode.full">FULL-RUN</span><span class="sm">FULL</span></button>
+   <span class="logo" aria-hidden="true">HDH</span>
+   <div class="modes" id="modes" role="group" aria-label="Operating mode" data-i18n="aria.modes" data-i18n-attr="aria-label">
+     <button class="mode" data-m="edit"   aria-pressed="false"><b>1</b><span class="lg" data-i18n="mode.edit">PRG EDIT</span><span class="sm" data-i18n="mode.edit.s">PRG EDIT</span></button>
+     <button class="mode" data-m="test"   aria-pressed="true"><b>2</b><span class="lg" data-i18n="mode.test">TEST</span><span class="sm" data-i18n="mode.test.s">TEST</span></button>
+     <button class="mode" data-m="single" aria-pressed="false"><b>3</b><span class="lg" data-i18n="mode.single">SINGLE-BLOCK</span><span class="sm" data-i18n="mode.single.s">SINGLE</span></button>
+     <button class="mode" data-m="full"   aria-pressed="false"><b>4</b><span class="lg" data-i18n="mode.full">FULL-RUN</span><span class="sm" data-i18n="mode.full.s">FULL</span></button>
    </div>
+   <!-- phones: program + state + checks at a glance; everything else is behind MENU -->
+   <span class="hdr-m hdr-stat" id="hdr-stat" aria-hidden="true"></span>
+   <button class="hdr-m hdr-err" id="hdr-err" type="button" title="Checks" aria-describedby="hdr-err-d"><span id="hdr-err-t">0</span></button>
+   <span class="sr-only" id="hdr-err-d" data-i18n="hdr.errdesc">Opens the checks in the Status workspace</span>
+   <!-- secondary features: inline in the header on wide screens, a drawer (MENU) on phones -->
+   <div class="hmore" id="hmore" aria-labelledby="hmore-t">
+   <div class="dhead"><span class="dtitle" id="hmore-t" data-i18n="drawer.title">Menu</span>
+     <button class="hbtn dclose" id="hmore-x" type="button" data-i18n="btn.close">Close</button></div>
    <button class="hbtn devbtn" id="b-dev" title="Feature log, version history, release plan" data-i18n="btn.dev">DEV</button>
    <button class="hbtn new" id="b-new" title="New program: manual or AI" aria-haspopup="menu">+ New ▾</button>
    <button class="hbtn lessons" id="b-lessons" title="Lessons and BREAK IT" aria-haspopup="menu">Lessons ▾</button>
    <button class="hbtn aibtn" id="b-ai" title="AI: change this program or write a new one" aria-haspopup="menu">AI ▾</button>
    <button class="hbtn" id="b-help" title="Lessons, pitfalls, manual, AI setup (H)" data-i18n="btn.help">Help</button>
    <button class="hbtn" id="b-focus" aria-pressed="false" title="Focus view (F)" data-i18n="btn.focus">Focus</button>
-   <span class="ttlbox"><span class="ttl">TNC 426</span><span class="sub-ttl">NC SW 280 476-17</span></span>
    <button class="hbtn prof" id="b-prof" title="Your profile: name, programs, tool table, export / import">Profile</button>
+   </div>
+   <h1 class="ttlbox"><span class="ttl">TNC 426</span><span class="sub-ttl">NC SW 280 476-17</span></h1>
+   <button class="hbtn hdr-menu" id="b-menu" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="hmore"><span aria-hidden="true">&#9776;</span> <span data-i18n="btn.menu">Menu</span></button>
  </header>
 
- <div class="main" data-pane="gfx">
+ <!-- phones and small tablets: one workspace at a time (swipe left / right, or these tabs) -->
+ <div class="mtabs" id="mtabs" role="tablist" aria-label="Workspace" data-i18n="aria.workspace" data-i18n-attr="aria-label">
+   <button role="tab" id="mt-pgm" data-pane="pgm" aria-controls="ws-pgm" aria-selected="false"><span data-i18n="ws.program">Program</span></button>
+   <button role="tab" id="mt-gfx" data-pane="gfx" aria-controls="ws-gfx" aria-selected="true"><span data-i18n="ws.graphics">Graphics</span></button>
+   <button role="tab" id="mt-side" data-pane="side" aria-controls="ws-side" aria-selected="false"><span data-i18n="ws.status">Status</span> <span class="tbadge" id="mt-badge" hidden></span></button>
+ </div>
+
+ <main class="main" data-pane="gfx">
    <!-- PROGRAM -->
-   <section class="col col-pgm" aria-label="Program">
+   <section class="col col-pgm" id="ws-pgm" aria-label="Program">
      <div class="ch">
        <span data-i18n="panel.program">Program</span>
        <span class="rt" id="pgm-path">TNC:\</span>
@@ -543,7 +676,7 @@ body.focus .fxmenu,body.focus .lgd,body.focus #callouts,body.focus .sub-ttl{disp
        <button class="chb" id="b-tools" title="Tool list — TOOL.T (T)" data-i18n="btn.tools">Tool list</button>
        <button class="chb" id="b-save" title="Save as .H (Ctrl+S)" data-i18n="btn.save">Save .H</button>
      </div>
-     <div class="crt" id="crt">
+     <div class="crt" id="crt" tabindex="0" role="region" aria-label="Program listing">
        <div class="plist scan" id="plist"></div>
        <div class="mgt scan" id="mgt" hidden></div>
        <div class="flowhost" id="flow" hidden></div>
@@ -555,19 +688,24 @@ body.focus .fxmenu,body.focus .lgd,body.focus #callouts,body.focus .sub-ttl{disp
        <span class="hint" id="dlg-hint">E edit &middot; I insert &middot; D delete</span>
      </div>
      <div class="skpath" id="skpath" hidden></div>
-     <div class="sks" id="sks"></div>
+     <div class="sks" id="sks" role="group" aria-label="Soft keys"></div>
+     <div class="skpager" id="skpager" hidden>
+       <button type="button" id="sk-prev" aria-label="Previous soft-key row" data-i18n="sk.prev" data-i18n-attr="aria-label">&#9664;</button>
+       <span id="sk-page"></span>
+       <button type="button" id="sk-next" aria-label="Next soft-key row" data-i18n="sk.next" data-i18n-attr="aria-label">&#9654;</button>
+     </div>
    </section>
 
    <!-- GRAPHICS -->
-   <section class="col col-gfx" aria-label="Test graphics">
+   <section class="col col-gfx" id="ws-gfx" aria-label="Test graphics">
      <div class="ch"><span data-i18n="panel.testgfx">Test graphics</span><span class="grow"></span><span class="rt" id="gfx-rt">3-D VIEW</span></div>
      <div class="gfx" id="gfx">
-       <canvas id="gl"></canvas>
+       <canvas id="gl" role="img" aria-label="3-D test graphics: blank, tool and tool path" aria-describedby="ovl-l ovl-r" data-i18n="aria.canvas" data-i18n-attr="aria-label"></canvas>
        <div class="callouts" id="callouts"></div>
        <div class="ovl ovl-tl" id="ovl-l"></div>
        <div class="ovl ovl-tr" id="ovl-r"></div>
-       <div class="ovl ovl-dro" id="dro" aria-label="Position"></div>
-       <div class="alarm" id="alarm" hidden></div>
+       <div class="ovl ovl-dro" id="dro" role="group" aria-label="Position"></div>
+       <div class="alarm" id="alarm" role="alert" hidden></div>
        <div class="coach" id="coach" hidden>
          <div class="coach-hd"><span class="k" id="coach-k">LEARN</span><span class="t" id="coach-t"></span>
            <button id="coach-x" title="Close lesson" aria-label="Close lesson">&times;</button></div>
@@ -609,13 +747,13 @@ body.focus .fxmenu,body.focus .lgd,body.focus #callouts,body.focus .sub-ttl{disp
    </section>
 
    <!-- SIDE -->
-   <aside class="col col-side" aria-label="Status">
-     <div class="stabs" role="tablist" id="stabs">
-       <button role="tab" data-tab="diag" aria-selected="true" data-i18n="tab.diag">Diagnostics</button>
-       <button role="tab" data-tab="ref" aria-selected="false" data-i18n="tab.ref">Reference</button>
-       <button role="tab" data-tab="progs" aria-selected="false" id="tab-progs">Programs</button>
+   <aside class="col col-side" id="ws-side" aria-label="Status">
+     <div class="stabs" role="tablist" id="stabs" aria-label="Status">
+       <button role="tab" data-tab="diag" id="st-diag" aria-controls="sp-diag" aria-selected="true" data-i18n="tab.diag">Diagnostics</button>
+       <button role="tab" data-tab="ref" id="st-ref" aria-controls="sp-ref" aria-selected="false" data-i18n="tab.ref">Reference</button>
+       <button role="tab" data-tab="progs" aria-controls="sp-progs" aria-selected="false" id="tab-progs">Programs</button>
      </div>
-     <div class="spane" id="sp-diag">
+     <div class="spane" id="sp-diag" role="tabpanel" aria-labelledby="st-diag">
      <div class="card card-run"><h3><span data-i18n="panel.run">Run</span> <span class="tagx" id="run-state">READY</span></h3>
        <div class="in"><dl class="kv" id="runkv"></dl></div></div>
      <div class="card card-checks"><h3><span data-i18n="panel.checks">Checks</span> <span class="tagx" id="errc">0</span></h3>
@@ -625,12 +763,12 @@ body.focus .fxmenu,body.focus .lgd,body.focus #callouts,body.focus .sub-ttl{disp
          <button class="mini" id="b-snap" data-i18n="btn.snap">Store finished run as reference A</button>
          <button class="mini" id="b-restore" data-i18n="btn.restore">Open reference program</button></div></div>
      </div>
-     <div class="spane" id="sp-ref" hidden>
+     <div class="spane" id="sp-ref" role="tabpanel" aria-labelledby="st-ref" hidden>
        <div class="refbar"><select id="ref-sel" aria-label="What to show"></select></div>
        <div class="refbody" id="ref-body"></div>
        <div class="klist" id="klist" hidden></div>
      </div>
-     <div class="spane" id="sp-progs" hidden>
+     <div class="spane" id="sp-progs" role="tabpanel" aria-labelledby="tab-progs" hidden>
        <details class="pgroup" id="up-box"><summary><span id="up-t">Programs</span> <span class="cnt" id="up-n">0</span></summary>
          <div class="uplist" id="uplist"></div></details>
        <details class="pgroup" id="pj-box"><summary>Projects <span class="cnt" id="proj-t"></span></summary>
@@ -646,22 +784,21 @@ body.focus .fxmenu,body.focus .lgd,body.focus #callouts,body.focus .sub-ttl{disp
          Not affiliated with DR. JOHANNES HEIDENHAIN GmbH. &ldquo;HEIDENHAIN&rdquo; and &ldquo;TNC&rdquo; are their trademarks.</div>
      </div>
    </aside>
- </div>
+ </main>
 
- <nav class="mtabs" id="mtabs" aria-label="Panes">
-   <button data-pane="pgm" aria-selected="false">Program</button>
-   <button data-pane="gfx" aria-selected="true">Graphics</button>
-   <button data-pane="side" aria-selected="false">Status</button>
- </nav>
+ <!-- phones: the soft keys (and the block line in PRG EDIT) live here, under every workspace -->
+ <div class="dock" id="dock" role="region" aria-label="Soft keys" data-i18n="aria.dock" data-i18n-attr="aria-label"></div>
 </div>
+<div class="scrim" id="scrim" hidden></div>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="sr-only" id="sr-live" aria-live="polite" aria-atomic="true"></div>
 
 <!-- ================= NEW PROGRAM ================= -->
 <div class="modal" id="m-new" hidden>
  <div class="mcard" role="dialog" aria-modal="true" aria-labelledby="m-new-t">
   <div class="mhead"><span class="mt" id="m-new-t" data-i18n="title.newprogram">New program</span>
-    <button class="x" data-close>Close <small>ESC</small></button></div>
+    <button class="x" type="button" data-close><span data-i18n="btn.close">Close</span> <small aria-hidden="true">ESC</small></button></div>
   <div class="mbody">
     <div class="opts" id="new-opts" hidden>
       <div class="opt" data-opt="scratch"><span class="on">1 &middot; THE TNC WAY</span><h4>From scratch</h4>
@@ -714,14 +851,14 @@ body.focus .fxmenu,body.focus .lgd,body.focus #callouts,body.focus .sub-ttl{disp
 <div class="modal" id="m-help" hidden>
  <div class="mcard" role="dialog" aria-modal="true" aria-labelledby="m-help-t">
   <div class="mhead"><span class="mt" id="m-help-t" data-i18n="title.help">Help</span>
-    <button class="x" data-close>Close <small>ESC</small></button></div>
-  <div class="mtabs2" role="tablist" id="help-tabs">
+    <button class="x" type="button" data-close><span data-i18n="btn.close">Close</span> <small aria-hidden="true">ESC</small></button></div>
+  <div class="mtabs2" role="tablist" id="help-tabs" aria-label="Help">
     <button role="tab" data-tab="learn" aria-selected="true">Learn</button>
     <button role="tab" data-tab="break" aria-selected="false">Break it</button>
     <button role="tab" data-tab="manual" aria-selected="false">Manual</button>
     <button role="tab" data-tab="ai" aria-selected="false">AI setup</button>
   </div>
-  <div class="mbody" id="help-body"></div>
+  <div class="mbody" id="help-body" role="tabpanel" aria-label="Help"></div>
  </div>
 </div>
 
@@ -729,7 +866,7 @@ body.focus .fxmenu,body.focus .lgd,body.focus #callouts,body.focus .sub-ttl{disp
 <div class="modal" id="m-prof" hidden>
  <div class="mcard" role="dialog" aria-modal="true" aria-labelledby="m-prof-t">
   <div class="mhead"><span class="mt" id="m-prof-t" data-i18n="title.profile">Profile</span>
-    <button class="x" data-close>Close <small>ESC</small></button></div>
+    <button class="x" type="button" data-close><span data-i18n="btn.close">Close</span> <small aria-hidden="true">ESC</small></button></div>
   <div class="mbody" id="prof-body"></div>
  </div>
 </div>
@@ -737,13 +874,13 @@ body.focus .fxmenu,body.focus .lgd,body.focus #callouts,body.focus .sub-ttl{disp
 <div class="modal" id="m-dev" hidden>
  <div class="mcard dev" role="dialog" aria-modal="true" aria-labelledby="m-dev-t">
   <div class="mhead"><span class="mt" id="m-dev-t" data-i18n="title.dev">DEV</span>
-    <button class="x" data-close>Close <small>ESC</small></button></div>
-  <div class="mtabs2" role="tablist" id="dev-tabs">
+    <button class="x" type="button" data-close><span data-i18n="btn.close">Close</span> <small aria-hidden="true">ESC</small></button></div>
+  <div class="mtabs2" role="tablist" id="dev-tabs" aria-label="DEV">
     <button role="tab" data-tab="features" aria-selected="true">Features</button>
     <button role="tab" data-tab="history" aria-selected="false">Version history</button>
     <button role="tab" data-tab="releases" aria-selected="false">Release plan</button>
   </div>
-  <div class="mbody"><pre id="dev-pre"></pre></div>
+  <div class="mbody" role="tabpanel" aria-label="DEV"><pre id="dev-pre" tabindex="0"></pre></div>
  </div>
 </div>
 

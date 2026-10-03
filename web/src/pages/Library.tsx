@@ -154,8 +154,8 @@ export function Library() {
               set('q', q.trim());
             }}
           >
-            <input className="grow" placeholder="Search names and program text…" value={q} onChange={(e) => setQ(e.target.value)} />
-            <select value={machine} onChange={(e) => set('machine', e.target.value)}>
+            <input className="grow" aria-label="Search programs" placeholder="Search names and program text…" value={q} onChange={(e) => setQ(e.target.value)} />
+            <select aria-label="Machine" value={machine} onChange={(e) => set('machine', e.target.value)}>
               <option value="">All machines</option>
               {machines.map((m) => (
                 <option key={m} value={m}>

@@ -475,3 +475,48 @@ async fn simulator_page_gets_the_backend_marker() {
     assert_eq!(r.status, StatusCode::NOT_FOUND);
     assert_eq!(t.call(Method::GET, "/api/health", None, None).await.json()["ok"], true);
 }
+
+#[tokio::test]
+async fn host_allow_list_and_security_headers() {
+    let t = setup_with(|c| {
+        c.allowed_hosts = vec!["127.0.0.1:8427".into()];
+        c.csp = Some("default-src 'self'".into());
+    })
+    .await;
+    let get = |host: &'static str| Request::builder().uri("/api/health").header(header::HOST, host).body(Body::empty()).unwrap();
+    let ok = t.req(get("127.0.0.1:8427")).await;
+    assert_eq!(ok.status, StatusCode::OK);
+    assert_eq!(ok.headers.get(header::CONTENT_SECURITY_POLICY).unwrap(), "default-src 'self'");
+    assert_eq!(ok.headers.get(header::X_CONTENT_TYPE_OPTIONS).unwrap(), "nosniff");
+    // a DNS-rebinding page arrives with its own name in Host
+    assert_eq!(t.req(get("evil.example:8427")).await.status, StatusCode::MISDIRECTED_REQUEST);
+    let none = Request::builder().uri("/api/health").body(Body::empty()).unwrap();
+    assert_eq!(t.req(none).await.status, StatusCode::MISDIRECTED_REQUEST);
+}
+
+#[tokio::test]
+async fn local_mode_one_time_sign_in_link() {
+    let dir = tempfile::tempdir().unwrap();
+    let st = AppState::new(Config::minimal(dir.path().to_path_buf())).await.unwrap();
+    let u = tnc_server::local::ensure_local_user(&st).await.unwrap();
+    assert_eq!(u.role, "admin");
+    // idempotent: the second start finds the same account
+    assert_eq!(tnc_server::local::ensure_local_user(&st).await.unwrap().id, u.id);
+    let link = tnc_server::local::issue_sign_in_link(&st, &u.id);
+    let t = T { app: tnc_server::router(st), _dir: dir };
+
+    let r = t.call(Method::GET, &format!("/api/v1/auth/once?t={link}"), None, None).await;
+    assert_eq!(r.status, StatusCode::SEE_OTHER);
+    assert_eq!(r.headers.get(header::LOCATION).unwrap(), "/");
+    let cookie = r.headers.get(header::SET_COOKIE).unwrap().to_str().unwrap();
+    assert!(cookie.starts_with("tnc_session=") && cookie.contains("HttpOnly"), "{cookie}");
+    let session = cookie.trim_start_matches("tnc_session=").split(';').next().unwrap();
+    assert_eq!(t.get("/api/v1/me", session).await.json()["email"], "operator@local.invalid");
+
+    // used once: the second visit is refused, as is a made-up token
+    assert_eq!(t.call(Method::GET, &format!("/api/v1/auth/once?t={link}"), None, None).await.status, StatusCode::UNAUTHORIZED);
+    assert_eq!(t.call(Method::GET, "/api/v1/auth/once?t=guess", None, None).await.status, StatusCode::UNAUTHORIZED);
+    // the local account exists, so nobody else can claim the "first account is admin" sign-up
+    let r = t.call(Method::POST, "/api/v1/auth/signup", None, Some(json!({ "email": "x@y.test", "name": "X", "password": "12345678" }))).await;
+    assert_eq!(r.status, StatusCode::FORBIDDEN);
+}

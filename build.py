@@ -16,13 +16,16 @@ def vendor():
     """three + addons + three.quarks as one classic script (window.THREE, window.QUARKS)."""
     out = cache / f'three-vendor-{T_VER}.js'
     if not out.exists():
-        import subprocess
-        esb = d / '.tools' / 'node_modules' / '.bin' / 'esbuild'
-        if not esb.exists():
-            sys.exit('build: esbuild missing — run: (cd .tools && npm i three@%s three.quarks@0.17.1 esbuild@0.28.2)' % T_VER)
+        import subprocess, os
+        # root package.json (npm ci) first; the older gitignored .tools/ layout still works
+        for nm in (d / 'node_modules', d / '.tools' / 'node_modules'):
+            esb = nm / '.bin' / ('esbuild.cmd' if os.name == 'nt' else 'esbuild')
+            if esb.exists(): break
+        else:
+            sys.exit('build: esbuild missing — run: npm ci   (in the repo root; pins three@%s three.quarks@0.17.1 esbuild@0.28.2)' % T_VER)
         subprocess.run([str(esb), str(src / 'vendor' / 'three-entry.mjs'), '--bundle', '--format=iife', '--minify',
-                        '--legal-comments=none', '--log-level=warning', f'--outfile={out}'], check=True, cwd=d / '.tools',
-                       env=dict(__import__('os').environ, NODE_PATH=str(d / '.tools' / 'node_modules')))
+                        '--legal-comments=none', '--log-level=warning', f'--outfile={out}'], check=True, cwd=nm.parent,
+                       env=dict(os.environ, NODE_PATH=str(nm)))
     return out.read_text()
 
 # (cache file, url, label) — fetched once into .libcache/

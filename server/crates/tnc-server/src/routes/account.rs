@@ -16,6 +16,7 @@ pub fn routes() -> Router<AppState> {
         .route("/auth/signup", post(signup))
         .route("/auth/login", post(login))
         .route("/auth/logout", post(logout))
+        .route("/auth/once", get(crate::local::redeem))
         .route("/auth/password", post(change_password))
         .route("/me", get(me))
         .route("/settings", get(get_settings).put(put_settings))
