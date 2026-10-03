@@ -170,17 +170,21 @@ var TNC_AI = (function () {
 
   function chat(o) {
     var onProgress = o.onProgress || function () {};
-    var timeoutMs = o.timeoutMs || 600000; // 10 min: reasoning models can run long before the first content token
+    /* idle timeout: nothing streamed for this long = stuck (reasoning models stream their thinking, so a working
+       model keeps the line busy); plus a hard cap for the whole answer. A long program that streams steadily is fine. */
+    var timeoutMs = o.timeoutMs || 180000, hardMs = o.hardTimeoutMs || 1800000;
     var text = '', reasoning = '', usage = null, streamErr = null, timedOut = false, finish = null;
     var start = Date.now();
     var ac = new AbortController();
-    var to = setTimeout(function () { timedOut = true; ac.abort(); }, timeoutMs);
+    var to = null, hard = setTimeout(function () { timedOut = true; ac.abort(); }, hardMs);
+    function alive() { clearTimeout(to); to = setTimeout(function () { timedOut = true; ac.abort(); }, timeoutMs); }
+    alive();
     if (o.signal) { if (o.signal.aborted) ac.abort(); else o.signal.addEventListener('abort', function () { ac.abort(); }); }
     var tick = setInterval(function () {
       onProgress({ secs: (Date.now() - start) / 1000, chars: text.length, reasoningChars: reasoning.length,
         stage: text.length ? 'writing' : 'thinking', text: text, reasoningTail: reasoning.slice(-400) });
     }, 500);
-    function cleanup() { clearTimeout(to); clearInterval(tick); }
+    function cleanup() { clearTimeout(to); clearTimeout(hard); clearInterval(tick); }
     function onEvent(obj) {
       if (obj.error) { streamErr = streamErr || dataError(obj); return; }
       var d = obj.choices && obj.choices[0] && obj.choices[0].delta;
@@ -206,7 +210,7 @@ var TNC_AI = (function () {
         return reader.read().then(function (r) {
           if (streamErr) throw streamErr;
           if (r.done) { if (buf) sseLine(buf, onEvent); return; }
-          buf = sseFeed(buf, decoder.decode(r.value, { stream: true }), onEvent);
+          alive(); buf = sseFeed(buf, decoder.decode(r.value, { stream: true }), onEvent);
           if (streamErr) throw streamErr;
           return pump();
         });
@@ -222,7 +226,7 @@ var TNC_AI = (function () {
     }).catch(function (e) {
       cleanup();
       if (e && e.name === 'AbortError') {
-        if (timedOut) { var te = new Error('TIMED OUT WAITING FOR THE MODEL (' + Math.round((Date.now() - start) / 1000) + 's)'); te.status = 0; throw te; }
+        if (timedOut) { var te = new Error('TIMED OUT WAITING FOR THE MODEL (' + Math.round((Date.now() - start) / 1000) + ' s; nothing for ' + Math.round(timeoutMs / 1000) + ' s, or over the ' + Math.round(hardMs / 60000) + ' min cap)'); te.status = 0; throw te; }
         throw e; // caller cancelled: keep e.name === 'AbortError' so the UI shows CANCELLED
       }
       throw e;
@@ -395,7 +399,7 @@ toolSheet(tools, opts),
   function generate(o) {
     var model = o.model || DEFAULT_MODEL, onStep = o.onStep || function () {};
     var plan = !!(o.plan && o.measure && PART), rounds = o.rounds != null ? o.rounds : o.maxRepairs != null ? o.maxRepairs : 1;
-    var goal = o.goal || 97, cost = 0, attempt = 0, best = null, spec = null;
+    var goal = o.goal || 95, cost = 0, attempt = 0, best = null, spec = null;
     var sys = { role: 'system', content: o.system || system(o.tools, { plan: plan }) };
     var ask = { role: 'user', content: 'Write the program for this part:\n\n' + o.prompt };
     function call(messages, stage) {
@@ -467,7 +471,12 @@ toolSheet(tools, opts),
             'If the spec itself does not describe what was asked, send a corrected ```partspec before the program.\n\n' : '') +
           (report.warns && report.warns.length && report.ok ? 'Warnings:\n' + report.warns.join('\n') + '\n\n' : '') +
           'Return the complete corrected program.';
-        return write(p, cand, fb);
+        /* a refinement that fails (timeout, network, provider error) keeps the best program so far; a cancel does not */
+        return write(p, cand, fb).catch(function (e) {
+          if (e && e.name === 'AbortError') throw e;
+          onStep({ phase: 'failed', attempt: attempt, error: String(e && e.message || e) });
+          return done();
+        });
       });
     }
     if (!plan) return write(null, null, null);

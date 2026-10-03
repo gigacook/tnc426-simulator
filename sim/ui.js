@@ -1238,6 +1238,7 @@ For tilted machining use CYCL DEF 19.0 WORKING PLANE / CYCL DEF 19.1 A+.. B+.. C
       onStep:s=>{
         if(s.phase==='request'){ S.aiLive.reqs.push(s.body); aiLog(s.stage==='plan'?'<b>Plan</b> — the model describes the finished part first (see Request).'
           :s.attempt?`<b>Round ${s.attempt+1}</b> — the checks${plan?' and the measured result':''} went back to the model (see Request).`:'<b>Program</b> — request sent (see Request).'); }
+        if(s.phase==='failed') aiLog(`<span class="bad">Refinement stopped (${esc(s.error)}) — keeping the best program so far.</span>`);
         if(s.phase==='continued') aiLog(s.retry?`<span class="dim">Only thinking fit in the token limit — asked again with ${s.maxTokens} tokens.</span>`:`<span class="dim">The answer hit the token limit — asked for the rest (${s.n}).</span>`);
         if(s.phase==='planned') aiLog(s.error?`<span class="bad">No usable part spec (${esc(s.error)}) — writing without measuring.</span>`
           :`<span class="ok">${s.revised?'Spec revised':'Spec'}: ${s.spec.features.length} feature(s) — ${esc(s.spec.features.map(f=>f.id+' '+f.type+(f.text?' "'+f.text+'"':'')).join(', '))}.</span>`+(s.notes&&s.notes.length?`<pre style="margin:2px 0 0;white-space:pre-wrap">${esc(s.notes.join('\n'))}</pre>`:''));

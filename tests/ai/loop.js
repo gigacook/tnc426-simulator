@@ -42,6 +42,13 @@ const steps = [];
   ok(/NOT CUT/.test(sent[3].messages[sent[3].messages.length - 1].content), 'the measurement goes back to the model');
   ok(res.measure.score > 95 && /X\+80/.test(res.src), 'the refined, full-length slot is the result', res.measure.score);
   ok(Math.abs(res.cost - 0.004) < 1e-9, 'cost adds up over all requests', res.cost);
+  // a refinement round that fails keeps the best program so far
+  answers.push({ text: '```partspec\n' + JSON.stringify(SPEC) + '\n```' }, { text: '```klartext\n' + prog(50) + '\n```' });
+  const realFetch = global.fetch; let n = 0;
+  global.fetch = async (u, i) => { if (++n === 3) throw new Error('TIMED OUT'); return realFetch(u, i); };
+  const steps2 = [];
+  const res2 = await AI.generate({ key: 'k', model: 'm', prompt: 'a slot', tools, verify, measure, plan: true, rounds: 2, onStep: (s) => steps2.push(s) });
+  ok(res2 && /X\+50/.test(res2.src) && steps2.some((s) => s.phase === 'failed'), 'a failed refinement returns the best program so far');
   console.log(fails ? `\n${fails} FAILED` : '\nALL AI LOOP CHECKS PASS (mocked, no network)');
   process.exit(fails ? 1 : 0);
 })().catch((e) => { console.error(e); process.exit(1); });
