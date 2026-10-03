@@ -14,7 +14,7 @@ META
 | interpreter manual tests | ALL PASS | `node tests/manual.js` |
 | real-program corpus | 2,767 / 2,806 clean. The 39 left are malformed programs a real TNC also rejects | `AUTOTOOLS=1 node tests/corpus.js` |
 | rust | 27 tests pass (2 new: Host allow-list + CSP, local-mode one-time sign-in) | `cd server && cargo test` |
-| browser UI suite | 150 pass, 0 fail, Chromium 141 (Playwright 1.56.1), 2026-10-03. WebKit: not installed in the cloud box → SKIPPED, CI installs it (never run yet). The old untracked `.tools/qa/qa.mjs` (93/93) is not in git and was not restored | `node tests/ui/run.mjs` |
+| browser UI suite | 151 pass, 0 fail (3 runs in a row), Chromium 141 (Playwright 1.56.1), 2026-10-03. WebKit: not installed in the cloud box → SKIPPED, CI installs it (never run yet). The old untracked `.tools/qa/qa.mjs` (93/93) is not in git and was not restored | `node tests/ui/run.mjs` |
 | part spec / AI loop | pass (offline, mocked OpenRouter) | `node tests/part.js`, `node tests/ai/loop.js` |
 | AI | live bench, DeepSeek V4.1 Flash, 2026-10-03: see README "AI accuracy" (old pipeline vs plan + measure + refine) | `node tests/ai/bench.mjs` (needs a key) |
 | desktop | Linux: `cargo build` + `tauri build` (deb, rpm, AppImage) OK; debug binary launched under Xvfb: splash → server → one-time sign-in → web app signed in (server log + screenshot). macOS / Windows: CI job written, never run | `cd desktop && npx tauri build` |
@@ -52,7 +52,7 @@ META
 | B9 | todo | Wire `probeSpec` to a TOUCH PROBE soft key; `TCHPROBE` node in flow.js. | `sim/ui.js` soft keys, `sim/flow.js` | manual click-through |
 | B10 | todo | Live visual translation: `traceFor`/`traceTick` (ui.js) → `pathSVG` (flow.js). | `sim/ui.js`, `sim/flow.js` | — |
 | B11 | todo | TNC 430 remainder: dexel/voxel stock for undercuts (GPU candidate, B13), radius comp in a tilted plane. | `sim/stock.js`, `sim/core.js` | — |
-| B12 | done | Superseded: `.tools/qa/` was never tracked; `tests/ui/run.mjs` is the tracked suite (phone + desktop + mocked AI + server CSP). It does not re-cover everything qa.mjs did (profile export/import, tool-table I/O details). | `tests/ui/` | 150 pass |
+| B12 | done | Superseded: `.tools/qa/` was never tracked; `tests/ui/run.mjs` is the tracked suite (phone + desktop + mocked AI + server CSP). It does not re-cover everything qa.mjs did (profile export/import, tool-table I/O details). | `tests/ui/` | 151 pass |
 | B14 | todo | Physical-device check of the phone layout: iOS Safari + VoiceOver, Android Chrome + TalkBack, software keyboard over the dock and dialogs, notch / home indicator. Emulation only so far. | `sim/sim-shell.html`, `sim/ui.js` | user on a phone |
 | B15 | todo | AI: draw the planned part spec as a ghost in the 3-D view (the target the measurement uses), and let the operator edit the spec before the program is written. | `sim/ui.js`, `sim/part.js` | — |
 | B16 | todo | Tauri mobile (iOS / Android) targets — only if wanted; the browser covers phones today. | `desktop/` | — |

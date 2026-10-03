@@ -3,7 +3,7 @@ Updated 2026-10-03
 
 2026-10-03: desktop app (Tauri 2, server in-process), phone layout (workspaces, soft-key
 dock, menu drawer, swipes), accessibility pass, AI plans the part and is measured against
-it. Rust 27 tests, browser UI suite 150/150 (Chromium), AI benchmark run live.
+it. Rust 27 tests, browser UI suite 151/151 (Chromium), AI benchmark run live.
 
 2026-09-30: thread milling 262-265/267, touch-probe cycles (408-413/417/419 motion,
 30-33/480-483/562 tool-measuring, no motion), TNC 430 kinematics (X Y Z + A/B swivel
