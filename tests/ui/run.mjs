@@ -88,8 +88,22 @@ async function paneAfter(page, want) {
 }
 const active = (page) => page.evaluate(() => { const a = document.activeElement; return a ? (a.id || a.className || a.tagName) : null; });
 
-/* swipe on the real touch pipeline (CDP), Chromium only */
+/* swipe: real TouchEvents dispatched on the element under the finger, ~150 ms apart in total. Deterministic: the CDP
+   pipeline below waits for a rendered frame per event, and with software WebGL on a loaded CI box a swipe can take
+   seconds — longer than a real one. */
 async function swipe(page, x0, y0, x1, y1, steps = 3) {
+  await page.evaluate(async ([x0, y0, x1, y1, steps]) => {
+    const target = document.elementFromPoint(x0, y0);
+    const mk = (x, y) => new Touch({ identifier: 1, target, clientX: x, clientY: y, pageX: x + scrollX, pageY: y + scrollY, radiusX: 4, radiusY: 4, force: 1 });
+    const fire = (type, t, list) => target.dispatchEvent(new TouchEvent(type, { bubbles: true, cancelable: true, touches: list, targetTouches: list, changedTouches: [t] }));
+    let t = mk(x0, y0); fire('touchstart', t, [t]);
+    for (let i = 1; i <= steps; i++) { await new Promise((r) => setTimeout(r, 40)); t = mk(x0 + ((x1 - x0) * i) / steps, y0 + ((y1 - y0) * i) / steps); fire('touchmove', t, [t]); }
+    fire('touchend', t, []);
+  }, [x0, y0, x1, y1, steps]);
+  await page.waitForTimeout(60);
+}
+/* the browser's own touch pipeline (CDP), Chromium only: used where the browser's default action matters */
+async function cdpSwipe(page, x0, y0, x1, y1, steps = 3) {
   const cdp = await page.context().newCDPSession(page);
   const pt = (x, y) => [{ x, y, id: 1, radiusX: 4, radiusY: 4, force: 1 }];
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: pt(x0, y0) });
@@ -176,6 +190,14 @@ async function phoneFlows(browser, tag) {
   await swipe(page, hm.x + 40, hm.y + 300, hm.x + 260, hm.y + 310);
   await page.waitForFunction(() => !document.getElementById('hmore').classList.contains('open'), null, { timeout: 3000 }).catch(() => {});
   ok(await page.evaluate(() => !document.getElementById('hmore').classList.contains('open')), `${L}: swipe right closes the drawer`);
+
+  // a real sideways swipe through the browser pipeline must never be the browser's "back" gesture
+  const url0 = page.url();
+  await page.click('#mt-side');
+  await cdpSwipe(page, 80, 500, 330, 505);
+  await page.waitForTimeout(400);
+  ok(page.url() === url0 && await page.evaluate(() => !!document.getElementById('hmore')), `${L}: a real swipe never navigates the page away (history back)`, page.url());
+  await page.click('#mt-gfx');
 
   // ---- dialog from the drawer: focus trap, Esc, focus return
   await page.click('#b-menu'); await page.click('#b-help');
