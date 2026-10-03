@@ -218,18 +218,31 @@ async function phoneFlows(browser, tag) {
   // ---- swipes
   await page.click('#mt-side');
   // a point inside the workspace, below the sticky tab bar and above the dock
-  const mid = await page.evaluate(() => { const t = document.getElementById('mtabs').getBoundingClientRect().bottom, d = document.getElementById('dock').getBoundingClientRect().top; return Math.round((t + d) / 2); });
-  ok(await page.evaluate((y) => !!document.elementFromPoint(200, y).closest('.main'), mid), `${L}: swipe point is on the workspace`);
+  // a swipe that starts on something scrolling sideways is ignored on purpose, so pick a row that is not one
+  const swipeY = () => page.evaluate(() => {
+    const t = document.getElementById('mtabs').getBoundingClientRect().bottom + 10, d = document.getElementById('dock').getBoundingClientRect().top - 10;
+    const sideways = (n) => { for (; n && !n.matches('.main'); n = n.parentElement) { const ox = getComputedStyle(n).overflowX;
+      if ((ox === 'auto' || ox === 'scroll') && n.scrollWidth > n.clientWidth + 2) return true; } return false; };
+    for (let y = Math.round((t + d) / 2), k = 0; k < 40; k++, y += (k % 2 ? 1 : -1) * k * 6) {
+      if (y <= t || y >= d) continue;
+      const ok = [60, 330].every((x) => { const e = document.elementFromPoint(x, y); return e && e.closest('.main') && !sideways(e) && !e.closest('canvas,input,textarea,select'); });
+      if (ok) return y; }
+    return -1; });
+  let mid = await swipeY();
+  ok(mid > 0, `${L}: a swipe point on the workspace (not a sideways scroller)`, mid);
   await swipe(page, 330, mid, 60, mid + 10);   // leftward = next; Status is last: stays
   ok(await page.evaluate(() => document.querySelector('.main').dataset.pane) === 'side', `${L}: swipe past the last workspace does nothing`);
+  mid = await swipeY();
   await swipe(page, 60, mid, 330, mid + 5);   // rightward = previous
   ok((await paneAfter(page, 'gfx')) === 'gfx', `${L}: swipe right goes to the previous workspace`);
   const g = await box(page, '#gl');
   await swipe(page, g.x + 300, g.y + g.height / 2, g.x + 40, g.y + g.height / 2);
   ok(await page.evaluate(() => document.querySelector('.main').dataset.pane) === 'gfx', `${L}: a swipe on the 3-D view orbits, never switches`);
   await page.click('#mt-pgm');
+  mid = await swipeY();
   await swipe(page, 200, mid - 150, 210, mid + 150);
   ok(await page.evaluate(() => document.querySelector('.main').dataset.pane) === 'pgm', `${L}: a vertical drag does not switch`);
+  mid = await swipeY();
   await swipe(page, 360, mid, 80, mid + 10);
   ok((await paneAfter(page, 'gfx')) === 'gfx', `${L}: swipe left goes to the next workspace`);
 
@@ -242,7 +255,8 @@ async function phoneFlows(browser, tag) {
   ok(await page.evaluate(() => document.getElementById('hdr-stat').textContent.includes('NAMEPLATE')), `${L}: header shows the program`);
   await page.click('.dock .sk[data-a="stop"]');
   await page.click('.dock .sk[data-a="reset"]');
-  ok(await page.evaluate(() => (document.getElementById('sr-live').textContent || '').length > 0), `${L}: run state announced in the polite live region`);
+  await page.waitForFunction(() => (document.getElementById('sr-live').textContent || '').length > 0, null, { timeout: 3000 }).catch(() => {});
+  ok(await page.evaluate(() => (document.getElementById('sr-live').textContent || '').length > 0), `${L}: run state announced in the polite live region (debounced)`);
 
   // ---- PRG EDIT: soft-key rows page, a block is edited from the dock
   await page.click('.mode[data-m="edit"]');
