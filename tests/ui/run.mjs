@@ -232,9 +232,13 @@ async function phoneFlows(browser, tag) {
   ok(mid > 0, `${L}: a swipe point on the workspace (not a sideways scroller)`, mid);
   await swipe(page, 330, mid, 60, mid + 10);   // leftward = next; Status is last: stays
   ok(await page.evaluate(() => document.querySelector('.main').dataset.pane) === 'side', `${L}: swipe past the last workspace does nothing`);
+  await page.evaluate(() => { window.__t = []; const m = document.querySelector('.main');
+    ['touchstart', 'touchmove', 'touchend', 'touchcancel'].forEach((ty) => m.addEventListener(ty, (e) => { const t = e.changedTouches[0] || {};
+      window.__t.push(ty[5] + ':' + Math.round(t.clientX) + ',' + Math.round(t.clientY) + '@' + Math.round(e.timeStamp) + (ty === 'touchstart' ? ':' + (e.target.id || e.target.className || e.target.tagName) : '')); }, { passive: true })); });
   mid = await swipeY();
   await swipe(page, 60, mid, 330, mid + 5);   // rightward = previous
-  ok((await paneAfter(page, 'gfx')) === 'gfx', `${L}: swipe right goes to the previous workspace`);
+  const prevOk = (await paneAfter(page, 'gfx')) === 'gfx';
+  ok(prevOk, `${L}: swipe right goes to the previous workspace`, prevOk ? '' : JSON.stringify({ mid, pane: await page.evaluate(() => document.querySelector('.main').dataset.pane), touches: await page.evaluate(() => window.__t), scrollY: await page.evaluate(() => scrollY) }));
   const g = await box(page, '#gl');
   await swipe(page, g.x + 300, g.y + g.height / 2, g.x + 40, g.y + g.height / 2);
   ok(await page.evaluate(() => document.querySelector('.main').dataset.pane) === 'gfx', `${L}: a swipe on the 3-D view orbits, never switches`);
