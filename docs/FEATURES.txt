@@ -215,8 +215,9 @@ AI LOOP (ai.js + part.js):
     cut-where-it-should-not regions by position, per feature); up to 3
     refinement rounds. Best program wins.
   - Answers cut off at max_tokens are continued; only-thinking answers are
-    retried with twice the budget. Defaults 32k tokens, medium reasoning;
-    server cap 64k.
+    retried with twice the budget; a dropped connection once. Defaults 32k
+    tokens, low reasoning (measured: as accurate as medium, minutes faster);
+    server cap 64k. Live bench: 34-74 % match before -> 96-100 % now.
   - The GitHub Pages simulator stays a self-contained single file either
     way; the server and web app are an optional layer around it.
 

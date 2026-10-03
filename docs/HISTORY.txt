@@ -466,8 +466,11 @@ HIGHS:
 LOWS:
   - The old QA suite (.tools/qa) was never in git; it is replaced, not
     restored. WebKit and real phones are still untested.
-  - Medium reasoning on DeepSeek can think through a 32k budget before
-    writing; the loop retries, but a run can take minutes.
+  - Medium reasoning on DeepSeek thought through a 32k budget twice
+    before writing (10 minutes for one part); low reasoning plus the
+    measurement loop is as accurate and is now the default.
+  - The first loop threw away a 96 % program when a later refinement
+    timed out; fixed (best program kept, idle timeout, network retry).
 
 NOT VERIFIED:
   - No physical iPhone / Android test, no screen reader on a device.

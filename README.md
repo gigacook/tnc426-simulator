@@ -55,7 +55,8 @@ for the operator, no server, no install.
   measures the result against the spec** in mm (what is not cut, what is cut that should stay, per
   feature and by position), and up to 3 refinement rounds send that back. Answers cut off by the
   token limit are continued instead of dropped (default budget 32 000 tokens per request, thinking
-  included). See "AI accuracy" below for measured numbers.
+  included; low reasoning by default), a dropped connection is retried once, and a refinement that
+  fails keeps the best program so far. See "AI accuracy" below for measured numbers.
 - **Swedish and English** interface language, set from the profile dialog.
 - **Phones and tablets.** Under 900 px the simulator becomes three workspaces — Program,
   Graphics, Status — in the page's own vertical scroll, picked with tabs or a sideways swipe. The
@@ -177,7 +178,19 @@ OpenRouter.
 Measured with `tests/ai/bench.mjs` (DeepSeek V4.1 Flash, 2026-10-03; "match" = removed-volume
 overlap of the final program's cut with a hand-written reference part, 100 % = exact):
 
-AI_BENCH_TABLE
+| Part (prompt gives exact sizes) | Before (one repair round, 12k tokens) | Now (plan + measure + refine, 32k tokens, low reasoning) |
+|---|---|---|
+| Plate: face, 60 × 30 pocket R6, four Ø8.5 through holes | 73.8 % and 68.8 % (two runs) — pocket walls milled, the middle left standing | 99.2 % (2 rounds, 117 s, $0.04) |
+| Name plate: WORKSHOP engraved, 25 mm capitals | 33.7 % — its own letter shapes, wrong blank thickness | 96.1 % (1 round, 18 s) |
+| Round pocket Ø50 + 10 mm slot | 98.2 % | 99.8 % (1 round, 161 s) |
+| Outside shoulder 90 × 50 R5, 3 deep | no program: the model spent the whole budget thinking | 100 % (1 round, 156 s) |
+
+One run per cell (two for the old plate), so treat single numbers as indicative, not as a
+distribution. At *medium* reasoning the plate also reached 100 % but took ~10 minutes (the model
+thought through the 32k budget twice), so the default is *low*. The lettering score is measured
+against the simulator's own stroke font, which the new pipeline uses and the old one could not
+know. Fable and other models were not benchmarked here. Reproduce: `OPENROUTER_API_KEY=…
+node tests/ai/bench.mjs` (outputs in `local/ai-bench/`).
 
 ## Build
 

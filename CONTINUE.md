@@ -36,7 +36,7 @@ META
 | D-AI | 09-30 | Recommend DeepSeek V4.1 Flash. Frontier models one click away; full searchable/sortable list and free typing too (B1). |
 | D-DESKTOP | 10-03 | Tauri 2 shell runs `tnc-server` in-process on a remembered 127.0.0.1 port (browser storage is per origin), not a custom protocol (SSE streaming + cookies). Local operator signed in by a one-time link; Host allow-list + CSP; no Tauri IPC for the remote page. Same crate as the standalone server. |
 | D-PHONE | 10-03 | ≤ 900 px: three workspaces in the page scroll (tabs + scoped swipes), soft keys + block line in a bottom dock (8 keys a row, paged like the control), secondary features in a MENU drawer. Nodes are moved between layouts, never duplicated. Desktop layout unchanged. |
-| D-AI-LOOP | 10-03 | AI = plan (part spec) → expand (lettering → stroke paths, tool feasibility) → write → check → measure on the height field → refine (3 rounds default). Default 32k tokens/request, cut-off answers continued; server cap 64k. |
+| D-AI-LOOP | 10-03 | AI = plan (part spec) → expand (lettering → stroke paths, tool feasibility) → write → check → measure on the height field → refine (3 rounds default). Default 32k tokens/request, low reasoning, cut-off answers continued, one network retry, a failed refinement keeps the best program; server cap 64k. Bench 10-03: plate 73.8→99.2 %, letters 33.7→96.1 %, round 98.2→99.8 %, shoulder no-program→100 %. |
 
 ## BACKLOG (priority order)
 | id | status | goal | scope | check |
