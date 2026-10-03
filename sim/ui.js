@@ -1262,7 +1262,7 @@ For tilted machining use CYCL DEF 19.0 WORKING PLANE / CYCL DEF 19.1 A+.. B+.. C
   aiAbort=null;
 }
 /* thinking effort and the answer cap: a budget guard for slow reasoning models */
-function aiThink(){ return local.get('tnc426.aithink')||'medium'; }
+function aiThink(){ return local.get('tnc426.aithink')||'low'; }   // measured: low + plan/measure is as accurate and minutes faster than medium
 function aiMaxTok(){ return +(local.get('tnc426.aimaxtok')||32000); }
 /* refinement rounds after the first program: each one sends the checks and the measured misses / gouges back */
 function aiRounds(){ const v=local.get('tnc426.airounds'); return v==null||v===''?3:Math.max(0,Math.min(6,+v)); }
@@ -1387,7 +1387,7 @@ function aiModelUI(){
   if($('ai-think')){ mpMount($('ai-mp')); return; }
   const mp=document.createElement('div'); mp.id='ai-mp'; mp.style.marginTop='16px';
   const box=document.createElement('div'); box.className='fgrid'; box.style.marginTop='12px';
-  box.innerHTML=`<label class="fld"><span>THINKING (REASONING MODELS)</span><select id="ai-think"><option value="off">Off — fastest, cheapest</option><option value="low">Low</option><option value="medium">Medium (recommended)</option><option value="high">High — slow, can cost more</option></select></label>
+  box.innerHTML=`<label class="fld"><span>THINKING (REASONING MODELS)</span><select id="ai-think"><option value="off">Off — fastest, cheapest</option><option value="low">Low (recommended)</option><option value="medium">Medium — slower</option><option value="high">High — slow, can cost more</option></select></label>
     <label class="fld"><span>MAX ANSWER TOKENS PER REQUEST (THINKING COUNTS)</span><input id="ai-maxtok" inputmode="numeric" value="32000"></label>
     <label class="fld"><span>MEASURE &amp; REFINE ROUNDS</span><select id="ai-rounds"><option value="0">0 — first answer only</option><option value="1">1</option><option value="2">2</option><option value="3">3 (recommended)</option><option value="4">4</option><option value="6">6 — slow</option></select></label>`;
   const ta=$('ai-prompt').closest('.fld'); ta.parentNode.insertBefore(box,ta.nextSibling); ta.parentNode.insertBefore(mp,box);

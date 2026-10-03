@@ -81,6 +81,11 @@ async function simPage(browser, { width, height, mobile = width <= 900, lang = '
 
 const overflow = (page) => page.evaluate(() => ({ sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth }));
 const box = (page, sel) => page.locator(sel).first().boundingBox();
+/* after a gesture: wait until the workspace settles on the expected value (slow CI boxes), then report what it is */
+async function paneAfter(page, want) {
+  await page.waitForFunction((w) => document.querySelector('.main').dataset.pane === w, want, { timeout: 3000 }).catch(() => {});
+  return page.evaluate(() => document.querySelector('.main').dataset.pane);
+}
 const active = (page) => page.evaluate(() => { const a = document.activeElement; return a ? (a.id || a.className || a.tagName) : null; });
 
 /* swipe on the real touch pipeline (CDP), Chromium only */
@@ -169,6 +174,7 @@ async function phoneFlows(browser, tag) {
   await page.click('#b-menu');
   const hm = await box(page, '#hmore');
   await swipe(page, hm.x + 40, hm.y + 300, hm.x + 260, hm.y + 310);
+  await page.waitForFunction(() => !document.getElementById('hmore').classList.contains('open'), null, { timeout: 3000 }).catch(() => {});
   ok(await page.evaluate(() => !document.getElementById('hmore').classList.contains('open')), `${L}: swipe right closes the drawer`);
 
   // ---- dialog from the drawer: focus trap, Esc, focus return
@@ -217,7 +223,7 @@ async function phoneFlows(browser, tag) {
   await swipe(page, 330, mid, 60, mid + 10);   // leftward = next; Status is last: stays
   ok(await page.evaluate(() => document.querySelector('.main').dataset.pane) === 'side', `${L}: swipe past the last workspace does nothing`);
   await swipe(page, 60, mid, 330, mid + 5);   // rightward = previous
-  ok(await page.evaluate(() => document.querySelector('.main').dataset.pane) === 'gfx', `${L}: swipe right goes to the previous workspace`);
+  ok((await paneAfter(page, 'gfx')) === 'gfx', `${L}: swipe right goes to the previous workspace`);
   const g = await box(page, '#gl');
   await swipe(page, g.x + 300, g.y + g.height / 2, g.x + 40, g.y + g.height / 2);
   ok(await page.evaluate(() => document.querySelector('.main').dataset.pane) === 'gfx', `${L}: a swipe on the 3-D view orbits, never switches`);
@@ -225,7 +231,7 @@ async function phoneFlows(browser, tag) {
   await swipe(page, 200, mid - 150, 210, mid + 150);
   ok(await page.evaluate(() => document.querySelector('.main').dataset.pane) === 'pgm', `${L}: a vertical drag does not switch`);
   await swipe(page, 360, mid, 80, mid + 10);
-  ok(await page.evaluate(() => document.querySelector('.main').dataset.pane) === 'gfx', `${L}: swipe left goes to the next workspace`);
+  ok((await paneAfter(page, 'gfx')) === 'gfx', `${L}: swipe left goes to the next workspace`);
 
   // ---- run controls from the dock (TEST mode)
   await page.click('.mode[data-m="test"]');
