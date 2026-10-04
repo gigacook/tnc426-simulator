@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Bundle shell + libraries + modules into one standalone HTML.
+"""Bundle shell + libraries + modules into one standalone HTML. All files are UTF-8 (explicit: Windows defaults to cp1252).
 
   python3 build.py          -> index.html        (public, pushed; never contains a key)
                             -> index.local.html  (only if private/.env has OPENROUTER_API_KEY; gitignored)
@@ -26,7 +26,7 @@ def vendor():
         subprocess.run([str(esb), str(src / 'vendor' / 'three-entry.mjs'), '--bundle', '--format=iife', '--minify',
                         '--legal-comments=none', '--log-level=warning', f'--outfile={out}'], check=True, cwd=nm.parent,
                        env=dict(os.environ, NODE_PATH=str(nm)))
-    return out.read_text()
+    return out.read_text(encoding='utf-8')
 
 # (cache file, url, label) — fetched once into .libcache/
 LIBS = [
@@ -66,7 +66,7 @@ def lib(name, url):
     f = cache / name
     if not f.exists():
         f.write_bytes(urllib.request.urlopen(url).read())
-    return f.read_text()
+    return f.read_text(encoding='utf-8')
 
 def tag(label, src):
     if '</script' in src.lower():
@@ -77,12 +77,12 @@ def env_key():
     # private/.env (gitignored folder) first, then a root .env
     for f in (d / 'private' / '.env', d / '.env'):
         if not f.exists(): continue
-        for line in f.read_text().splitlines():
+        for line in f.read_text(encoding='utf-8').splitlines():
             m = re.match(r'\s*OPENROUTER_API_KEY\s*=\s*["\']?([^"\'\s#]+)', line)
             if m: return m.group(1)
     return None
 
-shell = (src / 'sim-shell.html').read_text()
+shell = (src / 'sim-shell.html').read_text(encoding='utf-8')
 split = '<div class="app">'
 head, body = shell.split(split, 1)
 body = split + body
@@ -92,12 +92,12 @@ scripts += ''.join(tag(label, lib(n, u)) for n, u, label in LIBS)
 for name, var in TEXTS:
     f = d / name
     if f.exists():
-        scripts += tag('text: ' + name, f'window.{var} = {json.dumps(f.read_text())};')
+        scripts += tag('text: ' + name, f'window.{var} = {json.dumps(f.read_text(encoding="utf-8"))};')
 included = []
 for name, label in MODULES:
     f = src / name
     if f.exists():
-        scripts += tag(label, f.read_text()); included.append(name)
+        scripts += tag(label, f.read_text(encoding='utf-8')); included.append(name)
 
 def page(extra=''):
     return f"""<!DOCTYPE html>
@@ -118,11 +118,11 @@ doc = page()
 key = env_key()
 if key and key in doc:
     sys.exit('build: the OpenRouter key leaked into the public build — aborting')
-(d / 'index.html').write_text(doc)
+(d / 'index.html').write_text(doc, encoding='utf-8', newline='\n')
 print(f'built index.html  {len(doc):,} bytes  modules: {" ".join(included)}')
 
 if key:
     local = page(tag('local-only key from .env — never commit this file',
                      f'window.TNC_AI_LOCAL_KEY = {json.dumps(key)};'))
-    (d / 'index.local.html').write_text(local)
+    (d / 'index.local.html').write_text(local, encoding='utf-8', newline='\n')
     print(f'built index.local.html  {len(local):,} bytes  (with .env key — gitignored)')
