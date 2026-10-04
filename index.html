@@ -14413,6 +14413,7 @@ var TNC_AI = (function () {
     var pr = m.pricing || {}, out = (m.architecture || {}).output_modalities, n = String(m.name || m.id), c = n.indexOf(': ');
     return { id: m.id, name: c > 0 && c < 30 ? n.slice(c + 2) : n, provider: String(m.id).split('/')[0],
       context: +m.context_length || (m.top_provider && +m.top_provider.context_length) || null,
+      maxOut: (m.top_provider && +m.top_provider.max_completion_tokens) || null,               // the model's own answer limit, if OpenRouter knows it
       pin: perM(pr.prompt), pout: perM(pr.completion), created: +m.created || 0,
       text: !out || (out.indexOf('text') >= 0 && out.indexOf('image') < 0), variant: /:/.test(m.id) };
   }
@@ -16635,6 +16636,13 @@ For tilted machining use CYCL DEF 19.0 WORKING PLANE / CYCL DEF 19.1 A+.. B+.. C
 /* thinking effort and the answer cap: a budget guard for slow reasoning models */
 function aiThink(){ return local.get('tnc426.aithink')||'low'; }
 function aiMaxTok(){ return +(local.get('tnc426.aimaxtok')||12000); }
+/* the answer cap is the user's call: any whole number. The model's own output limit (OpenRouter's catalogue) is shown
+   as the recommended ceiling, never enforced: past it the provider may refuse the request or cut the answer short */
+function aiTokRec(){ const m=MP.cat&&MP.cat.models.find(x=>x.id===getModel()); return m?m.maxOut||m.context||null:null; }
+function aiTokHint(){ const h=$('ai-tokhint'); if(!h) return; const r=aiTokRec(), v=aiMaxTok();
+  h.textContent=!r?'No known limit for this model — any number goes.'
+    :`Recommended up to ${r.toLocaleString('en')} for this model${v>r?' — yours is above it: the provider may refuse or cut the answer short':''}.`;
+  h.style.color=r&&v>r?'#ffb347':''; }
 
 /* ---------- NEW PROGRAM ---------- */
 function openNew(which){
@@ -16722,7 +16730,7 @@ function mpPick(root,id,close){
   if(close) mpOpen(root,false); else if(!root.querySelector('.mp-pal').hidden) mpTable(root);
 }
 function mpUseId(root){ const f=root.querySelector('.mp-id'), v=f.value.trim(); if(!v){ f.focus(); return; } mpPick(root,v,true); if(MP_ID.test(v)) f.value=''; }
-function mpTop(root){
+function mpTop(root){ aiTokHint();
   const cat=MP.cat, cur=getModel(), L=cat?cat.models:[], find=id=>L.find(m=>m.id===id);
   const recId=AI?AI.DEFAULT_MODEL:'deepseek/deepseek-v4.1-flash', rec=find(recId)||(AI&&AI.RECOMMENDED)||{id:recId,name:recId};
   const fr=cat?cat.frontier.filter(m=>m.id!==recId):[], curM=find(cur), known=cur===recId||fr.some(m=>m.id===cur);
@@ -16754,12 +16762,12 @@ function aiModelUI(){
   const mp=document.createElement('div'); mp.id='ai-mp'; mp.style.marginTop='16px';
   const box=document.createElement('div'); box.className='fgrid'; box.style.marginTop='12px';
   box.innerHTML=`<label class="fld"><span>THINKING (REASONING MODELS)</span><select id="ai-think"><option value="off">Off — fastest, cheapest</option><option value="low">Low (recommended)</option><option value="medium">Medium</option><option value="high">High — slow, can cost more</option></select></label>
-    <label class="fld"><span>MAX ANSWER TOKENS (BUDGET GUARD)</span><input id="ai-maxtok" inputmode="numeric" value="12000"></label>`;
+    <label class="fld"><span>MAX ANSWER TOKENS (BUDGET GUARD)</span><input id="ai-maxtok" inputmode="numeric" value="12000"><small id="ai-tokhint" style="opacity:.75"></small></label>`;
   const ta=$('ai-prompt').closest('.fld'); ta.parentNode.insertBefore(box,ta.nextSibling); ta.parentNode.insertBefore(mp,box);
   $('ai-think').value=aiThink(); $('ai-think').onchange=()=>{ local.set('tnc426.aithink',$('ai-think').value); };
   $('ai-maxtok').value=aiMaxTok(); $('ai-maxtok').addEventListener('keydown',e=>e.stopPropagation());
-  $('ai-maxtok').onchange=()=>{ const v=Math.round(+$('ai-maxtok').value); if(v>=1000&&v<=200000) local.set('tnc426.aimaxtok',v); else { say('MAX TOKENS 1000–200000'); $('ai-maxtok').value=aiMaxTok(); } };
-  mpMount(mp);
+  $('ai-maxtok').onchange=()=>{ const v=Math.round(+String($('ai-maxtok').value).replace(/[\s,_']/g,'')); if(v>=1) local.set('tnc426.aimaxtok',v); else say('MAX TOKENS: A WHOLE NUMBER'); $('ai-maxtok').value=aiMaxTok(); aiTokHint(); };
+  mpMount(mp); aiTokHint();
 }
 
 /* AI: 'new' writes a new program, 'modify' changes the program on screen (undoable) */

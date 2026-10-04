@@ -2,7 +2,7 @@
 //!
 //! The browser (the simulator's ai.js or the web app) calls these paths exactly as it would call
 //! `https://openrouter.ai/api/v1`, with its session instead of a key. The server adds its key, caps
-//! `max_tokens`, enforces the model allow-list and a monthly budget per user, streams the answer back
+//! `max_tokens` only if TNC_AI_MAX_TOKENS is set, enforces the model allow-list and a monthly budget per user, streams the answer back
 //! untouched, and records the cost OpenRouter reports.
 
 use std::time::{Duration, Instant};
@@ -102,7 +102,7 @@ async fn chat(State(st): State<AppState>, CurrentUser(u): CurrentUser, body: Byt
     }
     obj.insert("model".into(), json!(model));
     let cap = st.cfg.ai_max_tokens;
-    if !obj.get("max_tokens").and_then(Value::as_u64).is_some_and(|n| n <= cap) {
+    if cap > 0 && !obj.get("max_tokens").and_then(Value::as_u64).is_some_and(|n| n <= cap) {
         obj.insert("max_tokens".into(), json!(cap));
     }
     obj.insert("usage".into(), json!({ "include": true }));

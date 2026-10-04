@@ -47,6 +47,7 @@ var TNC_AI = (function () {
     var pr = m.pricing || {}, out = (m.architecture || {}).output_modalities, n = String(m.name || m.id), c = n.indexOf(': ');
     return { id: m.id, name: c > 0 && c < 30 ? n.slice(c + 2) : n, provider: String(m.id).split('/')[0],
       context: +m.context_length || (m.top_provider && +m.top_provider.context_length) || null,
+      maxOut: (m.top_provider && +m.top_provider.max_completion_tokens) || null,               // the model's own answer limit, if OpenRouter knows it
       pin: perM(pr.prompt), pout: perM(pr.completion), created: +m.created || 0,
       text: !out || (out.indexOf('text') >= 0 && out.indexOf('image') < 0), variant: /:/.test(m.id) };
   }
