@@ -1,5 +1,9 @@
 TNC 426 / 430 SIMULATOR - DEVELOPER FEATURE LOG
-Updated 2026-09-30
+Updated 2026-10-03
+
+2026-10-03: desktop app (Tauri 2, server in-process), phone layout (workspaces, soft-key
+dock, menu drawer, swipes), accessibility pass, AI plans the part and is measured against
+it. Rust 27 tests, browser UI suite 151/151 (Chromium), AI benchmark run live.
 
 2026-09-30: thread milling 262-265/267, touch-probe cycles (408-413/417/419 motion,
 30-33/480-483/562 tool-measuring, no motion), TNC 430 kinematics (X Y Z + A/B swivel
@@ -170,8 +174,50 @@ BEYOND THE SINGLE FILE (server/, web/):
     AI proxy to OpenRouter.
   - web/: a React (Vite, TypeScript) app for the server - sign in, edit and
     check programs, browse and restore versions, share by link.
-  - Desktop app: planned, not built. The server's router is written so a
-    shell such as Tauri 2 can embed it.
+  - desktop/: the Tauri 2 desktop app. Runs the server's own crate in-process
+    on 127.0.0.1 (remembered port), SQLite in the platform app-data folder,
+    one-time sign-in link for the local operator, Host allow-list + CSP, no
+    Tauri IPC for the page, external links to the system browser, single
+    instance. Built and launched on Linux; macOS/Windows via CI only.
+
+PHONES AND TABLETS (<= 900 px, sim-shell.html + ui.js):
+  - Three workspaces (Program, Graphics, Status) in the page's own scroll;
+    tabs (arrow keys, Home/End) or a sideways swipe on the workspace. Swipes
+    never start on the 3-D view, sliders, text fields, the soft keys or
+    anything that scrolls sideways, and never on a vertical drag; they only
+    navigate. Each workspace keeps its scroll position; the canvas and WebGL
+    context are never recreated.
+  - Soft keys + the block line (PRG EDIT) in a dock at the bottom of every
+    workspace, 8 keys at a time with a row switch (the control's own
+    soft-key row paging). The dock rides above the software keyboard.
+  - Header: modes, program + run state, check count (opens the checks).
+    DEV, + New, Lessons, AI, Help, Focus, Profile in a MENU drawer (modal:
+    focus inside, page inert, Esc / scrim / swipe right close it).
+  - Dialogs: full-height sheets following the visual viewport; the AI and
+    new-program actions stay on screen. Inputs 16 px (no iOS zoom; pinch
+    zoom stays on), 44 px touch targets, safe areas, long blocks wrap.
+  - Accessibility (all widths): modal focus trap + inert background + focus
+    return, WAI-ARIA tabs with roving tabindex, shortcuts never take Enter /
+    Space from a keyboard-focused control or arrows from a tab list, polite
+    announcements for run state and check counts only, main landmark,
+    labelled canvas / listing / DRO, check count as text not colour only,
+    html lang follows the language. en + sv strings.
+
+AI LOOP (ai.js + part.js):
+  - The tool table goes to the model as constraints: type, Ø, reach before
+    the holder touches, smallest inside corner, plunge and depth rules, safe
+    S/F; plus what the control does not have (FK, SL cycles, 251+, ...).
+  - Plan: the model writes a part spec (face, rect/circle/poly pocket, hole,
+    slot, engrave, text, outside profile). Expand: text becomes exact
+    single-stroke capitals (A-Z, 0-9, Å Ä Ö Ü Č Ć Š Ž Đ), every feature is
+    checked against the tools. Write, check, then the program is machined
+    on the height field and measured against the spec (match %, not-cut and
+    cut-where-it-should-not regions by position, per feature); up to 3
+    refinement rounds. Best program wins.
+  - Answers cut off at max_tokens are continued; only-thinking answers are
+    retried with twice the budget; a dropped connection once. Defaults 32k
+    tokens, low reasoning (measured: as accurate as medium, minutes faster);
+    server cap 64k. Live bench: 34-74 % match before -> 96-100 % now.
   - The GitHub Pages simulator stays a self-contained single file either
     way; the server and web app are an optional layer around it.
 
@@ -194,6 +240,7 @@ IN PROGRESS - NOT YET DONE
     or a flow.js node yet.
   - RELEASES.txt does not exist yet, so the DEV modal's third tab (which
     build.py already wires up) is empty.
+  - The AI's planned part spec is measured against but not drawn in 3-D.
   - Live visual translation: cursor-on-a-block driving the flow view with
     an animated tool trace. Both halves exist (traceFor/traceTick in
     ui.js, pathSVG in flow.js) and have never been connected.
@@ -201,9 +248,12 @@ IN PROGRESS - NOT YET DONE
 
 NOT VERIFIED
 ==============================================================================
-  - AI generation has never been run against the real OpenRouter API in
-    this repo - every check so far, including the QA suite, uses a mocked
-    OpenRouter.
+  - AI: run live against OpenRouter by tests/ai/bench.mjs (DeepSeek V4.1
+    Flash, 4 reference parts, 2026-10-03; numbers in README). The CI and
+    browser suites use a mocked OpenRouter. Other models not benchmarked.
+  - Phones: Chromium mobile emulation only. Not on an iPhone (Safari,
+    VoiceOver) or an Android phone (Chrome, TalkBack); WebKit not run.
+  - Desktop app: macOS and Windows builds never run (CI job written).
   - No real HEIDENHAIN control or programming station has verified any of
     this. tests/manual.js's expected values are derived from the manual's
     own rules, not measured on a control - see docs/PROGRAMMING-STATION.md

@@ -22,3 +22,6 @@ logs/
 
 # local-only material (never pushed)
 local/
+desktop/src-tauri/target/
+desktop/src-tauri/gen/
+!.env.example

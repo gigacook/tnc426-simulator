@@ -29,6 +29,13 @@ export function SignIn() {
     }
   }
 
+  if (info?.local)
+    return (
+      <div className="panel-empty" role="alert">
+        The desktop app signs you in when it starts. Close the app and open it again.
+      </div>
+    );
+
   return (
     <div className="center-page">
       <form className="card auth" onSubmit={submit}>
@@ -62,7 +69,7 @@ export function SignIn() {
           />
         </label>
         {error && <div className="error">{error}</div>}
-        <button className="primary" disabled={busy}>
+        <button type="submit" className="primary" disabled={busy}>
           {up ? 'Create account' : 'Sign in'}
         </button>
         {!setup && info?.signup && (

@@ -517,6 +517,122 @@ body.focus .fxmenu,body.focus .lgd,body.focus #callouts,body.focus .sub-ttl{disp
 /* soft keys: the hotkey, low contrast */
 .sk .kh{display:block;font-size:.74em;opacity:.5;letter-spacing:.06em;margin-top:2px;font-weight:400}
 .sk.go .kh,.sk.stop .kh{opacity:.7}
+
+/* ================= shell: header drawer, workspaces, dock (phones), a11y ================= */
+.sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0 0 0 0)!important;white-space:nowrap!important;border:0!important}
+.hdr-m,.hdr-menu,.dhead,.dock,.skpager{display:none}
+.hmore{display:contents}                       /* wide screens: its buttons sit in the header row as before */
+h1.ttlbox{margin:0;font:inherit}
+.bar .ttlbox{order:1} .bar #b-prof{order:2}
+.tbadge{display:inline-block;min-width:1.6em;padding:0 .4em;margin-left:4px;border-radius:9px;background:var(--red);color:#fff;
+  font-family:var(--mono);font-size:12px;letter-spacing:0;line-height:1.5}
+.tbadge.warn{background:var(--amber);color:#1f1400}
+.hdr-err{align-items:center;gap:4px;font-family:var(--mono);font-size:14px;background:var(--panel-2);color:var(--mint);
+  border:1px solid var(--line);border-radius:2px;padding:0 10px;min-height:44px;min-width:44px;justify-content:center}
+.hdr-err.bad{color:#ffd6d2;border-color:var(--red);background:#3a0b09}
+.hdr-err.warn{color:#ffe2b0;border-color:var(--amber);background:#3a2604}
+.hdr-stat{min-width:0;flex:1 1 0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-family:var(--mono);font-size:13px;color:var(--ink-dim)}
+.hdr-stat b{color:var(--cyan);font-weight:500}
+/* keyboard focus must always show, also on the dark CRT and on pressed keys */
+.sk:focus-visible,.mode:focus-visible,.hbtn:focus-visible,.chb:focus-visible,.mtabs button:focus-visible,.stabs button:focus-visible,
+.tb:focus-visible,.spd button:focus-visible,.skpager button:focus-visible{outline:3px solid var(--amber);outline-offset:-3px}
+.modal [role=tablist] button:focus-visible{outline:3px solid var(--amber);outline-offset:-3px}
+@media (pointer:coarse){
+  .hbtn,.mode,.chb,.stabs button,.tb,.mhead .x,.alarm button,.cbtn{min-height:44px}
+  .spd button,.alarm button{min-width:44px;min-height:44px}
+  .pgroup>summary,.fxmenu>summary,.help-manual summary{min-height:44px;display:flex;align-items:center}
+  .hmenu button{min-height:44px}
+  .lgd span.hint{display:none}
+}
+/* iOS zooms into inputs under 16px; keep 16px wherever a finger types (pinch zoom stays on) */
+@media (max-width:900px),(pointer:coarse){
+  input:not([type=range]):not([type=checkbox]):not([type=radio]),select,textarea{font-size:16px!important}
+}
+@media (max-width:900px){
+  html,body{height:auto;min-height:100%}
+  /* a sideways swipe switches workspace; it must never also be the browser's "back" gesture (that loses the session) */
+  html,body{overscroll-behavior-x:none}
+  body{overflow:visible}
+  .app{height:auto;min-height:100vh;min-height:100dvh;display:block;padding-bottom:var(--dock-h,0px)}
+  /* header: title · program and state · checks · MENU, then the four modes */
+  .bar{gap:6px 8px;padding:calc(6px + env(safe-area-inset-top,0px)) calc(10px + env(safe-area-inset-right,0px)) 6px calc(10px + env(safe-area-inset-left,0px))}
+  .logo,.bar .sub-ttl{display:none}
+  .bar .ttlbox{order:1;margin:0;opacity:1;align-items:flex-start}
+  .bar .ttlbox .ttl{font-size:17px}
+  .hdr-stat{display:block;order:2}
+  .hdr-err{display:inline-flex;order:3}
+  .hdr-menu{display:inline-flex;align-items:center;gap:6px;order:4;letter-spacing:.1em;padding:0 12px;min-height:44px}
+  .bar .modes{order:9;width:100%;margin:0!important;flex-wrap:nowrap}
+  .mode{flex:1 1 0;min-width:0;min-height:44px;padding:8px 4px;text-align:center}
+  /* the drawer: everything furthest from the machine code */
+  .hmore{display:flex;flex-direction:column;align-items:stretch;gap:8px;position:fixed;top:0;right:0;bottom:0;z-index:55;
+    width:min(330px,88vw);padding:calc(10px + env(safe-area-inset-top,0px)) calc(14px + env(safe-area-inset-right,0px)) calc(16px + env(safe-area-inset-bottom,0px)) 14px;
+    background:var(--panel);border-left:1px solid var(--line-2);box-shadow:-20px 0 40px rgba(0,0,0,.5);overflow-y:auto;overscroll-behavior:contain;
+    transform:translateX(105%);visibility:hidden;transition:transform .2s ease,visibility 0s linear .2s}
+  .hmore.open{transform:none;visibility:visible;transition:transform .2s ease}
+  .hmore .hbtn{width:100%;max-width:none;text-align:left;min-height:48px;order:0}
+  .hmore .devbtn{animation:none}
+  .dhead{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+  .dtitle{flex:1;font-family:var(--disp);font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint)}
+  .hmore .dclose{width:auto}
+  .scrim:not([hidden]){display:block;position:fixed;inset:0;z-index:54;background:rgba(2,5,10,.62)}
+  /* workspace tabs: sticky under the (scrolling) header */
+  .mtabs{display:grid;grid-template-columns:repeat(3,1fr);position:sticky;top:0;z-index:20;background:var(--panel);
+    border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:0 env(safe-area-inset-right,0px) 0 env(safe-area-inset-left,0px)}
+  .mtabs button{min-height:48px;padding:0 4px;box-shadow:none}
+  .mtabs button[aria-selected="true"]{box-shadow:inset 0 -3px 0 var(--cyan)}
+  /* one workspace at a time, in the page's own vertical scroll */
+  .main{display:block;position:static;background:none}
+  .main>.col{position:static;display:none;min-height:0}
+  .main[data-pane="pgm"]>.col-pgm,.main[data-pane="gfx"]>.col-gfx{display:flex}
+  .main[data-pane="side"]>.col-side{display:block;max-height:none;overflow:visible}
+  .col{padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+  .crt{flex:none;overflow-x:auto;overflow-y:hidden;min-height:40vh}
+  .scan{min-height:0}
+  .blk{white-space:pre-wrap;overflow-wrap:anywhere;grid-template-columns:36px 1fr;gap:6px;padding:1px 8px}   /* phones: long blocks wrap, no sideways reading */
+  .blk{scroll-margin-top:calc(var(--tabs-h,48px) + 8px);scroll-margin-bottom:calc(var(--dock-h,120px) + 8px)}
+  textarea#raw{flex:none;height:60vh;height:max(260px,calc(100svh - var(--dock-h,120px) - var(--tabs-h,48px) - 70px))}
+  .gfx{flex:none;height:56vh;height:max(240px,min(62svh,calc(100svh - var(--dock-h,120px) - var(--tabs-h,48px) - 150px)))}
+  .stabs{top:var(--tabs-h,48px)}
+  .stabs button{min-height:44px}
+  .toast{bottom:calc(var(--dock-h,0px) + 12px)}
+  /* the dock: soft keys (and the block line in PRG EDIT) under every workspace, above the software keyboard */
+  .dock{display:block;position:fixed;left:0;right:0;bottom:var(--kb,0px);z-index:30;background:var(--panel);border-top:1px solid var(--line-2);
+    padding:0 env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);box-shadow:0 -10px 24px rgba(0,0,0,.45)}
+  .dock .sks{grid-template-columns:repeat(4,minmax(0,1fr));padding:4px;gap:3px}
+  .dock .sk{min-height:48px;font-size:12.5px;padding:4px 2px}
+  .dock .sk .kh{display:none}
+  .dock .skpager:not([hidden]){display:flex;align-items:center;gap:4px;padding:0 4px 4px}
+  .skpager button{flex:1;min-height:44px;background:var(--panel-2);color:var(--ink-dim);border:1px solid var(--line);border-radius:2px;font-size:15px}
+  .skpager span{flex:2;text-align:center;font-family:var(--mono);font-size:13px;color:var(--ink-dim)}
+  body:not([data-mode="edit"]) .dock .dlg{display:none}
+  .dock .dlg .hint{display:none}
+  .dock .skpath{font-size:12px}
+  /* dialogs: a full-height sheet that follows the visual viewport (software keyboard) */
+  .modal{padding:0;place-items:stretch;inset:auto;top:var(--vvt,0px);left:0;width:100%;height:100%;height:var(--vvh,100dvh)}
+  .mcard{width:100%;max-height:none;height:100%;border-radius:0;border-left:0;border-right:0;
+    padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) 0 env(safe-area-inset-left,0px)}
+  .mbody{padding-bottom:calc(16px + env(safe-area-inset-bottom,0px));overscroll-behavior:contain}
+  .mbody pre{white-space:pre-wrap;word-break:break-word}
+  /* the dialog's main action stays on screen (and above the keyboard) while the form scrolls */
+  #new-ai>.actrow,#new-scratch>.actrow{position:sticky;bottom:calc(-16px - env(safe-area-inset-bottom,0px));z-index:2;background:var(--void-2);margin:0 -16px;padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line)}
+  .hmenu{max-width:calc(100vw - 16px)}
+}
+@media (max-width:600px){ .hdr-menu [data-i18n="btn.menu"]{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap} .hdr-menu{min-width:48px;justify-content:center} }
+@media (min-width:601px) and (max-width:900px){
+  .bar .modes{order:2;width:auto;flex:0 1 auto}
+  .hdr-stat{order:3}.hdr-err{order:4}.hdr-menu{order:5}
+}
+@media (max-width:900px) and (max-height:500px){       /* short landscape: smaller header, the tab bar stays */
+  .bar{padding-top:calc(3px + env(safe-area-inset-top,0px));padding-bottom:3px}
+  .mode{min-height:40px}
+  .gfx{height:max(180px,calc(100svh - var(--dock-h,60px) - var(--tabs-h,44px) - 8px))}
+  .mtabs button{min-height:44px}
+  .dock .sks{grid-template-columns:repeat(8,minmax(0,1fr))}
+  .dock .sk{min-height:44px;font-size:11.5px}
+  .col-gfx>.ch{display:none}
+}
+@media (prefers-reduced-motion:reduce){ .hmore{transition:none!important} }
 </style>
 
 <style>html{color-scheme:dark} img{max-width:100%} [hidden]{display:none!important}</style>
@@ -524,26 +640,43 @@ body.focus .fxmenu,body.focus .lgd,body.focus #callouts,body.focus .sub-ttl{disp
 <body>
 <div class="app">
  <header class="bar">
-   <span class="logo">HDH</span>
-   <div class="modes" id="modes">
-     <button class="mode" data-m="edit"   aria-pressed="false"><b>1</b><span class="lg" data-i18n="mode.edit">PRG EDIT</span><span class="sm">PRG EDIT</span></button>
-     <button class="mode" data-m="test"   aria-pressed="true"><b>2</b><span class="lg" data-i18n="mode.test">TEST</span><span class="sm">TEST</span></button>
-     <button class="mode" data-m="single" aria-pressed="false"><b>3</b><span class="lg" data-i18n="mode.single">SINGLE-BLOCK</span><span class="sm">SINGLE</span></button>
-     <button class="mode" data-m="full"   aria-pressed="false"><b>4</b><span class="lg" data-i18n="mode.full">FULL-RUN</span><span class="sm">FULL</span></button>
+   <span class="logo" aria-hidden="true">HDH</span>
+   <div class="modes" id="modes" role="group" aria-label="Operating mode" data-i18n="aria.modes" data-i18n-attr="aria-label">
+     <button class="mode" data-m="edit"   aria-pressed="false"><b>1</b><span class="lg" data-i18n="mode.edit">PRG EDIT</span><span class="sm" data-i18n="mode.edit.s">PRG EDIT</span></button>
+     <button class="mode" data-m="test"   aria-pressed="true"><b>2</b><span class="lg" data-i18n="mode.test">TEST</span><span class="sm" data-i18n="mode.test.s">TEST</span></button>
+     <button class="mode" data-m="single" aria-pressed="false"><b>3</b><span class="lg" data-i18n="mode.single">SINGLE-BLOCK</span><span class="sm" data-i18n="mode.single.s">SINGLE</span></button>
+     <button class="mode" data-m="full"   aria-pressed="false"><b>4</b><span class="lg" data-i18n="mode.full">FULL-RUN</span><span class="sm" data-i18n="mode.full.s">FULL</span></button>
    </div>
+   <!-- phones: program + state + checks at a glance; everything else is behind MENU -->
+   <span class="hdr-m hdr-stat" id="hdr-stat" aria-hidden="true"></span>
+   <button class="hdr-m hdr-err" id="hdr-err" type="button" title="Checks" aria-describedby="hdr-err-d"><span id="hdr-err-t">0</span></button>
+   <span class="sr-only" id="hdr-err-d" data-i18n="hdr.errdesc">Opens the checks in the Status workspace</span>
+   <!-- secondary features: inline in the header on wide screens, a drawer (MENU) on phones -->
+   <div class="hmore" id="hmore" aria-labelledby="hmore-t">
+   <div class="dhead"><span class="dtitle" id="hmore-t" data-i18n="drawer.title">Menu</span>
+     <button class="hbtn dclose" id="hmore-x" type="button" data-i18n="btn.close">Close</button></div>
    <button class="hbtn devbtn" id="b-dev" title="Feature log, version history, release plan" data-i18n="btn.dev">DEV</button>
    <button class="hbtn new" id="b-new" title="New program: manual or AI" aria-haspopup="menu">+ New ▾</button>
    <button class="hbtn lessons" id="b-lessons" title="Lessons and BREAK IT" aria-haspopup="menu">Lessons ▾</button>
    <button class="hbtn aibtn" id="b-ai" title="AI: change this program or write a new one" aria-haspopup="menu">AI ▾</button>
    <button class="hbtn" id="b-help" title="Lessons, pitfalls, manual, AI setup (H)" data-i18n="btn.help">Help</button>
    <button class="hbtn" id="b-focus" aria-pressed="false" title="Focus view (F)" data-i18n="btn.focus">Focus</button>
-   <span class="ttlbox"><span class="ttl">TNC 426</span><span class="sub-ttl">NC SW 280 476-17</span></span>
    <button class="hbtn prof" id="b-prof" title="Your profile: name, programs, tool table, export / import">Profile</button>
+   </div>
+   <h1 class="ttlbox"><span class="ttl">TNC 426</span><span class="sub-ttl">NC SW 280 476-17</span></h1>
+   <button class="hbtn hdr-menu" id="b-menu" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="hmore"><span aria-hidden="true">&#9776;</span> <span data-i18n="btn.menu">Menu</span></button>
  </header>
 
- <div class="main" data-pane="gfx">
+ <!-- phones and small tablets: one workspace at a time (swipe left / right, or these tabs) -->
+ <div class="mtabs" id="mtabs" role="tablist" aria-label="Workspace" data-i18n="aria.workspace" data-i18n-attr="aria-label">
+   <button role="tab" id="mt-pgm" data-pane="pgm" aria-controls="ws-pgm" aria-selected="false"><span data-i18n="ws.program">Program</span></button>
+   <button role="tab" id="mt-gfx" data-pane="gfx" aria-controls="ws-gfx" aria-selected="true"><span data-i18n="ws.graphics">Graphics</span></button>
+   <button role="tab" id="mt-side" data-pane="side" aria-controls="ws-side" aria-selected="false"><span data-i18n="ws.status">Status</span> <span class="tbadge" id="mt-badge" hidden></span></button>
+ </div>
+
+ <main class="main" data-pane="gfx">
    <!-- PROGRAM -->
-   <section class="col col-pgm" aria-label="Program">
+   <section class="col col-pgm" id="ws-pgm" aria-label="Program">
      <div class="ch">
        <span data-i18n="panel.program">Program</span>
        <span class="rt" id="pgm-path">TNC:\</span>
@@ -552,7 +685,7 @@ body.focus .fxmenu,body.focus .lgd,body.focus #callouts,body.focus .sub-ttl{disp
        <button class="chb" id="b-tools" title="Tool list — TOOL.T (T)" data-i18n="btn.tools">Tool list</button>
        <button class="chb" id="b-save" title="Save as .H (Ctrl+S)" data-i18n="btn.save">Save .H</button>
      </div>
-     <div class="crt" id="crt">
+     <div class="crt" id="crt" tabindex="0" role="region" aria-label="Program listing">
        <div class="plist scan" id="plist"></div>
        <div class="mgt scan" id="mgt" hidden></div>
        <div class="flowhost" id="flow" hidden></div>
@@ -564,19 +697,24 @@ body.focus .fxmenu,body.focus .lgd,body.focus #callouts,body.focus .sub-ttl{disp
        <span class="hint" id="dlg-hint">E edit &middot; I insert &middot; D delete</span>
      </div>
      <div class="skpath" id="skpath" hidden></div>
-     <div class="sks" id="sks"></div>
+     <div class="sks" id="sks" role="group" aria-label="Soft keys"></div>
+     <div class="skpager" id="skpager" hidden>
+       <button type="button" id="sk-prev" aria-label="Previous soft-key row" data-i18n="sk.prev" data-i18n-attr="aria-label">&#9664;</button>
+       <span id="sk-page"></span>
+       <button type="button" id="sk-next" aria-label="Next soft-key row" data-i18n="sk.next" data-i18n-attr="aria-label">&#9654;</button>
+     </div>
    </section>
 
    <!-- GRAPHICS -->
-   <section class="col col-gfx" aria-label="Test graphics">
+   <section class="col col-gfx" id="ws-gfx" aria-label="Test graphics">
      <div class="ch"><span data-i18n="panel.testgfx">Test graphics</span><span class="grow"></span><span class="rt" id="gfx-rt">3-D VIEW</span></div>
      <div class="gfx" id="gfx">
-       <canvas id="gl"></canvas>
+       <canvas id="gl" role="img" aria-label="3-D test graphics: blank, tool and tool path" aria-describedby="ovl-l ovl-r" data-i18n="aria.canvas" data-i18n-attr="aria-label"></canvas>
        <div class="callouts" id="callouts"></div>
        <div class="ovl ovl-tl" id="ovl-l"></div>
        <div class="ovl ovl-tr" id="ovl-r"></div>
-       <div class="ovl ovl-dro" id="dro" aria-label="Position"></div>
-       <div class="alarm" id="alarm" hidden></div>
+       <div class="ovl ovl-dro" id="dro" role="group" aria-label="Position"></div>
+       <div class="alarm" id="alarm" role="alert" hidden></div>
        <div class="coach" id="coach" hidden>
          <div class="coach-hd"><span class="k" id="coach-k">LEARN</span><span class="t" id="coach-t"></span>
            <button id="coach-x" title="Close lesson" aria-label="Close lesson">&times;</button></div>
@@ -618,13 +756,13 @@ body.focus .fxmenu,body.focus .lgd,body.focus #callouts,body.focus .sub-ttl{disp
    </section>
 
    <!-- SIDE -->
-   <aside class="col col-side" aria-label="Status">
-     <div class="stabs" role="tablist" id="stabs">
-       <button role="tab" data-tab="diag" aria-selected="true" data-i18n="tab.diag">Diagnostics</button>
-       <button role="tab" data-tab="ref" aria-selected="false" data-i18n="tab.ref">Reference</button>
-       <button role="tab" data-tab="progs" aria-selected="false" id="tab-progs">Programs</button>
+   <aside class="col col-side" id="ws-side" aria-label="Status">
+     <div class="stabs" role="tablist" id="stabs" aria-label="Status">
+       <button role="tab" data-tab="diag" id="st-diag" aria-controls="sp-diag" aria-selected="true" data-i18n="tab.diag">Diagnostics</button>
+       <button role="tab" data-tab="ref" id="st-ref" aria-controls="sp-ref" aria-selected="false" data-i18n="tab.ref">Reference</button>
+       <button role="tab" data-tab="progs" aria-controls="sp-progs" aria-selected="false" id="tab-progs">Programs</button>
      </div>
-     <div class="spane" id="sp-diag">
+     <div class="spane" id="sp-diag" role="tabpanel" aria-labelledby="st-diag">
      <div class="card card-run"><h3><span data-i18n="panel.run">Run</span> <span class="tagx" id="run-state">READY</span></h3>
        <div class="in"><dl class="kv" id="runkv"></dl></div></div>
      <div class="card card-checks"><h3><span data-i18n="panel.checks">Checks</span> <span class="tagx" id="errc">0</span></h3>
@@ -634,12 +772,12 @@ body.focus .fxmenu,body.focus .lgd,body.focus #callouts,body.focus .sub-ttl{disp
          <button class="mini" id="b-snap" data-i18n="btn.snap">Store finished run as reference A</button>
          <button class="mini" id="b-restore" data-i18n="btn.restore">Open reference program</button></div></div>
      </div>
-     <div class="spane" id="sp-ref" hidden>
+     <div class="spane" id="sp-ref" role="tabpanel" aria-labelledby="st-ref" hidden>
        <div class="refbar"><select id="ref-sel" aria-label="What to show"></select></div>
        <div class="refbody" id="ref-body"></div>
        <div class="klist" id="klist" hidden></div>
      </div>
-     <div class="spane" id="sp-progs" hidden>
+     <div class="spane" id="sp-progs" role="tabpanel" aria-labelledby="tab-progs" hidden>
        <details class="pgroup" id="up-box"><summary><span id="up-t">Programs</span> <span class="cnt" id="up-n">0</span></summary>
          <div class="uplist" id="uplist"></div></details>
        <details class="pgroup" id="pj-box"><summary>Projects <span class="cnt" id="proj-t"></span></summary>
@@ -655,22 +793,21 @@ body.focus .fxmenu,body.focus .lgd,body.focus #callouts,body.focus .sub-ttl{disp
          Not affiliated with DR. JOHANNES HEIDENHAIN GmbH. &ldquo;HEIDENHAIN&rdquo; and &ldquo;TNC&rdquo; are their trademarks.</div>
      </div>
    </aside>
- </div>
+ </main>
 
- <nav class="mtabs" id="mtabs" aria-label="Panes">
-   <button data-pane="pgm" aria-selected="false">Program</button>
-   <button data-pane="gfx" aria-selected="true">Graphics</button>
-   <button data-pane="side" aria-selected="false">Status</button>
- </nav>
+ <!-- phones: the soft keys (and the block line in PRG EDIT) live here, under every workspace -->
+ <div class="dock" id="dock" role="region" aria-label="Soft keys" data-i18n="aria.dock" data-i18n-attr="aria-label"></div>
 </div>
+<div class="scrim" id="scrim" hidden></div>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="sr-only" id="sr-live" aria-live="polite" aria-atomic="true"></div>
 
 <!-- ================= NEW PROGRAM ================= -->
 <div class="modal" id="m-new" hidden>
  <div class="mcard" role="dialog" aria-modal="true" aria-labelledby="m-new-t">
   <div class="mhead"><span class="mt" id="m-new-t" data-i18n="title.newprogram">New program</span>
-    <button class="x" data-close>Close <small>ESC</small></button></div>
+    <button class="x" type="button" data-close><span data-i18n="btn.close">Close</span> <small aria-hidden="true">ESC</small></button></div>
   <div class="mbody">
     <div class="opts" id="new-opts" hidden>
       <div class="opt" data-opt="scratch"><span class="on">1 &middot; THE TNC WAY</span><h4>From scratch</h4>
@@ -723,14 +860,14 @@ body.focus .fxmenu,body.focus .lgd,body.focus #callouts,body.focus .sub-ttl{disp
 <div class="modal" id="m-help" hidden>
  <div class="mcard" role="dialog" aria-modal="true" aria-labelledby="m-help-t">
   <div class="mhead"><span class="mt" id="m-help-t" data-i18n="title.help">Help</span>
-    <button class="x" data-close>Close <small>ESC</small></button></div>
-  <div class="mtabs2" role="tablist" id="help-tabs">
+    <button class="x" type="button" data-close><span data-i18n="btn.close">Close</span> <small aria-hidden="true">ESC</small></button></div>
+  <div class="mtabs2" role="tablist" id="help-tabs" aria-label="Help">
     <button role="tab" data-tab="learn" aria-selected="true">Learn</button>
     <button role="tab" data-tab="break" aria-selected="false">Break it</button>
     <button role="tab" data-tab="manual" aria-selected="false">Manual</button>
     <button role="tab" data-tab="ai" aria-selected="false">AI setup</button>
   </div>
-  <div class="mbody" id="help-body"></div>
+  <div class="mbody" id="help-body" role="tabpanel" aria-label="Help"></div>
  </div>
 </div>
 
@@ -738,7 +875,7 @@ body.focus .fxmenu,body.focus .lgd,body.focus #callouts,body.focus .sub-ttl{disp
 <div class="modal" id="m-prof" hidden>
  <div class="mcard" role="dialog" aria-modal="true" aria-labelledby="m-prof-t">
   <div class="mhead"><span class="mt" id="m-prof-t" data-i18n="title.profile">Profile</span>
-    <button class="x" data-close>Close <small>ESC</small></button></div>
+    <button class="x" type="button" data-close><span data-i18n="btn.close">Close</span> <small aria-hidden="true">ESC</small></button></div>
   <div class="mbody" id="prof-body"></div>
  </div>
 </div>
@@ -746,13 +883,13 @@ body.focus .fxmenu,body.focus .lgd,body.focus #callouts,body.focus .sub-ttl{disp
 <div class="modal" id="m-dev" hidden>
  <div class="mcard dev" role="dialog" aria-modal="true" aria-labelledby="m-dev-t">
   <div class="mhead"><span class="mt" id="m-dev-t" data-i18n="title.dev">DEV</span>
-    <button class="x" data-close>Close <small>ESC</small></button></div>
-  <div class="mtabs2" role="tablist" id="dev-tabs">
+    <button class="x" type="button" data-close><span data-i18n="btn.close">Close</span> <small aria-hidden="true">ESC</small></button></div>
+  <div class="mtabs2" role="tablist" id="dev-tabs" aria-label="DEV">
     <button role="tab" data-tab="features" aria-selected="true">Features</button>
     <button role="tab" data-tab="history" aria-selected="false">Version history</button>
     <button role="tab" data-tab="releases" aria-selected="false">Release plan</button>
   </div>
-  <div class="mbody"><pre id="dev-pre"></pre></div>
+  <div class="mbody" role="tabpanel" aria-label="DEV"><pre id="dev-pre" tabindex="0"></pre></div>
  </div>
 </div>
 
@@ -6411,10 +6548,10 @@ function _slicedToArray(n,t){return _arrayWithHoles(n)||_iterableToArrayLimit(n,
 
 </script>
 <script>/* ===== text: docs/FEATURES.txt ===== */
-window.TNC_DEVLOG = "TNC 426 / 430 SIMULATOR - DEVELOPER FEATURE LOG\nUpdated 2026-09-30\n\n2026-09-30: thread milling 262-265/267, touch-probe cycles (408-413/417/419 motion,\n30-33/480-483/562 tool-measuring, no motion), TNC 430 kinematics (X Y Z + A/B swivel\nhead, tilted-tool cutting), standard vice (toggle), fx.js on three.quarks, programming\ndialogs (CYCL DEF/TOOL CALL/path-function soft keys), Swedish interface language.\nCorpus 2,767 / 2,806 clean. QA 93/93. Open points (placeholders, not facts) are listed\nin CONTINUE.md under \"Come back to\".\n\nLIVE - IN THE BUILD, VERIFIED\n==============================================================================\nVerified by: node tests/manual.js (all pass), AUTOTOOLS=1 node tests/corpus.js\n(2,767 / 2,806 real CAM programs clean), .tools/qa/qa.mjs (93 / 93 Playwright\nchecks pass).\n\nINTERPRETER (sim/core.js):\n  - Klartext parser/interpreter: L/C/CC/CR/CP/LP/CTP moves, RL/RR as real offset\n    paths (not centreline), RND, CHF, CT, APPR/DEP, ZX/YZ plane arcs.\n  - Q-parameter formulas FN 0-FN 19, jumps (FN 9, CALL LBL n REP), REP Q.\n  - Cycles: 1, 2, 4, 17, 18 (old-style); 7, 8, 9, 10, 11, 19, 32, 247 (non-motion:\n    datum shift, mirror, rotation, scaling, tolerance, working plane, datum\n    point); 200-215 (drilling/reaming/boring/tapping/slots); 220/221\n    (patterns); 230/231 (surface milling); 262-265/267 (thread milling).\n  - Touch probe: TCH PROBE blocks parse (both forms). Datum-setting cycles\n    408-413, 417 and 419 move and write nominal results. Tool-measuring\n    cycles 30-33, 480-483 and 562 are recognized with no motion. Any other\n    cycle number reports \"TCH PROBE n NOT IMPLEMENTED IN SIMULATOR\".\n  - M3/M4/M5/M8/M9/M2/M30, M99 blockwise cycle call, correct block-start vs\n    block-end M-function timing, tool table via TOOL CALL, TNC-style error\n    register.\n  - Rigid tapping (17/207/209): spindle direction comes from the sign of\n    Q239. Cycle 18 switches its own spindle, no retract.\n  - F AUTO approximated as the TOOL CALL block's F (the real control reads a\n    cutting-data table the simulator doesn't have - documented simplification).\n  - Tools missing from the table are auto-created on program upload/import,\n    matching import behaviour on a real control.\n\nTNC 430 / MACHINES (sim/machines.js):\n  - A second machine, TNC 430: X Y Z plus an A/B swivel head (B outer, A\n    inner). Axis limits, rapids and pivot lengths come from the operator's\n    machine-parameter list. Shared with the Rust server's interpreter so a\n    program compiles the same way in the browser and on the server.\n  - A tilted tool (A/B, cycle 19) cuts along its real axis in the height\n    field; the holder check follows the tool axis.\n  - A C rotary table was scoped and dropped by the user; not built.\n\nSIMULATOR / MATERIAL (sim/stock.js, sim/sim.js):\n  - Height-field material removal: the tool stamps its real radius along\n    every feed move, including a tilted tool; scrubbing backwards rebuilds\n    the blank; removed volume integrated from the height field. No\n    undercuts (height field limitation).\n  - Standard vice, on by default: 160 mm jaws on the Y faces, gripping the\n    bottom of the blank. Toggle under Effects & view. Crash checks:\n    \"TOOL INTO THE VICE\" / \"HOLDER HITS THE VICE\". Dimensions are a\n    standard guess, not the operator's actual vice.\n  - Four operating modes as on the control (PRG EDIT, TEST, SINGLE-BLOCK,\n    FULL-RUN), each with its own soft-key row; run comparison (reference A\n    vs. current run: cycle time, feed/rapid path, moves, min Z, volume).\n  - sim.js: shared timing/arc tessellation and a safety analysis (rapid into\n    material, cutting with spindle stopped, tool below the blank, chip load).\n\nMATERIALS AND LOOK (materials.js, look.js):\n  - Alloy presets (aluminium, titanium, steel, stainless, brass, cast iron)\n    and industry presets (turbine, aerospace, ground finish, cast): color,\n    metalness, roughness, chip/spark color, with a picker.\n  - RoomEnvironment via PMREMGenerator for metal reflections, ACES filmic\n    tone mapping, FXAA through EffectComposer - all wired through the\n    TNC_UI plugin bus's ui.render hook.\n\nTHREE.JS: r186, bundled with its addons and the three.quarks particle\nlibrary by esbuild (sim/vendor/three-entry.mjs) into one classic script\n(window.THREE, window.QUARKS). ColorManagement kept disabled to preserve\nthe existing r128-style colour look.\n\nPROFILES AND PROGRAM I/O (profile.js, ui.js):\n  - One personal profile per browser (IndexedDB via idb-keyval), autosave,\n    name prompt on first visit, wipe/reset.\n  - Export/import profile as .zip with a Merge/Replace choice on import.\n    Per-machine tool table, import/export as TOOL.T.\n  - Load .H/.I (UTF-8 or Windows-1252), .zip of programs, drag-and-drop.\n    Save as .H with Ctrl+S in numbered TNC listing format (CRLF).\n  - PGM MGT program manager, block editor, undo/redo (Ctrl+Z /\n    Ctrl+Shift+Z), boot splash, mobile layout.\n  - window.TNC_UI plugin bus (scene/tool/tick/crash/resize, ui.render) that\n    fx.js, look.js and materials.js attach to.\n\nPROGRAMMING DIALOGS AND UI (dialogs.js, viz.js, i18n.js, ui.js):\n  - PRG EDIT mode has one-question-per-step dialogs for CYCL DEF, TOOL DEF,\n    TOOL CALL and the path functions, in place of typing raw Klartext only.\n  - COORDINATES ? has the 426/430 coordinate keypad (manual inside front\n    cover, p. 66-67): axis keys X Y Z IV V, 0-9, decimal point, -/+,\n    I incremental, P polar, Q parameter, actual-position capture (the\n    simulated DRO position), CE, NO ENT, ENT, END, DEL.\n    P gives the polar form: L -> LP, C -> CP, CT -> CTP (6.5), APPR -> APPR\n    PLT / PLN / PCT / PLCT and DEP LCT -> DEP PLCT (6.3 p. 134: position data\n    Cartesian or polar; examples p. 155-157); CC stays Cartesian (p. 151);\n    DEP LT / LN / CT have no position, so no polar form.\n    PR / PA questions get the same keypad without axes, and take bare\n    (-90, I-90) and whole words (PA-90, IPA+60, PR+25, IPR-5).\n    The PC keyboard does the same: axis letters, I, P, + -; x10iy5 typed\n    without spaces gives X+10 IY+5.\n    NOT VERIFIED against a 426/430 or the programming station (CONTINUE\n    OPEN K1), i.e. simulator choices, not manual facts:\n      - 430 key mapping IV = B, V = A (machines.js axis order);\n      - PC shortcuts # = actual position, DELETE = CE, SHIFT+ENTER = NO ENT,\n        ESC = DEL (simulator-only; the control has its own keys);\n      - END takes the entry typed on the line before ending the dialog\n        (manual p. 67 says only \"End the dialog immediately\"; the \"press\n        END to accept\" text on p. 68 is about editing words in a stored\n        block, not dialog entry);\n      - I and -/+ toggle the word being entered; I after a word with its\n        value starts the next word;\n      - CE pressed twice also drops the axis;\n      - ACTUAL POSITION with no axis selected fills X Y Z (CC: X Y);\n      - the route to APPR/DEP polar forms through P during the coordinates;\n        APPR PLT / PLN have no manual example (they follow from p. 134 only;\n        PLCT, PCT and DEP PLCT are the manual's block forms).\n  - Tool list opens in the machine view (key T). Keys: 1-4 operating mode,\n    5-9 speed, F focus view (hides the right pane).\n  - Right pane tabs: Diagnostics, Reference (keys, cycles, tools, machine,\n    manual sections), and the operator's own programs (created, edited,\n    version; projects collapsed).\n  - Position (DRO) is an overlay on the 3D view, not a separate panel.\n  - Axis vectors from the program zero to the tool, and click-to-pick with\n    coordinates (viz.js).\n  - Interface language: English or Swedish, set from the profile dialog.\n\nAI PROGRAM GENERATION (ai.js):\n  - OpenRouter only, BYOK - never Anthropic direct (checked: no Anthropic\n    endpoint string anywhere in the built page).\n  - Default model deepseek/deepseek-v4.1-flash, with a picker for a few\n    other OpenRouter models (deepseek-v4-pro-0813, gemini-3.8-flash,\n    gpt-5.6-luna) or any model id.\n  - Streaming progress, the program appearing block by block, the path\n    growing in 3D live, and a request viewer showing every round including\n    the repair pass.\n  - One repair pass: compile the AI's program, feed errors back. Prompt\n    includes the operator's own tool table.\n  - Key in sessionStorage/localStorage, never a cookie.\n  - Tested so far only against a mocked OpenRouter (QA suite). No run\n    against the real API in this repo yet.\n\nTEACHING (lessons.js):\n  - LEARN lessons, BREAK IT (famous ways to wreck a machine, each with the\n    fix), a power-user manual, and the AI system prompt.\n\nTOOLS, CALLOUTS, FLOW (tools3d.js, callouts.js, flow.js):\n  - Real tool geometries in their holders, including the ER32 nut as drawn.\n  - View-aligned leader-line callouts (TOOL, TOOL HOLDER, PART).\n  - Program-as-flowchart alternative view.\n\nEFFECTS (fx.js):\n  - Chips that land on the part, sparks, coolant spray on M8, smoke and\n    fire (toggle, off by default), crash burst.\n  - Runs on window.QUARKS (three.quarks) ParticleSystems through one shared\n    BatchedRenderer, falling back to a built-in renderer if QUARKS is\n    missing. Not visually re-tested since the quarks switch.\n\nPROGRAMS (selector in the Program header, NAMEPLATE.H opens first):\n  - NAMEPLATE.H - V1 garage plate 300 x 200 x 20: chamfered letters with\n    T9, 1 x 45 edge break with T8, four mounting holes with CYCL 200.\n  - NAMEPLATE_V2.H - 220 x 60 x 10: letters with real CC/C and CR arcs.\n  - BRACKET.H - the teaching program: LBL/REP, FN formulas, arcs, CYCL 200.\n\nBEYOND THE SINGLE FILE (server/, web/):\n  - server/: a Rust server (axum, SQLite) that runs sim/core.js in embedded\n    QuickJS - one interpreter for the browser and the server. Accounts, a\n    versioned program library, per-machine tool tables, share links, an\n    AI proxy to OpenRouter.\n  - web/: a React (Vite, TypeScript) app for the server - sign in, edit and\n    check programs, browse and restore versions, share by link.\n  - Desktop app: planned, not built. The server's router is written so a\n    shell such as Tauri 2 can embed it.\n  - The GitHub Pages simulator stays a self-contained single file either\n    way; the server and web app are an optional layer around it.\n\nBUILD:\n  - build.py is fully data-driven: LIBS (JSZip, idb-keyval), MODULES\n    (sim/*.js files, ui.js last), TEXTS (this file, docs/HISTORY.txt,\n    docs/RELEASES.txt/ROADMAP.txt when they exist -> window.TNC_* globals\n    for this DEV modal). A new module is one line.\n\nIN PROGRESS - NOT YET DONE\n==============================================================================\n  - Cycles 3, 5, 12, 13, 14/20-25, 26, 27/28 not implemented.\n  - FK (free contour programming) not implemented.\n  - Radius compensation inside a tilted working plane (TNC 430) is\n    approximate.\n  - A dexel/voxel model for undercuts (TNC 430 tilted-tool machining) does\n    not exist; the height field is vertical-axis only.\n  - M128/M114 not implemented (the operator uses cycle 19 instead).\n  - probeSpec/probeList (dialogs.js) exist but are not wired to a soft key\n    or a flow.js node yet.\n  - RELEASES.txt does not exist yet, so the DEV modal's third tab (which\n    build.py already wires up) is empty.\n  - Live visual translation: cursor-on-a-block driving the flow view with\n    an animated tool trace. Both halves exist (traceFor/traceTick in\n    ui.js, pathSVG in flow.js) and have never been connected.\n  - fx.js has not been visually re-tested since moving to three.quarks.\n\nNOT VERIFIED\n==============================================================================\n  - AI generation has never been run against the real OpenRouter API in\n    this repo - every check so far, including the QA suite, uses a mocked\n    OpenRouter.\n  - No real HEIDENHAIN control or programming station has verified any of\n    this. tests/manual.js's expected values are derived from the manual's\n    own rules, not measured on a control - see docs/PROGRAMMING-STATION.md\n    for the plan to close that gap.\n  - Thread milling (262-265/267) and touch probe: several numeric details\n    the 426/430 manual (or, for touch probe, the substitute iTNC 530\n    manual) doesn't give are placeholders, not verified facts. See\n    CONTINUE.md, \"Come back to - open points\", for the full list.\n  - The standard vice's jaw axis, grip, width and thickness are guesses,\n    not the operator's actual vice.\n";
+window.TNC_DEVLOG = "TNC 426 / 430 SIMULATOR - DEVELOPER FEATURE LOG\nUpdated 2026-10-03\n\n2026-10-03: desktop app (Tauri 2, server in-process), phone layout (workspaces, soft-key\ndock, menu drawer, swipes), accessibility pass, AI plans the part and is measured against\nit. Rust 27 tests, browser UI suite 151/151 (Chromium), AI benchmark run live.\n\n2026-09-30: thread milling 262-265/267, touch-probe cycles (408-413/417/419 motion,\n30-33/480-483/562 tool-measuring, no motion), TNC 430 kinematics (X Y Z + A/B swivel\nhead, tilted-tool cutting), standard vice (toggle), fx.js on three.quarks, programming\ndialogs (CYCL DEF/TOOL CALL/path-function soft keys), Swedish interface language.\nCorpus 2,767 / 2,806 clean. QA 93/93. Open points (placeholders, not facts) are listed\nin CONTINUE.md under \"Come back to\".\n\nLIVE - IN THE BUILD, VERIFIED\n==============================================================================\nVerified by: node tests/manual.js (all pass), AUTOTOOLS=1 node tests/corpus.js\n(2,767 / 2,806 real CAM programs clean), .tools/qa/qa.mjs (93 / 93 Playwright\nchecks pass).\n\nINTERPRETER (sim/core.js):\n  - Klartext parser/interpreter: L/C/CC/CR/CP/LP/CTP moves, RL/RR as real offset\n    paths (not centreline), RND, CHF, CT, APPR/DEP, ZX/YZ plane arcs.\n  - Q-parameter formulas FN 0-FN 19, jumps (FN 9, CALL LBL n REP), REP Q.\n  - Cycles: 1, 2, 4, 17, 18 (old-style); 7, 8, 9, 10, 11, 19, 32, 247 (non-motion:\n    datum shift, mirror, rotation, scaling, tolerance, working plane, datum\n    point); 200-215 (drilling/reaming/boring/tapping/slots); 220/221\n    (patterns); 230/231 (surface milling); 262-265/267 (thread milling).\n  - Touch probe: TCH PROBE blocks parse (both forms). Datum-setting cycles\n    408-413, 417 and 419 move and write nominal results. Tool-measuring\n    cycles 30-33, 480-483 and 562 are recognized with no motion. Any other\n    cycle number reports \"TCH PROBE n NOT IMPLEMENTED IN SIMULATOR\".\n  - M3/M4/M5/M8/M9/M2/M30, M99 blockwise cycle call, correct block-start vs\n    block-end M-function timing, tool table via TOOL CALL, TNC-style error\n    register.\n  - Rigid tapping (17/207/209): spindle direction comes from the sign of\n    Q239. Cycle 18 switches its own spindle, no retract.\n  - F AUTO approximated as the TOOL CALL block's F (the real control reads a\n    cutting-data table the simulator doesn't have - documented simplification).\n  - Tools missing from the table are auto-created on program upload/import,\n    matching import behaviour on a real control.\n\nTNC 430 / MACHINES (sim/machines.js):\n  - A second machine, TNC 430: X Y Z plus an A/B swivel head (B outer, A\n    inner). Axis limits, rapids and pivot lengths come from the operator's\n    machine-parameter list. Shared with the Rust server's interpreter so a\n    program compiles the same way in the browser and on the server.\n  - A tilted tool (A/B, cycle 19) cuts along its real axis in the height\n    field; the holder check follows the tool axis.\n  - A C rotary table was scoped and dropped by the user; not built.\n\nSIMULATOR / MATERIAL (sim/stock.js, sim/sim.js):\n  - Height-field material removal: the tool stamps its real radius along\n    every feed move, including a tilted tool; scrubbing backwards rebuilds\n    the blank; removed volume integrated from the height field. No\n    undercuts (height field limitation).\n  - Standard vice, on by default: 160 mm jaws on the Y faces, gripping the\n    bottom of the blank. Toggle under Effects & view. Crash checks:\n    \"TOOL INTO THE VICE\" / \"HOLDER HITS THE VICE\". Dimensions are a\n    standard guess, not the operator's actual vice.\n  - Four operating modes as on the control (PRG EDIT, TEST, SINGLE-BLOCK,\n    FULL-RUN), each with its own soft-key row; run comparison (reference A\n    vs. current run: cycle time, feed/rapid path, moves, min Z, volume).\n  - sim.js: shared timing/arc tessellation and a safety analysis (rapid into\n    material, cutting with spindle stopped, tool below the blank, chip load).\n\nMATERIALS AND LOOK (materials.js, look.js):\n  - Alloy presets (aluminium, titanium, steel, stainless, brass, cast iron)\n    and industry presets (turbine, aerospace, ground finish, cast): color,\n    metalness, roughness, chip/spark color, with a picker.\n  - RoomEnvironment via PMREMGenerator for metal reflections, ACES filmic\n    tone mapping, FXAA through EffectComposer - all wired through the\n    TNC_UI plugin bus's ui.render hook.\n\nTHREE.JS: r186, bundled with its addons and the three.quarks particle\nlibrary by esbuild (sim/vendor/three-entry.mjs) into one classic script\n(window.THREE, window.QUARKS). ColorManagement kept disabled to preserve\nthe existing r128-style colour look.\n\nPROFILES AND PROGRAM I/O (profile.js, ui.js):\n  - One personal profile per browser (IndexedDB via idb-keyval), autosave,\n    name prompt on first visit, wipe/reset.\n  - Export/import profile as .zip with a Merge/Replace choice on import.\n    Per-machine tool table, import/export as TOOL.T.\n  - Load .H/.I (UTF-8 or Windows-1252), .zip of programs, drag-and-drop.\n    Save as .H with Ctrl+S in numbered TNC listing format (CRLF).\n  - PGM MGT program manager, block editor, undo/redo (Ctrl+Z /\n    Ctrl+Shift+Z), boot splash, mobile layout.\n  - window.TNC_UI plugin bus (scene/tool/tick/crash/resize, ui.render) that\n    fx.js, look.js and materials.js attach to.\n\nPROGRAMMING DIALOGS AND UI (dialogs.js, viz.js, i18n.js, ui.js):\n  - PRG EDIT mode has one-question-per-step dialogs for CYCL DEF, TOOL DEF,\n    TOOL CALL and the path functions, in place of typing raw Klartext only.\n  - COORDINATES ? has the 426/430 coordinate keypad (manual inside front\n    cover, p. 66-67): axis keys X Y Z IV V, 0-9, decimal point, -/+,\n    I incremental, P polar, Q parameter, actual-position capture (the\n    simulated DRO position), CE, NO ENT, ENT, END, DEL.\n    P gives the polar form: L -> LP, C -> CP, CT -> CTP (6.5), APPR -> APPR\n    PLT / PLN / PCT / PLCT and DEP LCT -> DEP PLCT (6.3 p. 134: position data\n    Cartesian or polar; examples p. 155-157); CC stays Cartesian (p. 151);\n    DEP LT / LN / CT have no position, so no polar form.\n    PR / PA questions get the same keypad without axes, and take bare\n    (-90, I-90) and whole words (PA-90, IPA+60, PR+25, IPR-5).\n    The PC keyboard does the same: axis letters, I, P, + -; x10iy5 typed\n    without spaces gives X+10 IY+5.\n    NOT VERIFIED against a 426/430 or the programming station (CONTINUE\n    OPEN K1), i.e. simulator choices, not manual facts:\n      - 430 key mapping IV = B, V = A (machines.js axis order);\n      - PC shortcuts # = actual position, DELETE = CE, SHIFT+ENTER = NO ENT,\n        ESC = DEL (simulator-only; the control has its own keys);\n      - END takes the entry typed on the line before ending the dialog\n        (manual p. 67 says only \"End the dialog immediately\"; the \"press\n        END to accept\" text on p. 68 is about editing words in a stored\n        block, not dialog entry);\n      - I and -/+ toggle the word being entered; I after a word with its\n        value starts the next word;\n      - CE pressed twice also drops the axis;\n      - ACTUAL POSITION with no axis selected fills X Y Z (CC: X Y);\n      - the route to APPR/DEP polar forms through P during the coordinates;\n        APPR PLT / PLN have no manual example (they follow from p. 134 only;\n        PLCT, PCT and DEP PLCT are the manual's block forms).\n  - Tool list opens in the machine view (key T). Keys: 1-4 operating mode,\n    5-9 speed, F focus view (hides the right pane).\n  - Right pane tabs: Diagnostics, Reference (keys, cycles, tools, machine,\n    manual sections), and the operator's own programs (created, edited,\n    version; projects collapsed).\n  - Position (DRO) is an overlay on the 3D view, not a separate panel.\n  - Axis vectors from the program zero to the tool, and click-to-pick with\n    coordinates (viz.js).\n  - Interface language: English or Swedish, set from the profile dialog.\n\nAI PROGRAM GENERATION (ai.js):\n  - OpenRouter only, BYOK - never Anthropic direct (checked: no Anthropic\n    endpoint string anywhere in the built page).\n  - Default model deepseek/deepseek-v4.1-flash, with a picker for a few\n    other OpenRouter models (deepseek-v4-pro-0813, gemini-3.8-flash,\n    gpt-5.6-luna) or any model id.\n  - Streaming progress, the program appearing block by block, the path\n    growing in 3D live, and a request viewer showing every round including\n    the repair pass.\n  - One repair pass: compile the AI's program, feed errors back. Prompt\n    includes the operator's own tool table.\n  - Key in sessionStorage/localStorage, never a cookie.\n  - Tested so far only against a mocked OpenRouter (QA suite). No run\n    against the real API in this repo yet.\n\nTEACHING (lessons.js):\n  - LEARN lessons, BREAK IT (famous ways to wreck a machine, each with the\n    fix), a power-user manual, and the AI system prompt.\n\nTOOLS, CALLOUTS, FLOW (tools3d.js, callouts.js, flow.js):\n  - Real tool geometries in their holders, including the ER32 nut as drawn.\n  - View-aligned leader-line callouts (TOOL, TOOL HOLDER, PART).\n  - Program-as-flowchart alternative view.\n\nEFFECTS (fx.js):\n  - Chips that land on the part, sparks, coolant spray on M8, smoke and\n    fire (toggle, off by default), crash burst.\n  - Runs on window.QUARKS (three.quarks) ParticleSystems through one shared\n    BatchedRenderer, falling back to a built-in renderer if QUARKS is\n    missing. Not visually re-tested since the quarks switch.\n\nPROGRAMS (selector in the Program header, NAMEPLATE.H opens first):\n  - NAMEPLATE.H - V1 garage plate 300 x 200 x 20: chamfered letters with\n    T9, 1 x 45 edge break with T8, four mounting holes with CYCL 200.\n  - NAMEPLATE_V2.H - 220 x 60 x 10: letters with real CC/C and CR arcs.\n  - BRACKET.H - the teaching program: LBL/REP, FN formulas, arcs, CYCL 200.\n\nBEYOND THE SINGLE FILE (server/, web/):\n  - server/: a Rust server (axum, SQLite) that runs sim/core.js in embedded\n    QuickJS - one interpreter for the browser and the server. Accounts, a\n    versioned program library, per-machine tool tables, share links, an\n    AI proxy to OpenRouter.\n  - web/: a React (Vite, TypeScript) app for the server - sign in, edit and\n    check programs, browse and restore versions, share by link.\n  - desktop/: the Tauri 2 desktop app. Runs the server's own crate in-process\n    on 127.0.0.1 (remembered port), SQLite in the platform app-data folder,\n    one-time sign-in link for the local operator, Host allow-list + CSP, no\n    Tauri IPC for the page, external links to the system browser, single\n    instance. Built and launched on Linux; macOS/Windows via CI only.\n\nPHONES AND TABLETS (<= 900 px, sim-shell.html + ui.js):\n  - Three workspaces (Program, Graphics, Status) in the page's own scroll;\n    tabs (arrow keys, Home/End) or a sideways swipe on the workspace. Swipes\n    never start on the 3-D view, sliders, text fields, the soft keys or\n    anything that scrolls sideways, and never on a vertical drag; they only\n    navigate. Each workspace keeps its scroll position; the canvas and WebGL\n    context are never recreated.\n  - Soft keys + the block line (PRG EDIT) in a dock at the bottom of every\n    workspace, 8 keys at a time with a row switch (the control's own\n    soft-key row paging). The dock rides above the software keyboard.\n  - Header: modes, program + run state, check count (opens the checks).\n    DEV, + New, Lessons, AI, Help, Focus, Profile in a MENU drawer (modal:\n    focus inside, page inert, Esc / scrim / swipe right close it).\n  - Dialogs: full-height sheets following the visual viewport; the AI and\n    new-program actions stay on screen. Inputs 16 px (no iOS zoom; pinch\n    zoom stays on), 44 px touch targets, safe areas, long blocks wrap.\n  - Accessibility (all widths): modal focus trap + inert background + focus\n    return, WAI-ARIA tabs with roving tabindex, shortcuts never take Enter /\n    Space from a keyboard-focused control or arrows from a tab list, polite\n    announcements for run state and check counts only, main landmark,\n    labelled canvas / listing / DRO, check count as text not colour only,\n    html lang follows the language. en + sv strings.\n\nAI LOOP (ai.js + part.js):\n  - The tool table goes to the model as constraints: type, \u00d8, reach before\n    the holder touches, smallest inside corner, plunge and depth rules, safe\n    S/F; plus what the control does not have (FK, SL cycles, 251+, ...).\n  - Plan: the model writes a part spec (face, rect/circle/poly pocket, hole,\n    slot, engrave, text, outside profile). Expand: text becomes exact\n    single-stroke capitals (A-Z, 0-9, \u00c5 \u00c4 \u00d6 \u00dc \u010c \u0106 \u0160 \u017d \u0110), every feature is\n    checked against the tools. Write, check, then the program is machined\n    on the height field and measured against the spec (match %, not-cut and\n    cut-where-it-should-not regions by position, per feature); up to 3\n    refinement rounds. Best program wins.\n  - Answers cut off at max_tokens are continued; only-thinking answers are\n    retried with twice the budget; a dropped connection once. Defaults 32k\n    tokens, low reasoning (measured: as accurate as medium, minutes faster);\n    server cap 64k. Live bench: 34-74 % match before -> 96-100 % now.\n  - The GitHub Pages simulator stays a self-contained single file either\n    way; the server and web app are an optional layer around it.\n\nBUILD:\n  - build.py is fully data-driven: LIBS (JSZip, idb-keyval), MODULES\n    (sim/*.js files, ui.js last), TEXTS (this file, docs/HISTORY.txt,\n    docs/RELEASES.txt/ROADMAP.txt when they exist -> window.TNC_* globals\n    for this DEV modal). A new module is one line.\n\nIN PROGRESS - NOT YET DONE\n==============================================================================\n  - Cycles 3, 5, 12, 13, 14/20-25, 26, 27/28 not implemented.\n  - FK (free contour programming) not implemented.\n  - Radius compensation inside a tilted working plane (TNC 430) is\n    approximate.\n  - A dexel/voxel model for undercuts (TNC 430 tilted-tool machining) does\n    not exist; the height field is vertical-axis only.\n  - M128/M114 not implemented (the operator uses cycle 19 instead).\n  - probeSpec/probeList (dialogs.js) exist but are not wired to a soft key\n    or a flow.js node yet.\n  - RELEASES.txt does not exist yet, so the DEV modal's third tab (which\n    build.py already wires up) is empty.\n  - The AI's planned part spec is measured against but not drawn in 3-D.\n  - Live visual translation: cursor-on-a-block driving the flow view with\n    an animated tool trace. Both halves exist (traceFor/traceTick in\n    ui.js, pathSVG in flow.js) and have never been connected.\n  - fx.js has not been visually re-tested since moving to three.quarks.\n\nNOT VERIFIED\n==============================================================================\n  - AI: run live against OpenRouter by tests/ai/bench.mjs (DeepSeek V4.1\n    Flash, 4 reference parts, 2026-10-03; numbers in README). The CI and\n    browser suites use a mocked OpenRouter. Other models not benchmarked.\n  - Phones: Chromium mobile emulation only. Not on an iPhone (Safari,\n    VoiceOver) or an Android phone (Chrome, TalkBack); WebKit not run.\n  - Desktop app: macOS and Windows builds never run (CI job written).\n  - No real HEIDENHAIN control or programming station has verified any of\n    this. tests/manual.js's expected values are derived from the manual's\n    own rules, not measured on a control - see docs/PROGRAMMING-STATION.md\n    for the plan to close that gap.\n  - Thread milling (262-265/267) and touch probe: several numeric details\n    the 426/430 manual (or, for touch probe, the substitute iTNC 530\n    manual) doesn't give are placeholders, not verified facts. See\n    CONTINUE.md, \"Come back to - open points\", for the full list.\n  - The standard vice's jaw axis, grip, width and thickness are guesses,\n    not the operator's actual vice.\n";
 </script>
 <script>/* ===== text: docs/HISTORY.txt ===== */
-window.TNC_HISTORY = "TNC 426 / 430 SIMULATOR - VERSION HISTORY\n==========================================\nA browser-based HEIDENHAIN TNC 426/430 CNC simulator, built for the operator\nwith an AI coding assistant (Claude) and several AI sub-agents. Live at\nhttps://gigacook.github.io/tnc426-simulator/\n\n\nv0.1  2026-09-21  ORBITAL - THE JOKE\n------------------------------------\nWHAT SHIPPED:\n  - A \"joke\" TNC 426 floating in space, explodable, built fast from\n    three.js primitives: 27 named parts (BF 120 display, MC 422 CPU\n    board, TE 420 keyboard, HR 410 handwheel, FE 401 floppy, solar\n    arrays, S-band dish, an empty coolant tank \"that floated away in\n    2003\"), an explode slider, part callouts.\n  - A mock control unit tab with period-correct Klartext, a tool\n    table, and a diagnosis readout: GRAVITY 0.00 m/s^2 - FAULT.\n\nHIGHS:\n  - User reaction on seeing it: \"GOOD JOB\".\n\nLOWS:\n  - The brief said to start by searching GitHub for something ready\n    made. The assistant said up front that it would skip the search\n    (no open TNC 426 model exists) and build from primitives - but the\n    search the user asked for never actually happened.\n  - First publish was a claude.ai Artifact - a private link. The user\n    wanted a plain HTML file, loudly. Rebuilt as a standalone offline\n    HTML with three.js inlined (682 KB).\n\nLESSON: when the deliverable format matters to the user, ship the\nformat they asked for the first time, not the one that's easiest to\npublish.\n\n\nv0.2  2026-09-21  SIMULATOR - THE REAL THING\n---------------------------------------------\nWHAT SHIPPED:\n  - New goal: drop the explosion toy, build an actual TNC 426 CNC\n    simulator - keyboard control, one editable sample program, a\n    graphical run with fast-forward and speed toggle, comparable\n    outputs, authentic behaviour treated as critical.\n  - A sub-agent wrote the Klartext interpreter (core.js) in parallel\n    while the assistant built the UI: height-field material removal,\n    progressive toolpath, four operating modes, transport controls,\n    keyboard, A/B run comparison, sample program BRACKET.H.\n\nHIGHS:\n  - User asked for sub-agents to parallelize and to skip verification\n    to move faster - the assistant took the parallelization but kept\n    one smoke test anyway.\n  - That one test paid for itself immediately: it caught two real\n    interpreter bugs before anyone else saw them - `CALL LBL 1\n    REP 3/3` recursed forever (min Z hit -93 mm in a 20 mm blank),\n    and `M99` on a positioning block never triggered the drilling\n    cycle (the holes never got drilled). Both fixed same session.\n\nLOWS:\n  - None beyond the two bugs above, which is itself notable - first\n    real interpreter, caught before push.\n\nLESSON: \"skip verification\" is a request to move fast, not a request\nto ship untested logic - keeping a minimal smoke test cost little and\ncaught two silent, ugly bugs.\n\n\nv0.3  2026-09-21 14:49  FIRST PUSH\n-----------------------------------\nWHAT SHIPPED:\n  - Text bumped +2 px with higher contrast, requested mid-push and\n    folded in before the commit.\n  - Public repo + GitHub Pages, per the user's explicit ask (\"the only\n    thing I accept is a direct LINK\"). Commit 37b63a5: .gitignore,\n    LICENSE (MIT), README.md, build.py, core.js, index.html,\n    orbital.html (the v0.1 toy, kept for the record), sim-shell.html,\n    ui.js - 9 files, 7093 lines added. Pages went live; page hash\n    verified against the built index.html.\n  - Commit e971807 (14:51): README documents the interpreter's known\n    simplifications - RL/RR drawn on the tool centreline, INCH\n    recorded but not converted, cycle time excludes dwell, Q213 chip\n    breaking approximated, height field can't show undercuts.\n\nHIGHS:\n  - Clean, verified public launch with a real link, honestly scoped\n    limitations written down instead of hidden.\n\nLOWS:\n  - The interpreter sub-agent's own verification pass came back AFTER\n    the push - and it had found a bug in the assistant's own REP fix\n    from v0.2: the parser defaults REP to 1, so every plain `CALL\n    LBL n` with the label above it was still treated as a section\n    repeat and recursed silently. The sub-agent fixed it in the file\n    before the commit went out, so the live version was correct - by\n    luck, not by design. The assistant had pushed code it had not\n    itself tested.\n\nLESSON: a sub-agent's fix landing in time doesn't retroactively make\nthe push safe - \"pushed before verification came back\" is a near\nmiss, not a pass, even when the diff turns out fine.\n\n\nv0.4  2026-09-21 15:15  INTERIM PUSH\n--------------------------------------\nWHAT SHIPPED (commit d3aa945, 15:15:49, 9 files, 1257 insertions):\n  - NAMEPLATE.H (V1): a side conversation with no tool access\n    produced a 300 x 200 x 20 garage plate engraving the family name,\n    unverified at the time it was written.\n  - Testing NAMEPLATE.H found: it called a \u00d83 end mill (T9) that\n    didn't exist in the tool table (added); the \"break the outer\n    edge\" pass was tracing an engraved frame instead of the actual\n    plate edge (fixed); F1000 at S3000 on a \u00d83 cutter is a high chip\n    load (fz 0.111 vs. 0.041 allowed) - kept as the user's call, with\n    the simulator's new safety analysis flagging it as a warning\n    rather than silently allowing it.\n  - Testing the interpreter against authentic TNC behaviour found two\n    more bugs, both live since v0.3: cycle Q-parameter lines were getting\n    their own NC\n    block numbers (a real TNC counts CYCL DEF plus its Q lines as one\n    block - fixed); `TOOL CALL S...` was switching the spindle on (on\n    a real TNC, S only sets the speed - M3 starts it, a tool change\n    stops it - fixed, with M-functions now split into block-start and\n    block-end timing).\n  - That spindle fix immediately exposed a bug in the assistant's own\n    v0.2 sample: BRACKET.H milled its T5 pocket with no M3 after the\n    tool change. Fixed.\n  - New safety analysis module (sim.js). First version cried wolf:\n    it flagged a correct through-drill (Q201 -22 in a 20 mm blank,\n    the standard tip allowance) as a crash; a masking bug hid real\n    events under 60 duplicate chip-load warnings; drill retracts\n    looked like \"rapid into material\" because the height field\n    couldn't represent a column cut to the bottom. All three fixed -\n    every deliberate crash test case now caught, clean programs stay\n    clean.\n  - A second sub-agent (Opus) generated NAMEPLATE_V2.H independently:\n    rounded letters using real CC/C and CR arcs for O, C, U and the R\n    bowl, S7500 F600, four 0.5 mm passes - zero errors, zero warnings\n    on first verification.\n  - A Sonnet sub-agent wrote devlog.txt, the DEV feature log. The\n    assistant caught two lines it had filed under LIVE that weren't\n    actually live yet, and fixed them before shipping - \"a DEV tab\n    that lies on day one is worse than none.\"\n  - Shipped with an orange glowing DEV button, a program selector\n    (NAMEPLATE opens first), and a \u00d83-capable height field\n    (401 x 268 cells) to resolve fine engraving.\n\nHIGHS:\n  - Two independently-generated, independently-verified engravings of\n    the family name (V1 hand-checked and patched, V2 clean from a\n    second sub-agent) shipped the same push.\n  - The DEV log correction - a sub-agent's honest-sounding mistake\n    caught before it went out under the user's name.\n\nLOWS:\n  - The side-conversation program (NAMEPLATE.H) needed a missing\n    tool, a wrong edge-break pass, and a high-chip-load call the user\n    had to make - none of that surfaced until it was actually tested.\n  - Chrome turned out not to be installed on the machine, so the\n    build was verified by booting index.html in node with a stubbed\n    DOM rather than a real browser - the assistant said plainly what\n    that check does and doesn't prove, rather than calling it a\n    browser test.\n\nLESSON: an unverified program from a side conversation is still an\nunverified program, no matter how finished it looks - the same test\npass that catches interpreter bugs also catches program bugs, and\nfinding out what a check can't prove (no real browser) matters as\nmuch as running it.\n\n\nv0.5  2026-09-21 onward  IN PROGRESS - NOT PUSHED\n---------------------------------------------------\nWHAT HAS BEEN WRITTEN (assistant plus six sub-agents):\n  - Full UI rewrite (ui.new.js): PGM MGT program manager, NEW PGM from\n    scratch, save and load .H, undo/redo, programs and projects kept in\n    browser storage, a settings cookie, projects with .zip download,\n    machine profiles so a second control can plug into the same UI,\n    mobile layout, boot splash.\n  - Safety checks surfaced live during the run, with a crash alarm that\n    stops it. Chamfer and spot tools stamped as 45-degree cones. A live\n    tool-trace comet that shows cut direction.\n  - fx.js: chips, sparks, coolant spray, smoke, fire, crash burst.\n  - lessons.js: LEARN (6), BREAK IT (8) and a power-user manual (16\n    sections), plus the system prompt the AI feature will use.\n  - tools3d.js, callouts.js, flow.js: real tool geometries in holders,\n    leader-line callouts, and the program-as-flowchart view.\n  - This version history, and a copyright notice.\n\nWHAT HAS NOT BEEN WRITTEN:\n  - ai.js. AI program generation was asked for as the third way to make\n    a program - OpenRouter, the user's own key, DeepSeek V4.1 Flash by\n    default. The model ID was checked against OpenRouter's live list\n    rather than guessed, and the UI already calls the module. The\n    module itself does not exist.\n  - Antialiasing and surface quality. A screenshot from the user showed\n    three defects: stair-stepped diagonal walls in the height field,\n    CRT scanlines bleeding over the 3D view, and surfaces that read as\n    plastic rather than metal. Wanted: smoothed geometry, a shiny metal\n    look, aluminium and titanium, and presets for turbines, aerospace,\n    ground and cast work.\n  - TNC 430 five-axis support, as a second machine profile with the\n    same programs, examples, lessons and visual translation as the 426.\n  - Live visual translation: cursor on a block, the alternative view\n    draws that block with the tool trace animating the direction of\n    cut. Both halves exist; they have never been connected.\n\nSTATUS AT THE TIME THIS SECTION WAS FIRST WRITTEN: nothing in v0.5 was live\nyet. That has since changed - see the v0.5 SHIPPED update directly below,\nwritten after the fact once it actually went out.\n\nHIGHS:\n  - Six modules written in parallel, all syntax-clean, the UI built to\n    degrade gracefully when a module is missing rather than white-screen.\n  - The lessons module shipped with its own test script, all passing.\n\nLOWS (at the time):\n  - Two sub-agents were killed mid-task by a session limit: the product\n    manager stopped part-way through flow.js, leaving three modules with\n    no demo and no run behind them, and the TNC 430 lead stopped after\n    collecting manuals, leaving no code at all. Both had been given work\n    large enough that hitting the limit was foreseeable.\n  - The effects sub-agent installed Playwright's browsers - 1.1 GB -\n    without asking. The user's standing rule is to name a missing tool\n    and ask first. The brief it was given did not forbid it, so this is\n    the assistant's failure rather than the agent's. (That install is now\n    in active use by .tools/qa/qa.mjs - kept, not removed.)\n  - The rewritten shell fixed the scanline bleed the user photographed,\n    but had sat unbuilt on disk - the fix existed and the bug was still\n    live at the time this was written. Resolved once v0.5 actually built\n    and shipped (below).\n  - Roughly 220 KB of work across nine files sat untracked in git for\n    two days.\n\nLESSON: written is not shipped. Six parallel agents produced a lot of\nsyntax-clean code and moved the live site forward by nothing; the build\nscript was the bottleneck, and a module nobody has wired in is worth the\nsame as a module nobody has written.\n\n\nv0.5  SHIPPED (9c61b09)\n------------------------\nWHAT ACTUALLY SHIPPED:\n  - The untracked work was committed, build.py was made fully data-driven\n    (LIBS / MODULES / TEXTS lists - a new module is one line, not a\n    special case), the new UI (formerly ui.new.js) replaced the old one\n    as ui.js, and it all built and went live. Lessons, fx, tools3d,\n    callouts and flow all shipped in this push.\n  - The scanline bleed fixed itself as a side effect of the rebuild.\n  - The TNC_UI plugin bus was introduced: other modules (fx.js, look.js,\n    materials.js, later) attach to it via scene/tool/tick/crash/resize\n    hooks and a shared ui.render hook, instead of reaching into ui.js\n    directly.\n\nLESSON CONFIRMED: once the build script stopped being the bottleneck, six\nsessions' worth of written-but-invisible work went live in one push. The\nlesson from the \"written is not shipped\" entry above was correct, and the\nfix was exactly what it named - the build script, not more writing.\n\n\nv0.6  SHIPPED (interpreter accuracy, profiles, AI, materials/look)\n---------------------------------------------------------------------\nWHAT SHIPPED, across several commits (216a76e, 7d2e05d, b59950b, aea56a5,\n2992d42):\n  - Interpreter: RL/RR as real offset paths (previously drawn on the tool\n    centreline - a known simplification, now fixed and documented as\n    fixed rather than as a limitation), RND, CHF, CT, CP/LP/CTP, APPR/DEP,\n    ZX/YZ plane arcs, Q-parameter formulas (FN 0-FN 19), jumps, REP Q,\n    F AUTO approximation, a tool-table fallback that auto-creates tools\n    a program calls but the table lacks.\n  - Cycles: 1, 2, 17, 18 (old-style), 7/8/9/10/11/32/247 (non-motion),\n    200-215, 220/221, 230/231 - all against the 426/430 manual's own\n    worked examples (tests/manual.js).\n  - Materials (materials.js): alloy and industry presets driving PBR\n    look and chip/spark color, with a picker.\n  - Look (look.js): RoomEnvironment reflections, ACES tone mapping, FXAA\n    - the antialiasing/surface-quality ask from the user's screenshot,\n    addressed with an environment map rather than just more AA, per the\n    diagnosis that a metal PBR material with nothing to reflect is what\n    reads as plastic.\n  - Profiles (profile.js): one personal profile per browser, autosave,\n    export/import as .zip with Merge/Replace, per-machine tool table as\n    TOOL.T.\n  - Program I/O: .H/.I load (UTF-8 and Windows-1252), .zip, drag-drop,\n    Ctrl+S save.\n  - AI (ai.js): OpenRouter-only BYOK, deepseek/deepseek-v4.1-flash\n    default, one repair pass, tested against a mocked OpenRouter (51/52\n    Playwright QA checks pass - the 1 failure is a stale test expectation\n    about auto-created tools, not a product bug).\n  - three.js upgraded r128 -> r186, bundled with three.quarks by esbuild\n    from vendor/three-entry.mjs. window.QUARKS is in the page but not yet\n    used by fx.js.\n\nVERIFIED: node tests/manual.js all pass. AUTOTOOLS=1 node tests/corpus.js\nagainst 2,806 real-world CAM programs: 2,495 clean (1,066 clean without\nAUTOTOOLS, i.e. before missing tools are auto-created the way an import\nwould). Remaining failures are almost all TCH PROBE 4xx (correctly\nrejected - confirmed not in the 426/430 manual, an iTNC 530/TNC 640\ndialect) plus a real open bug: ~399 SPINDLE ? errors from the tapping\ncycles' spindle-direction check.\n\nSTILL OPEN, NOT YET DONE:\n  - The SPINDLE ? false alarms above - under investigation.\n  - fx.js on three.quarks (bundled, unused so far).\n  - Thread milling cycles 262-265, 267.\n  - Cycles 3, 5, 12, 13, 14/20-25, 19, 26, 27/28 - not implemented.\n  - FK, TCH PROBE (deliberately, see above) - not implemented.\n  - RELEASES.txt does not exist; the DEV modal's third tab is wired up\n    and empty.\n  - Live visual translation (cursor-on-block -> animated trace) - both\n    halves exist, never connected.\n  - TNC 430 multi-axis: the user has now specified the machine layout\n    (X Y Z linear, A+B swivel head, optional C rotary table) but no code\n    exists yet.\n  - LICENSE's bundled-library note still says three.js r128; needs\n    updating to r186 + three.quarks.\n  - One stale QA check (TOOL 27 NOT DEFINED expectation, now auto-fixed\n    by the product) needs updating, not the product.\n  - AI generation has only ever been tested against a mocked OpenRouter -\n    no real-API run has happened in this repo yet.\n\nLESSON: the antialiasing ask (\"fake antialiasing... shiny surface\ntexture\") turned out to be mostly a lighting problem, not a geometry or\nAA problem - diagnosing the actual cause (no environment map for a PBR\nmetal to reflect) before reaching for the expensive fix (re-meshing,\nheavier AA) was the right call and shipped faster.\n\n\nv0.7  2026-09-27, evening and late  UI REWRITE, TNC 430 PROFILE, AI LIVE\n--------------------------------------------------------------------------\nWHAT SHIPPED:\n  - Operator feedback turned into a PRG EDIT rewrite: soft-key rows for\n    CYCL DEF / TOOL DEF / TOOL CALL / path functions, one question per\n    step (dialogs.js); the tool list opens in the machine view (key T);\n    keys 1-4 for operating mode, 5-9 for speed, F for a focus view that\n    hides the right pane; modes renamed PRG EDIT / TEST / SINGLE-BLOCK /\n    FULL-RUN; NC START follows the mode; a breadcrumb row above nested\n    soft keys; right-pane tabs for Diagnostics / Reference / the\n    operator's own programs; the position readout moved to an overlay on\n    the 3D view; Swedish added as a second interface language (i18n.js).\n  - A first TNC 430 machine profile (MACHINE_430): the operator's own\n    axis limits and roughly 250 mm head pivots. Cycle 19 (working plane)\n    implemented. Tilted-tool material removal and radius compensation in\n    a tilted plane both flagged as approximate from the start.\n  - AI program generation went live end to end: streaming progress, the\n    program appearing block by block with the path growing in 3D, a\n    request viewer showing every round including the repair pass, a\n    model picker, and downloads sorted into TNC-SIMULATOR subfolders.\n  - The operator's own GAGNING.H program exposed and fixed several real\n    bugs: decimal-comma numbers, dotted cycle lines getting their own\n    block numbers, a false SPINDLE STOPPED alarm during rigid tapping,\n    the DRO not showing a programmed S under M5, and block-preview\n    numbers bleeding from an uploaded listing's own numbering.\n  - Tool holder: ISO 50 (DIN 69871, ER32) at a standard stick-out; an\n    unknown or L=0 tool skips the holder-length check instead of\n    guessing.\n\nHIGHS:\n  - A real operator's own program (GAGNING.H) found bugs that the manual\n    based tests and the CAM corpus both missed - decimal-comma input and\n    the block-preview bleed are not the kind of thing a synthetic test\n    corpus produces.\n\nLOWS:\n  - The full QA suite was not re-run after this round, by the user's own\n    request to move fast; it needed adapting to the new UI regardless.\n\nLESSON: a real operator's file is its own test corpus - the bugs it\nsurfaces (locale formatting, listing artefacts) are a different shape\nfrom what a manual-derived test suite or a scraped CAM corpus will ever\nproduce.\n\n\nv0.8  2026-09-30  THREAD MILLING, TOUCH PROBE, TNC 430 KINEMATICS\n---------------------------------------------------------------------\nWHAT SHIPPED:\n  - Thread milling cycles 262-265 and 267 (cycleThread in core.js), from\n    the 426/430 manual's own pages. Several numeric details the manual\n    doesn't give - helix start angle, approach/departure geometry for a\n    small tool, the sign of a positive depth - are documented as open\n    points rather than guessed silently.\n  - Touch probe, built \"future proof\" ahead of the operator owning a\n    probe: TCH PROBE blocks parse; datum-setting cycles 408-413, 417 and\n    419 move and write nominal results (following the iTNC 530 manual,\n    since no 426/430 probe manual exists in this repo); tool-measuring\n    cycles 30-33, 480-483 and 562 are recognized with no motion; any\n    other cycle number reports NOT IMPLEMENTED instead of doing nothing.\n  - TNC 430 kinematics moved from a single machine profile into\n    machines.js, a config shared with the Rust server's own interpreter,\n    so a program compiles the same way in the browser and on the server.\n    A C rotary table was scoped and then dropped by the user (not built).\n  - stock.js: a shared material model. A tilted tool (A/B, cycle 19) cuts\n    along its real axis; the holder check follows the tool axis.\n  - A standard vice, on by default: 160 mm jaws on the Y faces, gripping\n    the bottom of the blank; a toggle under Effects & view; crash checks\n    for the tool and the holder. Dimensions are a standard guess, not the\n    operator's actual vice. About 7-10% of the CAM corpus hits it - real\n    cases, not false positives.\n  - fx.js moved onto window.QUARKS (three.quarks) ParticleSystems through\n    one shared BatchedRenderer, with the previous built-in renderer kept\n    as the fallback if QUARKS is missing.\n  - Corpus 2,767 / 2,806 clean; QA suite updated to the current UI, 93/93\n    checks pass.\n\nLOWS:\n  - fx.js was not visually re-tested after the move to three.quarks.\n  - Several thread-milling and touch-probe details remain placeholders,\n    not verified facts - see CONTINUE.md, \"Come back to\".\n\nLESSON: \"future proof\" work (touch probe, before the operator has a\nprobe) still needs the same honesty as anything else - cycles that\naren't implemented say so explicitly instead of silently no-op'ing.\n\n\nFULLSTACK  Rust server + React web app\n---------------------------------------------------------------------\nWHAT SHIPPED:\n  - A Rust server (server/, axum + SQLite) that runs sim/core.js in\n    embedded QuickJS, so a program the server checks gets the same\n    result as the browser - one interpreter, not two. Accounts, a\n    versioned program library, per-machine tool tables, share links, and\n    an AI proxy to OpenRouter.\n  - A React web app (web/, Vite + TypeScript) for the server: sign in,\n    edit and check programs, browse and restore versions, share a\n    program by link.\n  - The GitHub Pages simulator stays a self-contained single file either\n    way; the server and web app are an optional layer around it, not a\n    replacement for it. A desktop app (Tauri 2) is planned, not built -\n    the server's router is written so a shell can embed it directly.\n  - Repo reorganized: simulator sources moved into sim/, project docs\n    into docs/ (this file, docs/FEATURES.txt, docs/PROGRAMMING-STATION.md\n    replacing tnc-programstation/instruct.md). Old prototypes and stale\n    hand-off notes deleted: orbital.html, fx-demo.html, the duplicate\n    NAMEPLATE_V2.H in the root, HANDOFF.md, NEXT-SESSION-PROMPT.md,\n    TODO.md (folded into CONTINUE.md).\n\nNOT VERIFIED:\n  - The server and web app have not been checked against a real\n    HEIDENHAIN control or programming station any more than the\n    single-file simulator has.\n\n\nBY THE NUMBERS (2026-09-30)\n-----------------------------\n  Live version:              v0.8 plus the fullstack Rust server + React\n                             web app (interpreter accuracy, TNC 430\n                             kinematics, thread milling, touch probe, all\n                             shipped and in the build; the server and web\n                             app are additional, not a replacement for\n                             the single-file simulator)\n  Programs shipped:          3 (BRACKET.H, NAMEPLATE.H, NAMEPLATE_V2.H)\n  Lessons written:           14 (6 LEARN + 8 BREAK IT) + 16 manual sections\n  Cycles implemented:        25 motion/pocket/drilling/thread cycles (1,\n                             2, 4, 17, 18, 200-215, 220, 221, 230, 231,\n                             262-265, 267) plus 8 non-motion cycles (7, 8,\n                             9, 10, 11, 19, 32, 247)\n  Touch probe cycles:        8 with motion/results (408-413, 417, 419),\n                             9 tool-measuring with no motion (30-33,\n                             480-483, 562); all other numbers rejected\n                             as NOT IMPLEMENTED, not silently accepted\n  Manual test coverage:      node tests/manual.js - all pass\n  Real-world corpus:         2,806 programs, 2,767 clean (AUTOTOOLS=1)\n  QA (Playwright):           93 / 93 checks pass\n  This count will already be stale by the time you read it - this repo\n  moves fast; CONTINUE.md is the live source of truth, this file is the\n  narrative record.\n\n(c) 2026 TNC 426 Simulator contributors\n";
+window.TNC_HISTORY = "TNC 426 / 430 SIMULATOR - VERSION HISTORY\n==========================================\nA browser-based HEIDENHAIN TNC 426/430 CNC simulator, built for the operator\nwith an AI coding assistant (Claude) and several AI sub-agents. Live at\nhttps://gigacook.github.io/tnc426-simulator/\n\n\nv0.1  2026-09-21  ORBITAL - THE JOKE\n------------------------------------\nWHAT SHIPPED:\n  - A \"joke\" TNC 426 floating in space, explodable, built fast from\n    three.js primitives: 27 named parts (BF 120 display, MC 422 CPU\n    board, TE 420 keyboard, HR 410 handwheel, FE 401 floppy, solar\n    arrays, S-band dish, an empty coolant tank \"that floated away in\n    2003\"), an explode slider, part callouts.\n  - A mock control unit tab with period-correct Klartext, a tool\n    table, and a diagnosis readout: GRAVITY 0.00 m/s^2 - FAULT.\n\nHIGHS:\n  - User reaction on seeing it: \"GOOD JOB\".\n\nLOWS:\n  - The brief said to start by searching GitHub for something ready\n    made. The assistant said up front that it would skip the search\n    (no open TNC 426 model exists) and build from primitives - but the\n    search the user asked for never actually happened.\n  - First publish was a claude.ai Artifact - a private link. The user\n    wanted a plain HTML file, loudly. Rebuilt as a standalone offline\n    HTML with three.js inlined (682 KB).\n\nLESSON: when the deliverable format matters to the user, ship the\nformat they asked for the first time, not the one that's easiest to\npublish.\n\n\nv0.2  2026-09-21  SIMULATOR - THE REAL THING\n---------------------------------------------\nWHAT SHIPPED:\n  - New goal: drop the explosion toy, build an actual TNC 426 CNC\n    simulator - keyboard control, one editable sample program, a\n    graphical run with fast-forward and speed toggle, comparable\n    outputs, authentic behaviour treated as critical.\n  - A sub-agent wrote the Klartext interpreter (core.js) in parallel\n    while the assistant built the UI: height-field material removal,\n    progressive toolpath, four operating modes, transport controls,\n    keyboard, A/B run comparison, sample program BRACKET.H.\n\nHIGHS:\n  - User asked for sub-agents to parallelize and to skip verification\n    to move faster - the assistant took the parallelization but kept\n    one smoke test anyway.\n  - That one test paid for itself immediately: it caught two real\n    interpreter bugs before anyone else saw them - `CALL LBL 1\n    REP 3/3` recursed forever (min Z hit -93 mm in a 20 mm blank),\n    and `M99` on a positioning block never triggered the drilling\n    cycle (the holes never got drilled). Both fixed same session.\n\nLOWS:\n  - None beyond the two bugs above, which is itself notable - first\n    real interpreter, caught before push.\n\nLESSON: \"skip verification\" is a request to move fast, not a request\nto ship untested logic - keeping a minimal smoke test cost little and\ncaught two silent, ugly bugs.\n\n\nv0.3  2026-09-21 14:49  FIRST PUSH\n-----------------------------------\nWHAT SHIPPED:\n  - Text bumped +2 px with higher contrast, requested mid-push and\n    folded in before the commit.\n  - Public repo + GitHub Pages, per the user's explicit ask (\"the only\n    thing I accept is a direct LINK\"). Commit 37b63a5: .gitignore,\n    LICENSE (MIT), README.md, build.py, core.js, index.html,\n    orbital.html (the v0.1 toy, kept for the record), sim-shell.html,\n    ui.js - 9 files, 7093 lines added. Pages went live; page hash\n    verified against the built index.html.\n  - Commit e971807 (14:51): README documents the interpreter's known\n    simplifications - RL/RR drawn on the tool centreline, INCH\n    recorded but not converted, cycle time excludes dwell, Q213 chip\n    breaking approximated, height field can't show undercuts.\n\nHIGHS:\n  - Clean, verified public launch with a real link, honestly scoped\n    limitations written down instead of hidden.\n\nLOWS:\n  - The interpreter sub-agent's own verification pass came back AFTER\n    the push - and it had found a bug in the assistant's own REP fix\n    from v0.2: the parser defaults REP to 1, so every plain `CALL\n    LBL n` with the label above it was still treated as a section\n    repeat and recursed silently. The sub-agent fixed it in the file\n    before the commit went out, so the live version was correct - by\n    luck, not by design. The assistant had pushed code it had not\n    itself tested.\n\nLESSON: a sub-agent's fix landing in time doesn't retroactively make\nthe push safe - \"pushed before verification came back\" is a near\nmiss, not a pass, even when the diff turns out fine.\n\n\nv0.4  2026-09-21 15:15  INTERIM PUSH\n--------------------------------------\nWHAT SHIPPED (commit d3aa945, 15:15:49, 9 files, 1257 insertions):\n  - NAMEPLATE.H (V1): a side conversation with no tool access\n    produced a 300 x 200 x 20 garage plate engraving the family name,\n    unverified at the time it was written.\n  - Testing NAMEPLATE.H found: it called a \u00d83 end mill (T9) that\n    didn't exist in the tool table (added); the \"break the outer\n    edge\" pass was tracing an engraved frame instead of the actual\n    plate edge (fixed); F1000 at S3000 on a \u00d83 cutter is a high chip\n    load (fz 0.111 vs. 0.041 allowed) - kept as the user's call, with\n    the simulator's new safety analysis flagging it as a warning\n    rather than silently allowing it.\n  - Testing the interpreter against authentic TNC behaviour found two\n    more bugs, both live since v0.3: cycle Q-parameter lines were getting\n    their own NC\n    block numbers (a real TNC counts CYCL DEF plus its Q lines as one\n    block - fixed); `TOOL CALL S...` was switching the spindle on (on\n    a real TNC, S only sets the speed - M3 starts it, a tool change\n    stops it - fixed, with M-functions now split into block-start and\n    block-end timing).\n  - That spindle fix immediately exposed a bug in the assistant's own\n    v0.2 sample: BRACKET.H milled its T5 pocket with no M3 after the\n    tool change. Fixed.\n  - New safety analysis module (sim.js). First version cried wolf:\n    it flagged a correct through-drill (Q201 -22 in a 20 mm blank,\n    the standard tip allowance) as a crash; a masking bug hid real\n    events under 60 duplicate chip-load warnings; drill retracts\n    looked like \"rapid into material\" because the height field\n    couldn't represent a column cut to the bottom. All three fixed -\n    every deliberate crash test case now caught, clean programs stay\n    clean.\n  - A second sub-agent (Opus) generated NAMEPLATE_V2.H independently:\n    rounded letters using real CC/C and CR arcs for O, C, U and the R\n    bowl, S7500 F600, four 0.5 mm passes - zero errors, zero warnings\n    on first verification.\n  - A Sonnet sub-agent wrote devlog.txt, the DEV feature log. The\n    assistant caught two lines it had filed under LIVE that weren't\n    actually live yet, and fixed them before shipping - \"a DEV tab\n    that lies on day one is worse than none.\"\n  - Shipped with an orange glowing DEV button, a program selector\n    (NAMEPLATE opens first), and a \u00d83-capable height field\n    (401 x 268 cells) to resolve fine engraving.\n\nHIGHS:\n  - Two independently-generated, independently-verified engravings of\n    the family name (V1 hand-checked and patched, V2 clean from a\n    second sub-agent) shipped the same push.\n  - The DEV log correction - a sub-agent's honest-sounding mistake\n    caught before it went out under the user's name.\n\nLOWS:\n  - The side-conversation program (NAMEPLATE.H) needed a missing\n    tool, a wrong edge-break pass, and a high-chip-load call the user\n    had to make - none of that surfaced until it was actually tested.\n  - Chrome turned out not to be installed on the machine, so the\n    build was verified by booting index.html in node with a stubbed\n    DOM rather than a real browser - the assistant said plainly what\n    that check does and doesn't prove, rather than calling it a\n    browser test.\n\nLESSON: an unverified program from a side conversation is still an\nunverified program, no matter how finished it looks - the same test\npass that catches interpreter bugs also catches program bugs, and\nfinding out what a check can't prove (no real browser) matters as\nmuch as running it.\n\n\nv0.5  2026-09-21 onward  IN PROGRESS - NOT PUSHED\n---------------------------------------------------\nWHAT HAS BEEN WRITTEN (assistant plus six sub-agents):\n  - Full UI rewrite (ui.new.js): PGM MGT program manager, NEW PGM from\n    scratch, save and load .H, undo/redo, programs and projects kept in\n    browser storage, a settings cookie, projects with .zip download,\n    machine profiles so a second control can plug into the same UI,\n    mobile layout, boot splash.\n  - Safety checks surfaced live during the run, with a crash alarm that\n    stops it. Chamfer and spot tools stamped as 45-degree cones. A live\n    tool-trace comet that shows cut direction.\n  - fx.js: chips, sparks, coolant spray, smoke, fire, crash burst.\n  - lessons.js: LEARN (6), BREAK IT (8) and a power-user manual (16\n    sections), plus the system prompt the AI feature will use.\n  - tools3d.js, callouts.js, flow.js: real tool geometries in holders,\n    leader-line callouts, and the program-as-flowchart view.\n  - This version history, and a copyright notice.\n\nWHAT HAS NOT BEEN WRITTEN:\n  - ai.js. AI program generation was asked for as the third way to make\n    a program - OpenRouter, the user's own key, DeepSeek V4.1 Flash by\n    default. The model ID was checked against OpenRouter's live list\n    rather than guessed, and the UI already calls the module. The\n    module itself does not exist.\n  - Antialiasing and surface quality. A screenshot from the user showed\n    three defects: stair-stepped diagonal walls in the height field,\n    CRT scanlines bleeding over the 3D view, and surfaces that read as\n    plastic rather than metal. Wanted: smoothed geometry, a shiny metal\n    look, aluminium and titanium, and presets for turbines, aerospace,\n    ground and cast work.\n  - TNC 430 five-axis support, as a second machine profile with the\n    same programs, examples, lessons and visual translation as the 426.\n  - Live visual translation: cursor on a block, the alternative view\n    draws that block with the tool trace animating the direction of\n    cut. Both halves exist; they have never been connected.\n\nSTATUS AT THE TIME THIS SECTION WAS FIRST WRITTEN: nothing in v0.5 was live\nyet. That has since changed - see the v0.5 SHIPPED update directly below,\nwritten after the fact once it actually went out.\n\nHIGHS:\n  - Six modules written in parallel, all syntax-clean, the UI built to\n    degrade gracefully when a module is missing rather than white-screen.\n  - The lessons module shipped with its own test script, all passing.\n\nLOWS (at the time):\n  - Two sub-agents were killed mid-task by a session limit: the product\n    manager stopped part-way through flow.js, leaving three modules with\n    no demo and no run behind them, and the TNC 430 lead stopped after\n    collecting manuals, leaving no code at all. Both had been given work\n    large enough that hitting the limit was foreseeable.\n  - The effects sub-agent installed Playwright's browsers - 1.1 GB -\n    without asking. The user's standing rule is to name a missing tool\n    and ask first. The brief it was given did not forbid it, so this is\n    the assistant's failure rather than the agent's. (That install is now\n    in active use by .tools/qa/qa.mjs - kept, not removed.)\n  - The rewritten shell fixed the scanline bleed the user photographed,\n    but had sat unbuilt on disk - the fix existed and the bug was still\n    live at the time this was written. Resolved once v0.5 actually built\n    and shipped (below).\n  - Roughly 220 KB of work across nine files sat untracked in git for\n    two days.\n\nLESSON: written is not shipped. Six parallel agents produced a lot of\nsyntax-clean code and moved the live site forward by nothing; the build\nscript was the bottleneck, and a module nobody has wired in is worth the\nsame as a module nobody has written.\n\n\nv0.5  SHIPPED (9c61b09)\n------------------------\nWHAT ACTUALLY SHIPPED:\n  - The untracked work was committed, build.py was made fully data-driven\n    (LIBS / MODULES / TEXTS lists - a new module is one line, not a\n    special case), the new UI (formerly ui.new.js) replaced the old one\n    as ui.js, and it all built and went live. Lessons, fx, tools3d,\n    callouts and flow all shipped in this push.\n  - The scanline bleed fixed itself as a side effect of the rebuild.\n  - The TNC_UI plugin bus was introduced: other modules (fx.js, look.js,\n    materials.js, later) attach to it via scene/tool/tick/crash/resize\n    hooks and a shared ui.render hook, instead of reaching into ui.js\n    directly.\n\nLESSON CONFIRMED: once the build script stopped being the bottleneck, six\nsessions' worth of written-but-invisible work went live in one push. The\nlesson from the \"written is not shipped\" entry above was correct, and the\nfix was exactly what it named - the build script, not more writing.\n\n\nv0.6  SHIPPED (interpreter accuracy, profiles, AI, materials/look)\n---------------------------------------------------------------------\nWHAT SHIPPED, across several commits (216a76e, 7d2e05d, b59950b, aea56a5,\n2992d42):\n  - Interpreter: RL/RR as real offset paths (previously drawn on the tool\n    centreline - a known simplification, now fixed and documented as\n    fixed rather than as a limitation), RND, CHF, CT, CP/LP/CTP, APPR/DEP,\n    ZX/YZ plane arcs, Q-parameter formulas (FN 0-FN 19), jumps, REP Q,\n    F AUTO approximation, a tool-table fallback that auto-creates tools\n    a program calls but the table lacks.\n  - Cycles: 1, 2, 17, 18 (old-style), 7/8/9/10/11/32/247 (non-motion),\n    200-215, 220/221, 230/231 - all against the 426/430 manual's own\n    worked examples (tests/manual.js).\n  - Materials (materials.js): alloy and industry presets driving PBR\n    look and chip/spark color, with a picker.\n  - Look (look.js): RoomEnvironment reflections, ACES tone mapping, FXAA\n    - the antialiasing/surface-quality ask from the user's screenshot,\n    addressed with an environment map rather than just more AA, per the\n    diagnosis that a metal PBR material with nothing to reflect is what\n    reads as plastic.\n  - Profiles (profile.js): one personal profile per browser, autosave,\n    export/import as .zip with Merge/Replace, per-machine tool table as\n    TOOL.T.\n  - Program I/O: .H/.I load (UTF-8 and Windows-1252), .zip, drag-drop,\n    Ctrl+S save.\n  - AI (ai.js): OpenRouter-only BYOK, deepseek/deepseek-v4.1-flash\n    default, one repair pass, tested against a mocked OpenRouter (51/52\n    Playwright QA checks pass - the 1 failure is a stale test expectation\n    about auto-created tools, not a product bug).\n  - three.js upgraded r128 -> r186, bundled with three.quarks by esbuild\n    from vendor/three-entry.mjs. window.QUARKS is in the page but not yet\n    used by fx.js.\n\nVERIFIED: node tests/manual.js all pass. AUTOTOOLS=1 node tests/corpus.js\nagainst 2,806 real-world CAM programs: 2,495 clean (1,066 clean without\nAUTOTOOLS, i.e. before missing tools are auto-created the way an import\nwould). Remaining failures are almost all TCH PROBE 4xx (correctly\nrejected - confirmed not in the 426/430 manual, an iTNC 530/TNC 640\ndialect) plus a real open bug: ~399 SPINDLE ? errors from the tapping\ncycles' spindle-direction check.\n\nSTILL OPEN, NOT YET DONE:\n  - The SPINDLE ? false alarms above - under investigation.\n  - fx.js on three.quarks (bundled, unused so far).\n  - Thread milling cycles 262-265, 267.\n  - Cycles 3, 5, 12, 13, 14/20-25, 19, 26, 27/28 - not implemented.\n  - FK, TCH PROBE (deliberately, see above) - not implemented.\n  - RELEASES.txt does not exist; the DEV modal's third tab is wired up\n    and empty.\n  - Live visual translation (cursor-on-block -> animated trace) - both\n    halves exist, never connected.\n  - TNC 430 multi-axis: the user has now specified the machine layout\n    (X Y Z linear, A+B swivel head, optional C rotary table) but no code\n    exists yet.\n  - LICENSE's bundled-library note still says three.js r128; needs\n    updating to r186 + three.quarks.\n  - One stale QA check (TOOL 27 NOT DEFINED expectation, now auto-fixed\n    by the product) needs updating, not the product.\n  - AI generation has only ever been tested against a mocked OpenRouter -\n    no real-API run has happened in this repo yet.\n\nLESSON: the antialiasing ask (\"fake antialiasing... shiny surface\ntexture\") turned out to be mostly a lighting problem, not a geometry or\nAA problem - diagnosing the actual cause (no environment map for a PBR\nmetal to reflect) before reaching for the expensive fix (re-meshing,\nheavier AA) was the right call and shipped faster.\n\n\nv0.7  2026-09-27, evening and late  UI REWRITE, TNC 430 PROFILE, AI LIVE\n--------------------------------------------------------------------------\nWHAT SHIPPED:\n  - Operator feedback turned into a PRG EDIT rewrite: soft-key rows for\n    CYCL DEF / TOOL DEF / TOOL CALL / path functions, one question per\n    step (dialogs.js); the tool list opens in the machine view (key T);\n    keys 1-4 for operating mode, 5-9 for speed, F for a focus view that\n    hides the right pane; modes renamed PRG EDIT / TEST / SINGLE-BLOCK /\n    FULL-RUN; NC START follows the mode; a breadcrumb row above nested\n    soft keys; right-pane tabs for Diagnostics / Reference / the\n    operator's own programs; the position readout moved to an overlay on\n    the 3D view; Swedish added as a second interface language (i18n.js).\n  - A first TNC 430 machine profile (MACHINE_430): the operator's own\n    axis limits and roughly 250 mm head pivots. Cycle 19 (working plane)\n    implemented. Tilted-tool material removal and radius compensation in\n    a tilted plane both flagged as approximate from the start.\n  - AI program generation went live end to end: streaming progress, the\n    program appearing block by block with the path growing in 3D, a\n    request viewer showing every round including the repair pass, a\n    model picker, and downloads sorted into TNC-SIMULATOR subfolders.\n  - The operator's own GAGNING.H program exposed and fixed several real\n    bugs: decimal-comma numbers, dotted cycle lines getting their own\n    block numbers, a false SPINDLE STOPPED alarm during rigid tapping,\n    the DRO not showing a programmed S under M5, and block-preview\n    numbers bleeding from an uploaded listing's own numbering.\n  - Tool holder: ISO 50 (DIN 69871, ER32) at a standard stick-out; an\n    unknown or L=0 tool skips the holder-length check instead of\n    guessing.\n\nHIGHS:\n  - A real operator's own program (GAGNING.H) found bugs that the manual\n    based tests and the CAM corpus both missed - decimal-comma input and\n    the block-preview bleed are not the kind of thing a synthetic test\n    corpus produces.\n\nLOWS:\n  - The full QA suite was not re-run after this round, by the user's own\n    request to move fast; it needed adapting to the new UI regardless.\n\nLESSON: a real operator's file is its own test corpus - the bugs it\nsurfaces (locale formatting, listing artefacts) are a different shape\nfrom what a manual-derived test suite or a scraped CAM corpus will ever\nproduce.\n\n\nv0.8  2026-09-30  THREAD MILLING, TOUCH PROBE, TNC 430 KINEMATICS\n---------------------------------------------------------------------\nWHAT SHIPPED:\n  - Thread milling cycles 262-265 and 267 (cycleThread in core.js), from\n    the 426/430 manual's own pages. Several numeric details the manual\n    doesn't give - helix start angle, approach/departure geometry for a\n    small tool, the sign of a positive depth - are documented as open\n    points rather than guessed silently.\n  - Touch probe, built \"future proof\" ahead of the operator owning a\n    probe: TCH PROBE blocks parse; datum-setting cycles 408-413, 417 and\n    419 move and write nominal results (following the iTNC 530 manual,\n    since no 426/430 probe manual exists in this repo); tool-measuring\n    cycles 30-33, 480-483 and 562 are recognized with no motion; any\n    other cycle number reports NOT IMPLEMENTED instead of doing nothing.\n  - TNC 430 kinematics moved from a single machine profile into\n    machines.js, a config shared with the Rust server's own interpreter,\n    so a program compiles the same way in the browser and on the server.\n    A C rotary table was scoped and then dropped by the user (not built).\n  - stock.js: a shared material model. A tilted tool (A/B, cycle 19) cuts\n    along its real axis; the holder check follows the tool axis.\n  - A standard vice, on by default: 160 mm jaws on the Y faces, gripping\n    the bottom of the blank; a toggle under Effects & view; crash checks\n    for the tool and the holder. Dimensions are a standard guess, not the\n    operator's actual vice. About 7-10% of the CAM corpus hits it - real\n    cases, not false positives.\n  - fx.js moved onto window.QUARKS (three.quarks) ParticleSystems through\n    one shared BatchedRenderer, with the previous built-in renderer kept\n    as the fallback if QUARKS is missing.\n  - Corpus 2,767 / 2,806 clean; QA suite updated to the current UI, 93/93\n    checks pass.\n\nLOWS:\n  - fx.js was not visually re-tested after the move to three.quarks.\n  - Several thread-milling and touch-probe details remain placeholders,\n    not verified facts - see CONTINUE.md, \"Come back to\".\n\nLESSON: \"future proof\" work (touch probe, before the operator has a\nprobe) still needs the same honesty as anything else - cycles that\naren't implemented say so explicitly instead of silently no-op'ing.\n\n\nFULLSTACK  Rust server + React web app\n---------------------------------------------------------------------\nWHAT SHIPPED:\n  - A Rust server (server/, axum + SQLite) that runs sim/core.js in\n    embedded QuickJS, so a program the server checks gets the same\n    result as the browser - one interpreter, not two. Accounts, a\n    versioned program library, per-machine tool tables, share links, and\n    an AI proxy to OpenRouter.\n  - A React web app (web/, Vite + TypeScript) for the server: sign in,\n    edit and check programs, browse and restore versions, share a\n    program by link.\n  - The GitHub Pages simulator stays a self-contained single file either\n    way; the server and web app are an optional layer around it, not a\n    replacement for it. A desktop app (Tauri 2) is planned, not built -\n    the server's router is written so a shell can embed it directly.\n  - Repo reorganized: simulator sources moved into sim/, project docs\n    into docs/ (this file, docs/FEATURES.txt, docs/PROGRAMMING-STATION.md\n    replacing tnc-programstation/instruct.md). Old prototypes and stale\n    hand-off notes deleted: orbital.html, fx-demo.html, the duplicate\n    NAMEPLATE_V2.H in the root, HANDOFF.md, NEXT-SESSION-PROMPT.md,\n    TODO.md (folded into CONTINUE.md).\n\nNOT VERIFIED:\n  - The server and web app have not been checked against a real\n    HEIDENHAIN control or programming station any more than the\n    single-file simulator has.\n\n\nv0.9  2026-10-03  DESKTOP APP, PHONES, AI THAT IS MEASURED\n---------------------------------------------------------------------\nWHAT SHIPPED:\n  - Desktop app (desktop/, Tauri 2): the server's own crate runs inside\n    the app on 127.0.0.1, SQLite in the app-data folder, the operator is\n    signed in by a one-time link, no separate server. Built and launched\n    on Linux (deb, rpm, AppImage); macOS and Windows only via CI.\n  - Phones: three workspaces (Program, Graphics, Status) with tabs and\n    swipes, the soft keys in a bottom dock paged 8 at a time like the\n    control, everything else behind MENU. Desktop layout unchanged.\n  - Accessibility pass: dialogs trap and return focus, tabs work with the\n    keyboard, shortcuts no longer steal Enter/Space from buttons, run state\n    and check counts are announced, landmarks and labels.\n  - AI: the tool table goes in as constraints, the model plans the part\n    first (a spec - the \"interim 3-D model\"), lettering comes from the\n    simulator's own stroke font, and the program is machined and measured\n    against the spec in mm; the misses go back for up to 3 rounds. Token\n    limits raised and cut-off answers continued.\n  - A tracked browser test suite (tests/ui/run.mjs) and a CI workflow.\n\nHIGHS:\n  - The measurement found what \"kind of the shape\" meant: on the plate\n    test the old pipeline milled the pocket walls and left the middle\n    standing (73.8 % match); the new loop cleared it (100 %).\n\nLOWS:\n  - The old QA suite (.tools/qa) was never in git; it is replaced, not\n    restored. WebKit and real phones are still untested.\n  - Medium reasoning on DeepSeek thought through a 32k budget twice\n    before writing (10 minutes for one part); low reasoning plus the\n    measurement loop is as accurate and is now the default.\n  - The first loop threw away a 96 % program when a later refinement\n    timed out; fixed (best program kept, idle timeout, network retry).\n\nNOT VERIFIED:\n  - No physical iPhone / Android test, no screen reader on a device.\n  - macOS / Windows desktop builds; the CI workflow has not run yet.\n\nBY THE NUMBERS (2026-09-30)\n-----------------------------\n  Live version:              v0.8 plus the fullstack Rust server + React\n                             web app (interpreter accuracy, TNC 430\n                             kinematics, thread milling, touch probe, all\n                             shipped and in the build; the server and web\n                             app are additional, not a replacement for\n                             the single-file simulator)\n  Programs shipped:          3 (BRACKET.H, NAMEPLATE.H, NAMEPLATE_V2.H)\n  Lessons written:           14 (6 LEARN + 8 BREAK IT) + 16 manual sections\n  Cycles implemented:        25 motion/pocket/drilling/thread cycles (1,\n                             2, 4, 17, 18, 200-215, 220, 221, 230, 231,\n                             262-265, 267) plus 8 non-motion cycles (7, 8,\n                             9, 10, 11, 19, 32, 247)\n  Touch probe cycles:        8 with motion/results (408-413, 417, 419),\n                             9 tool-measuring with no motion (30-33,\n                             480-483, 562); all other numbers rejected\n                             as NOT IMPLEMENTED, not silently accepted\n  Manual test coverage:      node tests/manual.js - all pass\n  Real-world corpus:         2,806 programs, 2,767 clean (AUTOTOOLS=1)\n  QA (Playwright):           93 / 93 checks pass\n  This count will already be stale by the time you read it - this repo\n  moves fast; CONTINUE.md is the live source of truth, this file is the\n  narrative record.\n\n(c) 2026 TNC 426 Simulator contributors\n";
 </script>
 <script>/* ===== TNC Klartext interpreter ===== */
 /* ==========================================================================
@@ -14363,6 +14500,373 @@ var TNC_PROFILE = (function () {
 if (typeof module !== 'undefined') module.exports = TNC_PROFILE;
 
 </script>
+<script>/* ===== Part spec: target geometry, lettering, measured comparison (AI loop) ===== */
+/* ============================================================
+   TNC_PART — the "interim 3-D model" for AI generation: a part spec (what the finished part should
+   look like) turned into a target height field, and the program's real result measured against it.
+   Pure: no DOM, no three.js. Runs in the browser (ai.js / ui.js) and in node (tests, AI bench).
+
+   The loop it serves (ai.js generate): the model first PLANS the part as a spec, the spec is EXPANDED
+   here (lettering becomes exact stroke paths, every feature gets checked against the tool table), the
+   model WRITES the program from that, the simulator runs it, and COMPARE measures what the program
+   actually cuts against the target — per feature, in mm — and that measurement goes back to the model.
+
+   TNC_PART.parse(text)                    -> {spec} | {error}     the ```partspec JSON from a model answer
+   TNC_PART.expand(spec, tools)            -> {spec, sheet, notes}  text -> engrave strokes; tool feasibility
+   TNC_PART.strokes(text, o)               -> [[[x,y],..],..]       single-stroke capitals (engraving font)
+   TNC_PART.target(spec, stock, g)         -> {hm, own}             target top surface per column
+   TNC_PART.carve(res, ex, g)              -> Float32Array          what the program removes (stock.js)
+   TNC_PART.compare(spec, res, ex, o)      -> report {score, text, features, ...}
+
+   Spec (mm, datum and BLK FORM as in the program; z = the floor the feature leaves, top face Z+0):
+     {"blank":{"x":[0,120],"y":[0,80],"z":[-15,0]},
+      "features":[
+        {"id":"F1","type":"face","z":-0.5},
+        {"id":"P1","type":"pocket","shape":"rect","x":[30,90],"y":[25,55],"r":3,"z":-6},
+        {"id":"P2","type":"pocket","shape":"circle","x":60,"y":40,"d":30,"z":-5},
+        {"id":"P3","type":"pocket","shape":"poly","points":[[x,y],..],"z":-4},
+        {"id":"H1","type":"hole","x":10,"y":10,"d":8.5,"z":-20},
+        {"id":"S1","type":"slot","from":[10,40],"to":[50,40],"w":6,"z":-3},
+        {"id":"E1","type":"engrave","path":[[x,y],..],"w":3,"z":-1},
+        {"id":"T1","type":"text","text":"HELLO","x":20,"y":30,"h":20,"w":3,"z":-1.5,"align":"left"},
+        {"id":"O1","type":"profile","points":[[x,y],..],"z":-10}      (outside the outline cut down to z)
+      ]}
+   ============================================================ */
+var TNC_PART = (function () {
+  'use strict';
+  var STOCK = (typeof TNC_STOCK !== 'undefined' && TNC_STOCK) || (typeof require !== 'undefined' ? require('./stock.js') : null);
+
+  /* ---------- single-stroke engraving capitals: 4 wide × 6 high units, straight strokes with 45° corners ----------
+     Written for this simulator (no third-party font). Tool-centre paths: the groove is as wide as the cutter. */
+  var O_ = [[1, 0], [0, 1], [0, 5], [1, 6], [3, 6], [4, 5], [4, 1], [3, 0], [1, 0]];
+  var A_ = [[[0, 0], [0, 4], [2, 6], [4, 4], [4, 0]], [[0, 3], [4, 3]]];
+  var FONT = {
+    A: A_,
+    B: [[[0, 0], [0, 6], [3, 6], [4, 5], [4, 4], [3, 3], [0, 3]], [[3, 3], [4, 2], [4, 1], [3, 0], [0, 0]]],
+    C: [[[4, 5], [3, 6], [1, 6], [0, 5], [0, 1], [1, 0], [3, 0], [4, 1]]],
+    D: [[[0, 0], [0, 6], [3, 6], [4, 5], [4, 1], [3, 0], [0, 0]]],
+    E: [[[4, 6], [0, 6], [0, 0], [4, 0]], [[0, 3], [3, 3]]],
+    F: [[[4, 6], [0, 6], [0, 0]], [[0, 3], [3, 3]]],
+    G: [[[4, 5], [3, 6], [1, 6], [0, 5], [0, 1], [1, 0], [3, 0], [4, 1], [4, 3], [2, 3]]],
+    H: [[[0, 0], [0, 6]], [[4, 0], [4, 6]], [[0, 3], [4, 3]]],
+    I: [[[1, 6], [3, 6]], [[2, 6], [2, 0]], [[1, 0], [3, 0]]],
+    J: [[[4, 6], [4, 1], [3, 0], [1, 0], [0, 1]]],
+    K: [[[0, 0], [0, 6]], [[4, 6], [0, 2]], [[1.5, 3.5], [4, 0]]],
+    L: [[[0, 6], [0, 0], [4, 0]]],
+    M: [[[0, 0], [0, 6], [2, 3], [4, 6], [4, 0]]],
+    N: [[[0, 0], [0, 6], [4, 0], [4, 6]]],
+    O: [O_],
+    P: [[[0, 0], [0, 6], [3, 6], [4, 5], [4, 4], [3, 3], [0, 3]]],
+    Q: [O_, [[2.5, 1.5], [4, 0]]],
+    R: [[[0, 0], [0, 6], [3, 6], [4, 5], [4, 4], [3, 3], [0, 3]], [[2, 3], [4, 0]]],
+    S: [[[4, 5], [3, 6], [1, 6], [0, 5], [0, 4], [1, 3], [3, 3], [4, 2], [4, 1], [3, 0], [1, 0], [0, 1]]],
+    T: [[[0, 6], [4, 6]], [[2, 6], [2, 0]]],
+    U: [[[0, 6], [0, 1], [1, 0], [3, 0], [4, 1], [4, 6]]],
+    V: [[[0, 6], [2, 0], [4, 6]]],
+    W: [[[0, 6], [1, 0], [2, 4], [3, 0], [4, 6]]],
+    X: [[[0, 0], [4, 6]], [[0, 6], [4, 0]]],
+    Y: [[[0, 6], [2, 3], [4, 6]], [[2, 3], [2, 0]]],
+    Z: [[[0, 6], [4, 6], [0, 0], [4, 0]]],
+    '0': [O_, [[0, 1], [4, 5]]],
+    '1': [[[1, 5], [2, 6], [2, 0]], [[1, 0], [3, 0]]],
+    '2': [[[0, 5], [1, 6], [3, 6], [4, 5], [4, 4], [0, 0], [4, 0]]],
+    '3': [[[0, 5], [1, 6], [3, 6], [4, 5], [4, 4], [3, 3], [1.5, 3]], [[3, 3], [4, 2], [4, 1], [3, 0], [1, 0], [0, 1]]],
+    '4': [[[3, 0], [3, 6], [0, 2], [4, 2]]],
+    '5': [[[4, 6], [0, 6], [0, 3], [3, 3], [4, 2], [4, 1], [3, 0], [1, 0], [0, 1]]],
+    '6': [[[4, 5], [3, 6], [1, 6], [0, 5], [0, 1], [1, 0], [3, 0], [4, 1], [4, 2], [3, 3], [0, 3]]],
+    '7': [[[0, 6], [4, 6], [1, 0]]],
+    '8': [[[1, 3], [0, 4], [0, 5], [1, 6], [3, 6], [4, 5], [4, 4], [3, 3], [1, 3], [0, 2], [0, 1], [1, 0], [3, 0], [4, 1], [4, 2], [3, 3]]],
+    '9': [[[0, 1], [1, 0], [3, 0], [4, 1], [4, 5], [3, 6], [1, 6], [0, 5], [0, 4], [1, 3], [4, 3]]],
+    '-': [[[1, 3], [3, 3]]],
+    '+': [[[0.5, 3], [3.5, 3]], [[2, 1.5], [2, 4.5]]],
+    '.': [[[2, 0], [2, 0.3]]],
+    '/': [[[0, 0], [4, 6]]],
+    '&': [[[4, 0], [1, 4], [1, 5], [2, 6], [3, 5], [3, 4], [0, 1.5], [0, 1], [1, 0], [2, 0], [4, 2]]]
+  };
+  FONT['Ä'] = A_.concat([[[1, 7], [1, 7.3]], [[3, 7], [3, 7.3]]]);
+  FONT['Å'] = A_.concat([[[2, 6.6], [2.5, 7.1], [2, 7.6], [1.5, 7.1], [2, 6.6]]]);
+  FONT['Ö'] = [O_, [[1, 7], [1, 7.3]], [[3, 7], [3, 7.3]]];
+  FONT['Ü'] = FONT.U.concat([[[1, 7], [1, 7.3]], [[3, 7], [3, 7.3]]]);
+  ['Č', 'Ć'].forEach(function (c) { FONT[c] = FONT.C.concat([[[1.5, 7.4], [2, 6.9], [2.5, 7.4]]]); });
+  FONT['Š'] = FONT.S.concat([[[1.5, 7.4], [2, 6.9], [2.5, 7.4]]]);
+  FONT['Ž'] = FONT.Z.concat([[[1.5, 7.4], [2, 6.9], [2.5, 7.4]]]);
+  FONT['Đ'] = FONT.D.concat([[[-0.5, 3], [1.5, 3]]]);
+  var NARROW = { I: 4, '1': 4, '.': 4, '-': 4 };
+
+  /* text -> stroke polylines in mm. o: {x, y (baseline), h (cap height), gap (between letters, mm; default h/4),
+     align 'left'|'center'|'right'}. Unknown characters are skipped and listed in .missing. */
+  function strokes(text, o) {
+    o = o || {};
+    var h = +o.h || 10, u = h / 6, gap = o.gap != null ? +o.gap : h / 4, out = [], missing = [], x = 0;
+    var s = String(text || '').toUpperCase();
+    for (var i = 0; i < s.length; i++) {
+      var ch = s[i];
+      if (ch === ' ') { x += 3 * u + gap; continue; }
+      var g = FONT[ch];
+      if (!g) { if (missing.indexOf(ch) < 0) missing.push(ch); continue; }
+      g.forEach(function (pl) { out.push(pl.map(function (p) { return [x + p[0] * u, p[1] * u]; })); });
+      x += (NARROW[ch] || 4) * u + gap;
+    }
+    var width = Math.max(0, x - gap), dx = +o.x || 0, dy = +o.y || 0;
+    if (o.align === 'center') dx -= width / 2; else if (o.align === 'right') dx -= width;
+    out = out.map(function (pl) { return pl.map(function (p) { return [r3(p[0] + dx), r3(p[1] + dy)]; }); });
+    out.width = width; out.missing = missing; out.x0 = dx; out.x1 = dx + width;
+    return out;
+  }
+  function r3(v) { return Math.round(v * 1000) / 1000; }
+
+  /* ---------- spec parsing ---------- */
+  function parse(text) {
+    text = String(text || '');
+    var m = /```(?:partspec|json)\s*\n([\s\S]*?)```/i.exec(text), body = m ? m[1] : null;
+    if (!body) { var a = text.indexOf('{'), b = text.lastIndexOf('}'); if (a >= 0 && b > a && /"features"/.test(text)) body = text.slice(a, b + 1); }
+    if (!body) return { error: 'NO PART SPEC (```partspec JSON) IN THE ANSWER' };
+    var spec;
+    try { spec = JSON.parse(body.replace(/\/\/[^\n]*/g, '').replace(/,\s*([}\]])/g, '$1')); }
+    catch (e) { return { error: 'PART SPEC IS NOT VALID JSON: ' + e.message }; }
+    var err = validate(spec);
+    return err ? { error: err, spec: spec } : { spec: spec };
+  }
+  function num(v) { return typeof v === 'number' && isFinite(v); }
+  function pair(v) { return Array.isArray(v) && v.length === 2 && num(v[0]) && num(v[1]); }
+  function validate(s) {
+    if (!s || typeof s !== 'object') return 'PART SPEC MUST BE A JSON OBJECT';
+    if (!s.blank || !pair(s.blank.x) || !pair(s.blank.y) || !pair(s.blank.z)) return 'PART SPEC: blank needs x, y, z as [min, max]';
+    if (!Array.isArray(s.features)) return 'PART SPEC: features must be a list';
+    for (var i = 0; i < s.features.length; i++) {
+      var f = s.features[i], id = f && (f.id || '#' + (i + 1));
+      if (!f || typeof f !== 'object') return 'PART SPEC: feature ' + (i + 1) + ' is not an object';
+      if (!num(f.z)) return 'PART SPEC: ' + id + ' needs z (the floor it leaves, e.g. -5)';
+      var t = f.type;
+      if (t === 'face') continue;
+      if (t === 'pocket' && f.shape === 'rect' && pair(f.x) && pair(f.y)) continue;
+      if (t === 'pocket' && f.shape === 'circle' && num(f.x) && num(f.y) && num(f.d)) continue;
+      if ((t === 'pocket' && f.shape === 'poly' || t === 'profile') && Array.isArray(f.points) && f.points.length >= 3 && f.points.every(pair)) continue;
+      if (t === 'hole' && num(f.x) && num(f.y) && num(f.d)) continue;
+      if (t === 'slot' && pair(f.from) && pair(f.to) && num(f.w)) continue;
+      if (t === 'engrave' && Array.isArray(f.path) && f.path.length >= 2 && f.path.every(pair) && num(f.w)) continue;
+      if (t === 'text' && typeof f.text === 'string' && num(f.x) && num(f.y) && num(f.h) && num(f.w)) continue;
+      return 'PART SPEC: ' + id + ' (' + t + ') is missing fields — see the spec format';
+    }
+    return null;
+  }
+
+  /* ---------- expand: lettering -> engrave strokes; a sheet of exact geometry + tool feasibility for the writer ---------- */
+  function toolKind(t) {
+    var n = String(t.name || '').toUpperCase();
+    if (/PROBE/.test(n)) return 'probe';
+    if (/FACE/.test(n)) return 'face mill';
+    if (/SPOT|CENTER|CENTRE/.test(n)) return 'spot drill';
+    if (/CHAMFER|COUNTERSINK/.test(n)) return 'chamfer cone';
+    if (/TAP/.test(n)) return 'tap';
+    if (/REAM/.test(n)) return 'reamer';
+    if (/BORE|BORING/.test(n)) return 'boring head';
+    if (/DRILL/.test(n)) return 'drill';
+    if (/BALL|KUGEL/.test(n)) return 'ball end mill';
+    if (/MILL|FRÄS|FRAS/.test(n)) return 'end mill';
+    return 'tool';
+  }
+  function expand(spec, tools) {
+    var s = JSON.parse(JSON.stringify(spec)), notes = [], lines = [];
+    var mills = (tools || []).filter(function (t) { return /end mill|ball end mill/.test(toolKind(t)); });
+    var drills = (tools || []).filter(function (t) { return toolKind(t) === 'drill'; });
+    var minMillR = mills.length ? Math.min.apply(null, mills.map(function (t) { return +t.r; })) : null;
+    var dia = function (t) { return +(2 * t.r).toFixed(3); };
+    var fmt = function (v) { return (Math.round(v * 1000) / 1000).toString(); };
+    var pts = function (L) { return L.map(function (p) { return '(' + fmt(p[0]) + ',' + fmt(p[1]) + ')'; }).join(' '); };
+    var b = s.blank;
+    lines.push('BLANK X' + b.x[0] + '..' + b.x[1] + ' Y' + b.y[0] + '..' + b.y[1] + ' Z' + b.z[0] + '..' + b.z[1]);
+    s.features = s.features.map(function (f, i) {
+      f.id = f.id || 'F' + (i + 1);
+      if (f.type === 'text') {
+        var st = strokes(f.text, { x: f.x, y: f.y, h: f.h, gap: f.gap, align: f.align });
+        if (st.missing.length) notes.push(f.id + ': no stroke glyph for ' + st.missing.join(' ') + ' (left out)');
+        if (st.x0 < b.x[0] || st.x1 > b.x[1]) notes.push(f.id + ': the lettering runs X' + fmt(st.x0) + '..' + fmt(st.x1) + ', outside the blank — make h or gap smaller');
+        var e = { id: f.id, type: 'engrave', paths: st, w: f.w, z: f.z, text: f.text };
+        lines.push(f.id + ' TEXT "' + f.text + '" cap height ' + f.h + ' groove width ' + f.w + ' floor Z' + f.z + ' — ' + st.length +
+          ' strokes, tool-centre paths (absolute mm), each: rapid above the first point, plunge, feed through the points, retract:');
+        st.forEach(function (pl, k) { lines.push('  ' + f.id + '.' + (k + 1) + ': ' + pts(pl)); });
+        var tw = mills.filter(function (t) { return Math.abs(dia(t) - f.w) < 0.05; });
+        if (!tw.length) notes.push(f.id + ': groove width ' + f.w + ' matches no end mill (' + mills.map(function (t) { return 'T' + t.t + ' Ø' + dia(t); }).join(', ') + ') — set w to one of them');
+        return e;
+      }
+      if (f.type === 'engrave') { f.paths = [f.path]; lines.push(f.id + ' ENGRAVE width ' + f.w + ' floor Z' + f.z + ': ' + pts(f.path)); }
+      else if (f.type === 'pocket' && f.shape === 'rect') {
+        lines.push(f.id + ' RECT POCKET X' + f.x[0] + '..' + f.x[1] + ' Y' + f.y[0] + '..' + f.y[1] + ' corner R' + (f.r || 0) + ' floor Z' + f.z);
+        if (minMillR != null && (f.r || 0) + 1e-6 < minMillR) notes.push(f.id + ': corner R' + (f.r || 0) + ' is smaller than the smallest end mill radius ' + minMillR + ' — corners will stay round; use r ≥ ' + minMillR);
+        var wmin = Math.min(f.x[1] - f.x[0], f.y[1] - f.y[0]);
+        var fit = mills.filter(function (t) { return dia(t) < wmin; }).map(function (t) { return 'T' + t.t + ' Ø' + dia(t); });
+        if (!fit.length) notes.push(f.id + ': no end mill fits a ' + wmin + ' mm wide pocket');
+      }
+      else if (f.type === 'pocket' && f.shape === 'circle') lines.push(f.id + ' CIRCULAR POCKET centre X' + f.x + ' Y' + f.y + ' Ø' + f.d + ' floor Z' + f.z);
+      else if (f.type === 'pocket') lines.push(f.id + ' POCKET outline ' + pts(f.points) + ' floor Z' + f.z);
+      else if (f.type === 'profile') lines.push(f.id + ' OUTSIDE PROFILE outline ' + pts(f.points) + ' — everything outside cut to Z' + f.z);
+      else if (f.type === 'hole') {
+        var exact = drills.filter(function (t) { return Math.abs(dia(t) - f.d) < 0.05; });
+        lines.push(f.id + ' HOLE X' + f.x + ' Y' + f.y + ' Ø' + f.d + ' to Z' + f.z + (exact.length ? ' — drill T' + exact[0].t : ' — no drill of that size: mill it (helix / circular pocket) or pick a drill size'));
+      }
+      else if (f.type === 'slot') lines.push(f.id + ' SLOT from (' + f.from + ') to (' + f.to + ') width ' + f.w + ' floor Z' + f.z);
+      else if (f.type === 'face') lines.push(f.id + ' FACE whole top to Z' + f.z);
+      return f;
+    });
+    return { spec: s, sheet: lines.join('\n'), notes: notes };
+  }
+
+  /* ---------- target height field ---------- */
+  function inRR(x, y, x0, x1, y0, y1, r) {          // rounded rectangle
+    if (x < x0 || x > x1 || y < y0 || y > y1) return false;
+    r = Math.min(r || 0, (x1 - x0) / 2, (y1 - y0) / 2); if (r <= 0) return true;
+    var cx = Math.min(Math.max(x, x0 + r), x1 - r), cy = Math.min(Math.max(y, y0 + r), y1 - r);
+    return (x - cx) * (x - cx) + (y - cy) * (y - cy) <= r * r + 1e-9;
+  }
+  function inPoly(x, y, P) {
+    var c = false;
+    for (var i = 0, j = P.length - 1; i < P.length; j = i++) {
+      var xi = P[i][0], yi = P[i][1], xj = P[j][0], yj = P[j][1];
+      if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c;
+    }
+    return c;
+  }
+  function segD2(px, py, ax, ay, bx, by) {
+    var dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy, t = l2 > 0 ? ((px - ax) * dx + (py - ay) * dy) / l2 : 0;
+    t = t < 0 ? 0 : t > 1 ? 1 : t; var qx = ax + t * dx - px, qy = ay + t * dy - py; return qx * qx + qy * qy;
+  }
+  /* every column a feature covers sets z = min(z, feature z); own[] = index of the feature that sets the column */
+  function target(spec, st, g) {
+    var hm = new Float32Array(g.NX * g.NY), own = new Int16Array(g.NX * g.NY);
+    hm.fill(st.z1); own.fill(-1);
+    function put(ix, iy, z, k) { var i = iy * g.NX + ix; if (z < hm[i] - 1e-9) { hm[i] = z; own[i] = k; } }
+    function cols(x0, x1, y0, y1, fn) {
+      var a = Math.max(0, Math.floor((x0 - st.x0) / g.DX)), b = Math.min(g.NX - 1, Math.ceil((x1 - st.x0) / g.DX));
+      var c = Math.max(0, Math.floor((y0 - st.y0) / g.DY)), d = Math.min(g.NY - 1, Math.ceil((y1 - st.y0) / g.DY));
+      for (var iy = c; iy <= d; iy++) for (var ix = a; ix <= b; ix++) fn(ix, iy, st.x0 + ix * g.DX, st.y0 + iy * g.DY);
+    }
+    (spec.features || []).forEach(function (f, k) {
+      var z = Math.max(f.z, st.z0 - 50);
+      if (f.type === 'face') cols(st.x0, st.x1, st.y0, st.y1, function (ix, iy) { put(ix, iy, z, k); });
+      else if (f.type === 'pocket' && f.shape === 'rect') cols(f.x[0], f.x[1], f.y[0], f.y[1], function (ix, iy, x, y) { if (inRR(x, y, f.x[0], f.x[1], f.y[0], f.y[1], f.r)) put(ix, iy, z, k); });
+      else if ((f.type === 'pocket' && f.shape === 'circle') || f.type === 'hole') {
+        var r = f.d / 2;
+        cols(f.x - r, f.x + r, f.y - r, f.y + r, function (ix, iy, x, y) { if ((x - f.x) * (x - f.x) + (y - f.y) * (y - f.y) <= r * r) put(ix, iy, z, k); });
+      }
+      else if (f.type === 'pocket' && f.shape === 'poly') {
+        var xs = f.points.map(function (p) { return p[0]; }), ys = f.points.map(function (p) { return p[1]; });
+        cols(Math.min.apply(null, xs), Math.max.apply(null, xs), Math.min.apply(null, ys), Math.max.apply(null, ys), function (ix, iy, x, y) { if (inPoly(x, y, f.points)) put(ix, iy, z, k); });
+      }
+      else if (f.type === 'profile') cols(st.x0, st.x1, st.y0, st.y1, function (ix, iy, x, y) { if (!inPoly(x, y, f.points)) put(ix, iy, z, k); });
+      else if (f.type === 'slot' || f.type === 'engrave' || f.type === 'text') {
+        var paths = f.type === 'slot' ? [[f.from, f.to]] : f.paths || (f.type === 'text' ? strokes(f.text, { x: f.x, y: f.y, h: f.h, gap: f.gap, align: f.align }) : [f.path]);
+        var rr = f.w / 2, r2 = rr * rr;
+        paths.forEach(function (pl) {
+          for (var j = 0; j + 1 < pl.length || (pl.length === 1 && j === 0); j++) {
+            var A = pl[j], B = pl[j + 1] || pl[j];
+            cols(Math.min(A[0], B[0]) - rr, Math.max(A[0], B[0]) + rr, Math.min(A[1], B[1]) - rr, Math.max(A[1], B[1]) + rr, function (ix, iy, x, y) {
+              if (segD2(x, y, A[0], A[1], B[0], B[1]) <= r2) put(ix, iy, z, k); });
+          }
+        });
+      }
+    });
+    return { hm: hm, own: own };
+  }
+
+  /* ---------- what the program really removes: every feed move stamped, exactly as the checks do ---------- */
+  function carve(res, ex, g) {
+    var st = res.stock, hm = STOCK.field(st, g);
+    ex.segs.forEach(function (s) {
+      if (s.probe || s.kind === 'rapid') return;
+      var step = Math.max(0.3, Math.min(s.toolR * 0.45, 1.5)), n = Math.max(1, Math.ceil(s.len / step));
+      for (var i = 0; i <= n; i++) {
+        var u = i / n, p = { x: s.a.x + (s.b.x - s.a.x) * u, y: s.a.y + (s.b.y - s.a.y) * u, z: s.a.z + (s.b.z - s.a.z) * u };
+        STOCK.stamp(hm, st, g, s, p, STOCK.axis(s, u));
+      }
+    });
+    return hm;
+  }
+
+  /* ---------- compare: volumes, per-feature coverage and depth, the largest misses and gouges ---------- */
+  function compare(spec, res, ex, o) {
+    o = o || {};
+    var st = res.stock, tol = o.tol != null ? o.tol : 0.1;
+    var sb = spec.blank, mism = [];
+    if (sb) ['x', 'y', 'z'].forEach(function (a) {
+      if (Math.abs(sb[a][0] - st[a + '0']) > 0.01 || Math.abs(sb[a][1] - st[a + '1']) > 0.01)
+        mism.push('blank ' + a.toUpperCase() + ' spec ' + sb[a].join('..') + ' vs BLK FORM ' + st[a + '0'] + '..' + st[a + '1']);
+    });
+    var g = o.grid || STOCK.grid(st, ex.segs);
+    var T = target(spec, st, g), A = carve(res, ex, g), cell = g.DX * g.DY, N = g.NX * g.NY;
+    var feats = spec.features || [], per = feats.map(function () { return { cols: 0, ok: 0, high: 0, deep: 0, miss: 0, worst: 0, wx: 0, wy: 0, maxDeep: 0 }; });
+    var inter = 0, uni = 0, removeT = 0, removeA = 0, missing = 0, extra = 0;
+    var bad = new Int8Array(N);
+    function edge(i) { var ix = i % g.NX, z = T.hm[i];
+      return (ix > 0 && Math.abs(T.hm[i - 1] - z) > 0.01) || (ix < g.NX - 1 && Math.abs(T.hm[i + 1] - z) > 0.01) ||
+             (i >= g.NX && Math.abs(T.hm[i - g.NX] - z) > 0.01) || (i + g.NX < N && Math.abs(T.hm[i + g.NX] - z) > 0.01); }                                   // 1 = left high (missing), 2 = cut too deep / where it should stay (gouge)
+    for (var i = 0; i < N; i++) {
+      var t = Math.max(T.hm[i], st.z0), a = Math.max(A[i], st.z0), rt = st.z1 - t, ra = st.z1 - a;
+      removeT += rt; removeA += ra; inter += Math.min(rt, ra); uni += Math.max(rt, ra);
+      var d = a - t, k = T.own[i];
+      /* a column on a feature edge (a neighbour has another target height) is within half a cell of the
+         outline: grid rounding, not a machining error — it counts in the overlap but not as a miss or a gouge */
+      var onEdge = Math.abs(d) > tol && edge(i); if (onEdge) d = 0;
+      if (d > tol) { missing += d; bad[i] = 1; } else if (d < -tol) { extra += -d; bad[i] = 2; }
+      if (k >= 0 && !onEdge) {
+        var P = per[k]; P.cols++;
+        if (Math.abs(d) <= tol) P.ok++; else if (d > 0) { P.high++; P.miss += d; if (d > P.worst) { P.worst = d; P.wx = st.x0 + (i % g.NX) * g.DX; P.wy = st.y0 + Math.floor(i / g.NX) * g.DY; } }
+        else { P.deep++; if (-d > P.maxDeep) P.maxDeep = -d; }
+      }
+    }
+    var score = uni > 1e-9 ? 100 * inter / uni : null;
+    /* connected regions of misses / gouges, largest first */
+    function regions(kind) {
+      var seen = new Uint8Array(N), out = [];
+      for (var i0 = 0; i0 < N; i0++) {
+        if (bad[i0] !== kind || seen[i0]) continue;
+        var q = [i0], vol = 0, x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9, worst = 0, zt = 0, za = 0, n = 0; seen[i0] = 1;
+        while (q.length) {
+          var i = q.pop(), ix = i % g.NX, iy = (i - ix) / g.NX, x = st.x0 + ix * g.DX, y = st.y0 + iy * g.DY;
+          var dd = Math.abs(Math.max(A[i], st.z0) - Math.max(T.hm[i], st.z0)); vol += dd * cell; n++;
+          if (dd > worst) { worst = dd; zt = Math.max(T.hm[i], st.z0); za = Math.max(A[i], st.z0); }
+          if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+          [i - 1, i + 1, i - g.NX, i + g.NX].forEach(function (j) {
+            if (j < 0 || j >= N || seen[j] || bad[j] !== kind) return;
+            if ((j === i - 1 && ix === 0) || (j === i + 1 && ix === g.NX - 1)) return;
+            seen[j] = 1; q.push(j); });
+        }
+        if (vol >= Math.max(0.5, cell * 2)) out.push({ vol: vol, x0: x0, x1: x1, y0: y0, y1: y1, worst: worst, zTarget: zt, zActual: za, cols: n });
+      }
+      return out.sort(function (p, q2) { return q2.vol - p.vol; });
+    }
+    var miss = regions(1), gouge = regions(2);
+    var f1 = function (v) { return (Math.round(v * 10) / 10).toFixed(1); }, f2 = function (v) { return (Math.round(v * 100) / 100).toString(); };
+    var cm3 = function (v) { return v >= 1000 ? f2(v / 1000) + ' cm³' : f1(v) + ' mm³'; };
+    var featureRows = feats.map(function (f, k) {
+      var P = per[k], cov = P.cols ? 100 * P.ok / P.cols : 0;
+      return { id: f.id || 'F' + (k + 1), type: f.type, coverage: cov, cols: P.cols, high: P.high, deep: P.deep, missing: P.miss * cell, worst: P.worst, at: [P.wx, P.wy], maxDeep: P.maxDeep };
+    });
+    var L = [];
+    L.push('MEASURED: the simulator machined your program and compared the result with your part spec (grid ' + f2(g.DX) + ' × ' + f2(g.DY) + ' mm, tolerance ' + tol + ' mm).');
+    L.push('Match ' + (score == null ? '—' : f1(score) + ' %') + ' (removed-volume overlap). Spec removes ' + cm3(removeT * cell) + ', program removes ' + cm3(removeA * cell) +
+      '; material left that should be gone ' + cm3(missing * cell) + '; material cut that should stay ' + cm3(extra * cell) + '.');
+    mism.forEach(function (m) { L.push('BLANK MISMATCH: ' + m); });
+    featureRows.forEach(function (r, k) {
+      var f = feats[k];
+      var s = r.id + ' ' + f.type + (f.text ? ' "' + f.text + '"' : '') + ' floor Z' + f.z + ': ' + (r.cols ? f1(r.coverage) + ' % at depth' : 'covers no grid column (too small?)');
+      if (r.high) s += '; ' + f1(100 * r.high / r.cols) + ' % left high (worst +' + f2(r.worst) + ' mm near X' + f1(r.at[0]) + ' Y' + f1(r.at[1]) + ')';
+      if (r.deep) s += '; ' + f1(100 * r.deep / r.cols) + ' % deeper than the floor (up to ' + f2(r.maxDeep) + ' mm)';
+      L.push(s);
+    });
+    var box = function (r) { return 'X' + f1(r.x0) + '..' + f1(r.x1) + ' Y' + f1(r.y0) + '..' + f1(r.y1); };
+    miss.slice(0, 5).forEach(function (r) { L.push('NOT CUT ' + box(r) + ': ' + cm3(r.vol) + ', spec floor Z' + f2(r.zTarget) + ' but the surface is at Z' + f2(r.zActual)); });
+    gouge.slice(0, 5).forEach(function (r) { L.push('CUT WHERE IT SHOULD NOT ' + box(r) + ': ' + cm3(r.vol) + ', spec keeps Z' + f2(r.zTarget) + ' but the program cut to Z' + f2(r.zActual)); });
+    return { score: score, removedTarget: removeT * cell, removedActual: removeA * cell, missing: missing * cell, extra: extra * cell,
+      features: featureRows, notCut: miss, gouges: gouge, grid: g, blankMismatch: mism, text: L.join('\n'), target: T, actual: A };
+  }
+
+  return { FONT: FONT, strokes: strokes, parse: parse, validate: validate, expand: expand, toolKind: toolKind,
+    target: target, carve: carve, compare: compare };
+})();
+if (typeof module !== 'undefined') module.exports = TNC_PART;
+
+</script>
 <script>/* ===== AI program generation (OpenRouter) ===== */
 /* ============================================================
    TNC_AI — the third way to make a program: describe it, an AI writes it.
@@ -14507,19 +15011,58 @@ var TNC_AI = (function () {
     if (o.maxTokens) b.max_tokens = o.maxTokens;
     return b;
   }
+  /* chat, and when the answer stops at max_tokens, ask for the rest (at most twice) and join the pieces.
+     When only reasoning fit in the budget, try once more with twice the budget. */
+  var TOKEN_CAP = 64000;
+  function chatFull(o, onCont) {
+    var parts = [], cost = 0, conts = 0;
+    function once(req) {
+      return chat(req).then(function (r) {
+        cost += r.cost; parts.push(r.text);
+        if (r.finish === 'length' && conts < 2) {
+          conts++; if (onCont) onCont({ n: conts, chars: parts.join('').length });
+          var msgs = o.messages.concat([{ role: 'assistant', content: parts.join('') },
+            { role: 'user', content: 'Your answer was cut off by the length limit. Continue EXACTLY where it stopped: the next characters only — no repetition, no explanation, do not reopen a code fence that is already open.' }]);
+          return once(Object.assign({}, o, { messages: msgs }));
+        }
+        return { text: parts.join(''), cost: cost, finish: r.finish, continued: conts };
+      }, function (e) {
+        if (e && e.cutOff && !o._retried && (o.maxTokens || 0) < TOKEN_CAP) {
+          if (onCont) onCont({ n: 0, retry: true, maxTokens: Math.min(TOKEN_CAP, (o.maxTokens || 16000) * 2) });
+          return chatFull(Object.assign({}, o, { _retried: true, maxTokens: Math.min(TOKEN_CAP, (o.maxTokens || 16000) * 2) }), onCont)
+            .then(function (r) { r.cost += cost; return r; });
+        }
+        /* a dropped connection or a provider hiccup (5xx): one more try after a short pause; never for 4xx or a cancel */
+        var transient = e && e.name !== 'AbortError' && !e.cutOff && !(e.status >= 400 && e.status < 500) && !/TIMED OUT/.test(e.message || '');
+        if (transient && !o._netRetried) {
+          if (onCont) onCont({ n: 0, network: true, error: String(e.message || e) });
+          return new Promise(function (r) { setTimeout(r, o.retryDelayMs != null ? o.retryDelayMs : 2000); })
+            .then(function () { return chatFull(Object.assign({}, o, { _netRetried: true }), onCont); })
+            .then(function (r) { r.cost += cost; return r; });
+        }
+        throw e;
+      });
+    }
+    return once(o);
+  }
+
   function chat(o) {
     var onProgress = o.onProgress || function () {};
-    var timeoutMs = o.timeoutMs || 600000; // 10 min: reasoning models can run long before the first content token
-    var text = '', reasoning = '', usage = null, streamErr = null, timedOut = false;
+    /* idle timeout: nothing streamed for this long = stuck (reasoning models stream their thinking, so a working
+       model keeps the line busy); plus a hard cap for the whole answer. A long program that streams steadily is fine. */
+    var timeoutMs = o.timeoutMs || 180000, hardMs = o.hardTimeoutMs || 1800000;
+    var text = '', reasoning = '', usage = null, streamErr = null, timedOut = false, finish = null;
     var start = Date.now();
     var ac = new AbortController();
-    var to = setTimeout(function () { timedOut = true; ac.abort(); }, timeoutMs);
+    var to = null, hard = setTimeout(function () { timedOut = true; ac.abort(); }, hardMs);
+    function alive() { clearTimeout(to); to = setTimeout(function () { timedOut = true; ac.abort(); }, timeoutMs); }
+    alive();
     if (o.signal) { if (o.signal.aborted) ac.abort(); else o.signal.addEventListener('abort', function () { ac.abort(); }); }
     var tick = setInterval(function () {
       onProgress({ secs: (Date.now() - start) / 1000, chars: text.length, reasoningChars: reasoning.length,
         stage: text.length ? 'writing' : 'thinking', text: text, reasoningTail: reasoning.slice(-400) });
     }, 500);
-    function cleanup() { clearTimeout(to); clearInterval(tick); }
+    function cleanup() { clearTimeout(to); clearTimeout(hard); clearInterval(tick); }
     function onEvent(obj) {
       if (obj.error) { streamErr = streamErr || dataError(obj); return; }
       var d = obj.choices && obj.choices[0] && obj.choices[0].delta;
@@ -14527,6 +15070,8 @@ var TNC_AI = (function () {
         if (d.content) text += d.content;
         if (d.reasoning) reasoning += d.reasoning; // OpenRouter puts reasoning-model "thinking" tokens here
       }
+      var fr = obj.choices && obj.choices[0] && obj.choices[0].finish_reason;
+      if (fr) finish = fr;                       // 'length' = cut off by max_tokens (reasoning counts against it)
       if (obj.usage) usage = obj.usage;
     }
 
@@ -14543,7 +15088,7 @@ var TNC_AI = (function () {
         return reader.read().then(function (r) {
           if (streamErr) throw streamErr;
           if (r.done) { if (buf) sseLine(buf, onEvent); return; }
-          buf = sseFeed(buf, decoder.decode(r.value, { stream: true }), onEvent);
+          alive(); buf = sseFeed(buf, decoder.decode(r.value, { stream: true }), onEvent);
           if (streamErr) throw streamErr;
           return pump();
         });
@@ -14552,13 +15097,14 @@ var TNC_AI = (function () {
     }).then(function () {
       cleanup();
       if (streamErr) throw streamErr;
-      if (!text && reasoning) { var e = new Error('THE MODEL ANSWERED WITH REASONING ONLY, NO FINAL TEXT (' + reasoning.length + ' chars) — try a lower reasoning effort or a non-reasoning model'); e.status = 502; throw e; }
+      if (!text && reasoning) { var e = new Error('THE MODEL ANSWERED WITH REASONING ONLY, NO FINAL TEXT (' + reasoning.length + ' chars)' +
+        (finish === 'length' ? ' — THE TOKEN LIMIT RAN OUT WHILE IT WAS STILL THINKING' : '') + ' — raise the answer limit or lower the reasoning effort'); e.status = 502; e.cutOff = finish === 'length'; throw e; }
       if (!text) { var e2 = new Error('EMPTY ANSWER FROM THE MODEL'); e2.status = 502; throw e2; }
-      return { text: text, cost: (usage && +usage.cost) || 0 };
+      return { text: text, cost: (usage && +usage.cost) || 0, finish: finish, usage: usage };
     }).catch(function (e) {
       cleanup();
       if (e && e.name === 'AbortError') {
-        if (timedOut) { var te = new Error('TIMED OUT WAITING FOR THE MODEL (' + Math.round((Date.now() - start) / 1000) + 's)'); te.status = 0; throw te; }
+        if (timedOut) { var te = new Error('TIMED OUT WAITING FOR THE MODEL (' + Math.round((Date.now() - start) / 1000) + ' s; nothing for ' + Math.round(timeoutMs / 1000) + ' s, or over the ' + Math.round(hardMs / 60000) + ' min cap)'); te.status = 0; throw te; }
         throw e; // caller cancelled: keep e.name === 'AbortError' so the UI shows CANCELLED
       }
       throw e;
@@ -14582,7 +15128,56 @@ var TNC_AI = (function () {
     return (tools || []).map(function (t) { return 'T' + t.t + ' ' + t.name + ' R' + (+t.r); }).join(' | ');
   }
 
-  function system(tools) {
+  /* The tool table as constraints, not names: what each cutter can and cannot do, how deep it reaches before
+     its holder touches the part, the smallest inside corner and groove it makes, and a safe S / F.
+     o: {holderA (mm, spindle face to collet nose; default 100 = ISO 50), sMax, fMax} */
+  var PART = (typeof TNC_PART !== 'undefined' && TNC_PART) || (typeof require !== 'undefined' ? (function () { try { return require('./part.js'); } catch (e) { return null; } })() : null);
+  function kindOf(t) { return PART ? PART.toolKind(t) : 'tool'; }
+  function toolSheet(tools, o) {
+    o = o || {};
+    var A = o.holderA || 100, sMax = o.sMax || 6000, rows = [];
+    (tools || []).forEach(function (t) {
+      var D = +(2 * t.r).toFixed(3), k = kindOf(t), L = +t.l || 0;
+      var reach = L > 0 ? Math.max(L - A, 0.25 * L) - 1 : null;
+      var z = /face/.test(k) ? 5 : /end mill/.test(k) ? 3 : 2;
+      var vc = /face/.test(k) ? 300 : /end mill/.test(k) ? 200 : /drill/.test(k) ? 80 : 60;
+      var S = Math.min(sMax, Math.round(vc * 1000 / (Math.PI * D) / 100) * 100);
+      var F = Math.floor(0.8 * (0.012 * D + 0.005) * S * z / 10) * 10;
+      var line = 'T' + t.t + ' ' + t.name + ' — ' + k + ' Ø' + D + (L > 0 ? ', reaches ' + reach.toFixed(1) + ' mm below the top before the holder touches' : '');
+      if (/end mill/.test(k)) line += '. Flat bottom (ball: round). Groove/slot width = ' + D + '; smallest inside corner R' + (+t.r) +
+        '. Plunge straight max 1 mm per step at F150, deeper by ramping. Depth per pass ≤ ' + (D / 2) + ' slotting, ≤ ' + D + ' side cutting; step-over ≤ ' + (0.6 * D).toFixed(1) + '. S' + S + ' F' + F + '.';
+      else if (/face/.test(k)) line += '. Facing only: depth per pass ≤ 2, step-over ≤ ' + (0.7 * D).toFixed(0) + ', start and end the pass outside the blank. S' + S + ' F' + F + '.';
+      else if (k === 'drill') line += '. Axial only (CYCL DEF 200 / 203 / 205), hole Ø = ' + D + ' exactly; the 118° point goes ' + (0.3 * D).toFixed(1) + ' deeper than the programmed depth. S' + S + ' Q206=' + Math.round(S * D * 0.012) + '.';
+      else if (k === 'spot drill') line += '. 90° point: spot / countersink depth d makes a Ø 2·d cone; axial only.';
+      else if (k === 'chamfer cone') line += '. 45° cone: an edge chamfer of width w = run the tip along the edge at Z-w (radius comp. off), or deburr.';
+      else if (k === 'tap') line += '. Tapping only (CYCL DEF 207 rigid / 206), into a hole drilled to the core Ø first; F = S × pitch.';
+      else if (k === 'reamer') line += '. Reaming only (CYCL DEF 201) into a hole drilled 0.2–0.3 mm under size.';
+      else if (k === 'boring head') line += '. Boring only (CYCL DEF 202) to finish an existing hole.';
+      else if (k === 'probe') line += '. Touch probe: NEVER cuts.';
+      rows.push(line);
+    });
+    return rows.join('\n');
+  }
+
+  /* The part spec the model plans before it writes (TNC_PART). */
+  var SPEC_FORMAT = [
+'PART SPEC (```partspec, JSON): the finished part as features, mm, same datum as the program, top face Z+0, z = the floor each feature leaves.',
+'{"blank":{"x":[0,120],"y":[0,80],"z":[-15,0]},"features":[',
+' {"id":"F1","type":"face","z":-0.5},',
+' {"id":"P1","type":"pocket","shape":"rect","x":[30,90],"y":[25,55],"r":3,"z":-6},       r = corner radius (≥ the cutter radius)',
+' {"id":"P2","type":"pocket","shape":"circle","x":60,"y":40,"d":30,"z":-5},',
+' {"id":"P3","type":"pocket","shape":"poly","points":[[10,10],[40,10],[25,35]],"z":-4},',
+' {"id":"H1","type":"hole","x":10,"y":10,"d":8.5,"z":-20},                           through: z below the blank bottom',
+' {"id":"S1","type":"slot","from":[10,40],"to":[50,40],"w":6,"z":-3},                  w = slot width',
+' {"id":"E1","type":"engrave","path":[[10,10],[30,10],[30,20]],"w":3,"z":-1},           tool-centre polyline, w = cutter Ø',
+' {"id":"T1","type":"text","text":"SMITH","x":10,"y":20,"h":20,"w":3,"z":-1.5,"align":"left"},  capital letters: x,y = baseline start (align center: x = middle), h = cap height, w = cutter Ø',
+' {"id":"O1","type":"profile","points":[[5,5],[115,5],[115,75],[5,75]],"z":-10}         outside contour: everything outside the outline cut down to z',
+']}',
+'Text is engraved in the simulator\'s single-stroke capitals; you get the exact stroke coordinates back, so do not draw letters yourself.'
+  ].join('\n');
+
+  function system(tools, opts) {
+    opts = opts || {};
     return [
 'You write HEIDENHAIN TNC 426 / TNC 430 conversational (Klartext) programs, NC software 280 476, for a browser simulator.',
 'Its interpreter accepts the syntax below; anything else is rejected with an error. Units are mm.',
@@ -14651,61 +15246,125 @@ var TNC_AI = (function () {
 'Pocket, dotted form, called at the pocket centre at Z = surface + set-up:',
 'CYCL DEF 4.0 POCKET MILLING / 4.1 SET UP 2 / 4.2 DEPTH -10 / 4.3 PECKG 3 F100 / 4.4 X60 / 4.5 Y40 / 4.6 F600 DR+ RADIUS 0',
 '',
-'TOOL TABLE (T name radius) — nothing else exists:',
-toolLine(tools),
+'TOOL TABLE — these tools and nothing else. Read the limits: a feature no tool can make must be changed, not faked.',
+toolSheet(tools, opts),
 'Cones (spot, chamfer) cut a 45 degree flank. Probes never cut.',
+'',
+'NOT AVAILABLE in this control / simulator (rejected or wrong): FK free contour programming, cycles 3 5 12 13 14 20-25 (SL contour cycles) 26 27 28,',
+'cycles 251+ (iTNC 530 only), PLANE, M128, M91/M92 moves, TOOL DEF inside the program for a tool not in the table, INCH programs.',
 '',
 'SAFETY RULES THE SIMULATOR ENFORCES (a violation is reported as a crash)',
 '1. No FMAX into uncut stock: FMAX over the part only at Z+2 or higher; feed into the cut; FMAX back to Z+2 before any XY rapid.',
 '2. No cutting move without M3/M4 since the last TOOL CALL.',
 '3. Going below the blank is allowed (through holes, taps); the holder must never reach the part: stick-out = tool length L minus the holder A dimension.',
 '4. Chip load for end mills (3 flutes) and face mills (5): F / (S x flutes) <= 0.012 x D + 0.005.',
-'   Safe: T9 S8000 F900 | T4 S3000 F500 | T5 S3000 F1000 | T6 S1200 F2000. Drills: T1 S2000 Q206=+100, T2 S1800 Q206=+150.',
+'   Each tool line in the table gives a safe S and F for it.',
 'Plunge at F100-F200. Keep every cut within the blank.',
 '',
 'ERRORS',
 'If you get an error report from the simulator (each with a block number; BEGIN PGM is block 0; a CYCL DEF with its Q lines is one block),',
 'find the cause and return the COMPLETE corrected program, same format, nothing outside the fence.'
-    ].join('\n');
+    ].join('\n') + (opts.plan ? '\n\nACCURACY\nYou work in two steps: first a part spec (the finished geometry), then the program. The simulator machines the program on a height field, measures the result against the spec in mm, and sends you the misses and gouges by position. Program the spec exactly: clear the WHOLE pocket area (step-over ≤ 0.6 × cutter Ø, finish the walls with radius compensation), reach every floor, keep the walls where the spec puts them.\n\n' + SPEC_FORMAT : '');
   }
   var FALLBACK_SYSTEM = system([]);
 
+  /* generate({key, model, prompt, system, tools, verify, measure, plan, rounds, goal, onStep, signal, reasoning, maxTokens, timeoutMs})
+     verify(src) -> {ok, errs, crashes, warns, text}: the simulator's checks.
+     plan + measure(spec, src) -> TNC_PART.compare report: the model first writes a part spec, the program is measured against it,
+     and up to `rounds` refinement rounds send errors / misses / gouges back. The best program wins (checked clean first, then match %).
+     onStep phases: 'request' {attempt, stage}, 'progress', 'continued' {n}, 'planned' {spec, sheet, notes}, 'checked' {report, src},
+     'measured' {measure, src}. */
   function generate(o) {
-    var model = o.model || DEFAULT_MODEL, onStep = o.onStep || function () {}, repairs = o.maxRepairs == null ? 1 : o.maxRepairs;
-    var messages = [{ role: 'system', content: o.system || system(o.tools) },
-                    { role: 'user', content: 'Write the program for this part:\n\n' + o.prompt }];
-    var cost = 0, attempt = 0, last = null;
-    function step() {
-      var req = { key: o.key, model: model, messages: messages, signal: o.signal, timeoutMs: o.timeoutMs, reasoning: o.reasoning, maxTokens: o.maxTokens };
-      onStep({ phase: 'request', attempt: attempt, body: JSON.parse(JSON.stringify(requestBody(req))) });
-      return chat(Object.assign(req, {
-        onProgress: function (p) { onStep({ phase: 'progress', attempt: attempt, secs: p.secs, chars: p.chars, reasoningChars: p.reasoningChars, stage: p.stage, text: p.text, reasoningTail: p.reasoningTail }); }
-      })).then(function (r) {
-        cost += r.cost;
-        var src = extract(r.text);
+    var model = o.model || DEFAULT_MODEL, onStep = o.onStep || function () {};
+    var plan = !!(o.plan && o.measure && PART), rounds = o.rounds != null ? o.rounds : o.maxRepairs != null ? o.maxRepairs : 1;
+    var goal = o.goal || 95, cost = 0, attempt = 0, best = null, spec = null;
+    var sys = { role: 'system', content: o.system || system(o.tools, { plan: plan }) };
+    var ask = { role: 'user', content: 'Write the program for this part:\n\n' + o.prompt };
+    function call(messages, stage) {
+      var req = { key: o.key, model: model, messages: messages, signal: o.signal, timeoutMs: o.timeoutMs, reasoning: o.reasoning, maxTokens: o.maxTokens, retryDelayMs: o.retryDelayMs };
+      onStep({ phase: 'request', attempt: attempt, stage: stage, body: JSON.parse(JSON.stringify(requestBody(req))) });
+      return chatFull(Object.assign(req, {
+        onProgress: function (p) { onStep({ phase: 'progress', attempt: attempt, stage: p.stage, secs: p.secs, chars: p.chars, reasoningChars: p.reasoningChars, text: p.text, reasoningTail: p.reasoningTail }); }
+      }), function (c) { onStep({ phase: 'continued', attempt: attempt, n: c.n, retry: !!c.retry, maxTokens: c.maxTokens, network: !!c.network, error: c.error }); })
+        .then(function (r) { cost += r.cost; return r; });
+    }
+    function rank(c) { return (c.report.ok ? 1000 : 0) + (c.measure && c.measure.score != null ? c.measure.score : 0) - c.report.errs.length - c.report.crashes.length; }
+    function done() { if (!best) { var e = new Error('THE MODEL DID NOT RETURN A PROGRAM'); e.status = 0; throw e; }
+      return { src: best.src, report: best.report, measure: best.measure, spec: spec, cost: cost, attempts: attempt + 1 }; }
+
+    /* step 1: the part spec (one retry when it does not parse) */
+    function planStep(retry) {
+      var msgs = [sys, { role: 'user', content: ask.content + '\n\nSTEP 1 of 2: reply with ONLY the part spec in one ```partspec fence — the finished geometry, every feature, ' +
+        'blank = the BLK FORM you will program. Check each feature against the tool table limits (corner radii, groove widths, drill sizes, reach). No program yet.' +
+        (retry ? '\n\nYour last spec was refused: ' + retry : '') }];
+      return call(msgs, 'plan').then(function (r) {
+        var pr = PART.parse(r.text);
+        if (pr.error && !retry) return planStep(pr.error);
+        if (pr.error) { onStep({ phase: 'planned', attempt: attempt, error: pr.error }); return null; }
+        var ex = PART.expand(pr.spec, o.tools);
+        spec = ex.spec;
+        onStep({ phase: 'planned', attempt: attempt, spec: spec, sheet: ex.sheet, notes: ex.notes });
+        return { answer: r.text, ex: ex };
+      });
+    }
+    /* step 2..n: write, check, measure, refine */
+    function writeMsgs(p, last, feedback) {
+      var m = [sys, ask];
+      if (p) m.push({ role: 'assistant', content: '```partspec\n' + JSON.stringify(stripPaths(spec)) + '\n```' },
+        { role: 'user', content: 'STEP 2 of 2: write the program for exactly this spec. Exact geometry:\n' + p.ex.sheet +
+          (p.ex.notes.length ? '\n\nFEASIBILITY — fix these (send a corrected ```partspec first if the spec changes):\n- ' + p.ex.notes.join('\n- ') : '') +
+          '\n\nReply with the program in one ```klartext fence' + (p.ex.notes.length ? ' (a corrected ```partspec before it if needed)' : '') + '.' });
+      if (last) m.push({ role: 'assistant', content: (last.specText ? last.specText + '\n' : '') + '```klartext\n' + last.src + '\n```' }, { role: 'user', content: feedback });
+      return m;
+    }
+    function write(p, last, feedback) {
+      return call(writeMsgs(p, last, feedback), last ? 'refine' : 'write').then(function (r) {
+        var src = extract(r.text), specText = null;
+        if (plan && /```partspec/i.test(r.text)) {             // the model corrected its spec
+          var pr = PART.parse(r.text);
+          if (!pr.error) { var ex = PART.expand(pr.spec, o.tools); spec = ex.spec; p = { ex: ex }; specText = '```partspec\n' + JSON.stringify(stripPaths(spec)) + '\n```';
+            onStep({ phase: 'planned', attempt: attempt, spec: spec, sheet: ex.sheet, notes: ex.notes, revised: true }); }
+        }
         if (!src) {
           var rep0 = { ok: false, errs: ['NO PROGRAM IN THE ANSWER'], crashes: [], warns: [], text: 'NO PROGRAM IN THE ANSWER' };
           onStep({ phase: 'checked', attempt: attempt, report: rep0 });
-          if (attempt >= repairs) { var e = new Error('THE MODEL DID NOT RETURN A PROGRAM'); e.status = 0; throw e; }
-          messages.push({ role: 'assistant', content: r.text });
-          messages.push({ role: 'user', content: 'Your answer contained no program. Reply with the complete program in one ```klartext fence only.' });
-          attempt++; return step();
+          if (attempt >= rounds) return done();
+          attempt++;
+          return write(p, last || { src: '', specText: null }, 'Your answer contained no program. Reply with the complete program in one ```klartext fence.');
         }
         var report = o.verify ? o.verify(src) : { ok: true, errs: [], crashes: [], warns: [], text: '' };
-        last = { src: src, report: report };
         onStep({ phase: 'checked', attempt: attempt, report: report, src: src });
-        if (report.ok || attempt >= repairs) return { src: src, report: report, cost: cost, attempts: attempt + 1 };
-        messages.push({ role: 'assistant', content: '```klartext\n' + src + '\n```' });
-        messages.push({ role: 'user', content: 'The simulator reported:\n' + report.text + '\n\nReturn the complete corrected program.' });
-        attempt++; return step();
+        var meas = null;
+        if (plan && spec && report.errs.length === 0) {
+          try { meas = o.measure(spec, src); } catch (e) { meas = null; }
+          if (meas) onStep({ phase: 'measured', attempt: attempt, measure: meas, src: src });
+        }
+        var cand = { src: src, report: report, measure: meas, specText: specText };
+        if (!best || rank(cand) > rank(best)) best = cand;
+        var good = report.ok && (!meas || meas.score == null || meas.score >= goal);
+        if (good || attempt >= rounds) return done();
+        attempt++;
+        var fb = (report.ok ? '' : 'The simulator reported:\n' + report.text + '\n\n') +
+          (meas ? meas.text + '\n\nChange the program so the cut matches the spec: cut what is NOT CUT, stop cutting where it SHOULD NOT. ' +
+            'If the spec itself does not describe what was asked, send a corrected ```partspec before the program.\n\n' : '') +
+          (report.warns && report.warns.length && report.ok ? 'Warnings:\n' + report.warns.join('\n') + '\n\n' : '') +
+          'Return the complete corrected program.';
+        /* a refinement that fails (timeout, network, provider error) keeps the best program so far; a cancel does not */
+        return write(p, cand, fb).catch(function (e) {
+          if (e && e.name === 'AbortError') throw e;
+          onStep({ phase: 'failed', attempt: attempt, error: String(e && e.message || e) });
+          return done();
+        });
       });
     }
-    return step();
+    if (!plan) return write(null, null, null);
+    return planStep(null).then(function (p) { attempt = 0; return write(p, null, null); });
   }
+  function stripPaths(sp) { return { blank: sp.blank, features: (sp.features || []).map(function (f) { var c = Object.assign({}, f); delete c.paths; if (c.text != null && c.type === 'engrave') c.type = 'text'; return c; }) }; }
 
   return { DEFAULT_MODEL: DEFAULT_MODEL, RECOMMENDED: RECOMMENDED, FRONTIER_PROVIDERS: FRONTIER_PROVIDERS, FALLBACK_SYSTEM: FALLBACK_SYSTEM,
     listModels: listModels, providerName: providerName, _normalize: normalize, _frontier: frontier,
-    generate: generate, testKey: testKey, extract: extract, system: system,
+    generate: generate, toolSheet: toolSheet, chatFull: chatFull, testKey: testKey, extract: extract, system: system,
     _sseLine: sseLine, _sseFeed: sseFeed /* internal: exposed only so tests can drive the SSE parser without a network call */ };
 })();
 if (typeof module !== 'undefined') module.exports = TNC_AI;
@@ -15233,7 +15892,31 @@ var TNC_I18N = (function () {
       'title.newprogram': 'New program',
       'title.help': 'Help',
       'title.profile': 'Profile',
-      'title.dev': 'DEV'
+      'title.dev': 'DEV',
+      /* shell: phones (workspaces, drawer, dock) and accessible names */
+      'btn.menu': 'Menu',
+      'btn.close': 'Close',
+      'drawer.title': 'Menu',
+      'aria.modes': 'Operating mode',
+      'aria.workspace': 'Workspace',
+      'aria.dock': 'Soft keys',
+      'aria.canvas': '3-D test graphics: blank, tool and tool path',
+      'ws.program': 'Program',
+      'ws.graphics': 'Graphics',
+      'ws.status': 'Status',
+      'mode.edit.s': 'PRG EDIT',
+      'mode.test.s': 'TEST',
+      'mode.single.s': 'SINGLE',
+      'mode.full.s': 'FULL',
+      'sk.prev': 'Previous soft-key row',
+      'sk.next': 'Next soft-key row',
+      'sk.row': 'Row',
+      'hdr.errdesc': 'Opens the checks in the Status workspace',
+      'chk.clear': 'all clear',
+      'chk.error': 'error',
+      'chk.errors': 'errors',
+      'chk.warning': 'warning',
+      'chk.warnings': 'warnings'
     },
     sv: {
       /* unofficial Swedish -- see file header */
@@ -15275,7 +15958,30 @@ var TNC_I18N = (function () {
       'title.newprogram': 'Nytt program',
       'title.help': 'Hjälp',
       'title.profile': 'Profil',
-      'title.dev': 'UTV'
+      'title.dev': 'UTV',
+      'btn.menu': 'Meny',
+      'btn.close': 'Stäng',
+      'drawer.title': 'Meny',
+      'aria.modes': 'Driftläge',
+      'aria.workspace': 'Arbetsyta',
+      'aria.dock': 'Funktionstangenter',
+      'aria.canvas': '3D-testgrafik: ämne, verktyg och verktygsbana',
+      'ws.program': 'Program',
+      'ws.graphics': 'Grafik',
+      'ws.status': 'Status',
+      'mode.edit.s': 'REDIGERA',
+      'mode.test.s': 'TEST',
+      'mode.single.s': 'ENKEL',
+      'mode.full.s': 'HEL',
+      'sk.prev': 'Föregående rad funktionstangenter',
+      'sk.next': 'Nästa rad funktionstangenter',
+      'sk.row': 'Rad',
+      'hdr.errdesc': 'Öppnar kontrollerna i arbetsytan Status',
+      'chk.clear': 'inga fel',
+      'chk.error': 'fel',
+      'chk.errors': 'fel',
+      'chk.warning': 'varning',
+      'chk.warnings': 'varningar'
     }
   };
 
@@ -15360,6 +16066,7 @@ var TNC_I18N = (function () {
     lang = l;
     api.lang = l;
     try { if (typeof localStorage !== 'undefined') localStorage.setItem(LS_KEY, l); } catch (e) {}
+    if (typeof document !== 'undefined' && document.documentElement) document.documentElement.lang = l;
     applyDom();
   }
 
@@ -15939,7 +16646,7 @@ function stepBlock(){                                   // NC START in SINGLE-BL
   S.k=k+1; S.cursor=S.k<E.length?E[S.k]:Math.max(0,S.res.blocks.length-1); S.execB=S.cursor; markRows(true); flowHighlight(); traceFor(S.cursor);
   setState(S.k>=E.length?'PROGRAM END':'SINGLE BLOCK');
 }
-function setState(s){ $('run-state').textContent=s; }
+function setState(s){ $('run-state').textContent=s; if(s!==setState.last){ setState.last=s; hdrStat(); announce(s); } }
 
 /* ================= alarms ================= */
 const alarmEl=$('alarm'); let alarmT=0;
@@ -15959,6 +16666,7 @@ function showAlarm(kind,title,text,ms){
   alarmEl.innerHTML=`<b>${esc(title)}</b><span>${esc(text)}</span><button type="button" aria-label="Acknowledge">CE</button>`;
   alarmEl.querySelector('button').onclick=()=>hideAlarm();
   clearTimeout(alarmT); if(ms) alarmT=setTimeout(()=>hideAlarm(kind),ms);
+  if(isPhone()&&paneNow()!=='gfx') say(title+' · '+text);
 }
 function hideAlarm(kind){ if(kind&&!alarmEl.classList.contains(kind)) return; alarmEl.hidden=true; }
 
@@ -15992,7 +16700,8 @@ function markRows(scroll){
   const fset=new Set(S.focus||[]);
   for(let i=0;i<rows.length;i++) rows[i].classList.toggle('focus', fset.size>0 && fset.has(S.res.blocks[i].n) && !S.res.blocks[i].indent);
   if(scroll!==false){ const el=rows[S.cursor]; if(el){ const r=el.offsetTop, h=crt.clientHeight;
-    if(r<crt.scrollTop+12||r>crt.scrollTop+h-30) crt.scrollTop=r-h/2; } }
+    if(isPhone()){ if(paneNow()==='pgm') el.scrollIntoView({block:'nearest'}); }
+    else if(r<crt.scrollTop+12||r>crt.scrollTop+h-30) crt.scrollTop=r-h/2; } }
   if(!S.running) traceFor(S.cursor);
   if(S.flowView) flowHighlight();
 }
@@ -16022,6 +16731,7 @@ function renderChecks(){
                ...ev.map(e=>({cls:e.sev==='crash'?'':e.sev,t:e.t,block:e.block,msg:e.msg}))];
   const nCrash=ev.filter(e=>e.sev==='crash').length, nWarn=ev.filter(e=>e.sev==='warn').length;
   $('errc').textContent=errs.length+nCrash+nWarn?`${errs.length} err · ${nCrash} crash · ${nWarn} warn`:'all clear';
+  checksBadge(errs.length,nCrash,nWarn);
   const tr=m=>window.TNC_I18N?TNC_I18N.tr(m):m;
   $('elist').innerHTML=items.length?items.map((x,i)=>`<div class="${x.cls}" data-k="${i}">BLOCK ${nOf(x.block)} &nbsp;${esc(tr(x.msg))}</div>`).join('')
     :'<div class="ok">PROGRAM CHECKED · NO ERRORS · NO CRASHES</div>';
@@ -16092,7 +16802,7 @@ function skClass(a){ const on=(a==='rawt'&&S.raw)||(a==='flow'&&S.flowView)||(a=
   return (a==='start'||(a==='step'&&S.mode==='single'))?' go':(a==='stop'?' stop':(on?' on':'')); }
 function renderSK(){ const tr=window.TNC_I18N?(x=>TNC_I18N.tr(x)):(x=>x);
   sks.innerHTML=skRows().map(([l,a])=>{ const k=skKey(a); return `<button class="sk${skClass(a)}" data-a="${esc(a)}">${esc(tr(l.replace(/\n/g,' '))===l.replace(/\n/g,' ')?l:tr(l.replace(/\n/g,' '))).replace(/\n/g,'<br>')}${k?`<small class="kh">${esc(k)}</small>`:''}</button>`; }).join('');
-  renderPath(); }
+  pageSK(); renderPath(); }
 function renderPath(){
   const el=$('skpath'); if(!el) return; let path=null, back='';
   if(S.wiz){ path=['PROGRAM',S.wiz.spec.title,'QUESTION '+(S.wiz.i+1)+' / '+S.wiz.spec.steps.length]; back='DEL (ESC) = ABORT · END = FINISH'; }
@@ -16447,9 +17157,25 @@ $('coach-next').onclick=()=>{ if(S.lesson.i>=S.lesson.steps.length-1){ endLesson
 
 /* ================= modals ================= */
 let openModalEl=null;
-function openModal(id){ closeModal(); const m=$(id); m.hidden=false; openModalEl=m; S.running=false;
+let modalReturn=null;
+function openModal(id){ const back=openModalEl?modalReturn:document.activeElement; closeModal(true); closeDrawer(true); closeMenu();
+  const m=$(id); m.hidden=false; openModalEl=m; modalReturn=back; S.running=false; setInert(true);
   const f=m.querySelector('[data-close]'); f&&f.focus(); }
-function closeModal(){ if(openModalEl){ openModalEl.hidden=true; openModalEl=null; } }
+function closeModal(keep){ if(!openModalEl) return; openModalEl.hidden=true; openModalEl=null; setInert(false);
+  if(keep) return; const r=modalReturn; modalReturn=null; restoreFocus(r); }
+/* background of a modal: not clickable, not focusable, not read */
+function setInert(on){ ['.app','#scrim'].forEach(q=>{ const el=document.querySelector(q); if(el) el.inert=on; }); }
+function restoreFocus(el){ if(!el||el===document.body) return;
+  const ok=el.isConnected&&(el.checkVisibility?el.checkVisibility({visibilityProperty:true}):el.offsetParent!==null)&&!el.closest('[inert]');
+  const t=ok?el:(isPhone()&&$('b-menu').offsetParent?$('b-menu'):null); if(t) try{ t.focus({preventScroll:true}); }catch(e){} }
+/* Tab stays inside an open modal (WAI-ARIA dialog pattern) */
+document.addEventListener('keydown',e=>{ if(e.key!=='Tab'||!openModalEl) return;
+  const card=openModalEl.querySelector('.mcard')||openModalEl;
+  const f=[...card.querySelectorAll('button,[href],input,select,textarea,summary,[tabindex]:not([tabindex="-1"])')].filter(x=>!x.disabled&&x.offsetParent!==null);
+  if(!f.length) return; const first=f[0], lastF=f[f.length-1];
+  if(!card.contains(document.activeElement)){ e.preventDefault(); first.focus(); }
+  else if(e.shiftKey&&document.activeElement===first){ e.preventDefault(); lastF.focus(); }
+  else if(!e.shiftKey&&document.activeElement===lastF){ e.preventDefault(); first.focus(); } },true);
 document.querySelectorAll('.modal').forEach(m=>{
   m.addEventListener('click',e=>{ if(e.target===m||e.target.closest('[data-close]')) closeModal(); });
 });
@@ -16602,19 +17328,27 @@ async function aiGenerate(){
   if(!AI){ flog('<span class="bad">The AI module is not in this build.</span>'); return; }
   if(!key){ flog('<span class="bad">No key yet.</span> Open <b>AI setup</b> first — it takes five minutes.'); return; }
   if(prompt.length<8){ flog('<span class="bad">Describe the part in a sentence or two.</span>'); return; }
-  const mc=M().machine, sys=(AI.system?AI.system(mtools()):AI.FALLBACK_SYSTEM)+(mc?`\n\nTHIS MACHINE (${M().label}): spindle max S${mc.sMax}, feed max F${mc.fMax}, rotary axes B ${mc.limits.B.join('..')} deg and A ${mc.limits.A.join('..')} deg (swivel head; B+ tilts the tip to X+, A+ to Y+).
+  const plan=!!window.TNC_PART&&S.aiMode!=='modify', mc=M().machine, hA=window.TNC_TOOLS3D&&TNC_TOOLS3D.holderStack?TNC_TOOLS3D.holderStack(3):100;
+  const sys=(AI.system?AI.system(mtools(),{plan,holderA:hA,sMax:mc&&mc.sMax}):AI.FALLBACK_SYSTEM)+(mc?`\n\nTHIS MACHINE (${M().label}): spindle max S${mc.sMax}, feed max F${mc.fMax}, rotary axes B ${mc.limits.B.join('..')} deg and A ${mc.limits.A.join('..')} deg (swivel head; B+ tilts the tip to X+, A+ to Y+).
 For tilted machining use CYCL DEF 19.0 WORKING PLANE / CYCL DEF 19.1 A+.. B+.. C+0 (it also positions the head); reset with 19.1 A+0 B+0 C+0. Never use M128.`:'');
   const modify=S.aiMode==='modify', before=S.text, beforePgm=S.pgm;
   const full=modify?'Here is the current program:\n```klartext\n'+S.text+'\n```\nChange it as follows: '+prompt+'\nKeep everything else as it is. Return the COMPLETE changed program.':prompt;
   closeModal(); if(S.editing) endEdit(false); if(S.mgt) closeMgt(); if(S.tt) closeTT();
   aiLiveOpen(); S.aiLive.mode=modify?'modify':'new'; aiAbort=new AbortController(); showPane('gfx');
-  aiLog(`<span class="dim">${esc(getModel())} · thinking ${esc(aiThink())} · max ${aiMaxTok()} tokens · ${esc(M().label)}</span>`);
+  aiLog(`<span class="dim">${esc(getModel())} · thinking ${esc(aiThink())} · max ${aiMaxTok()} tokens · ${plan?'plan + measure, ':''}${aiRounds()} refine round(s) · ${esc(M().label)}</span>`);
   let res=null;
   try{
-    res=await AI.generate({key,model:getModel(),prompt:full,system:sys,verify:verifyProgram,signal:aiAbort.signal,maxRepairs:1,
+    res=await AI.generate({key,model:getModel(),prompt:full,system:sys,tools:mtools(),verify:verifyProgram,measure:measureProgram,plan,rounds:aiRounds(),signal:aiAbort.signal,
       reasoning:aiThink()==='default'?undefined:aiThink(), maxTokens:aiMaxTok(),
       onStep:s=>{
-        if(s.phase==='request'){ S.aiLive.reqs.push(s.body); aiLog(s.attempt?'<b>Round 2</b> — the simulator\'s errors went back to the model for one repair (see Request).':'<b>Round 1</b> — request sent (see Request).'); }
+        if(s.phase==='request'){ S.aiLive.reqs.push(s.body); aiLog(s.stage==='plan'?'<b>Plan</b> — the model describes the finished part first (see Request).'
+          :s.attempt?`<b>Round ${s.attempt+1}</b> — the checks${plan?' and the measured result':''} went back to the model (see Request).`:'<b>Program</b> — request sent (see Request).'); }
+        if(s.phase==='failed') aiLog(`<span class="bad">Refinement stopped (${esc(s.error)}) — keeping the best program so far.</span>`);
+        if(s.phase==='continued') aiLog(s.network?`<span class="dim">Connection problem (${esc(s.error||'')}) — trying once more.</span>`:s.retry?`<span class="dim">Only thinking fit in the token limit — asked again with ${s.maxTokens} tokens.</span>`:`<span class="dim">The answer hit the token limit — asked for the rest (${s.n}).</span>`);
+        if(s.phase==='planned') aiLog(s.error?`<span class="bad">No usable part spec (${esc(s.error)}) — writing without measuring.</span>`
+          :`<span class="ok">${s.revised?'Spec revised':'Spec'}: ${s.spec.features.length} feature(s) — ${esc(s.spec.features.map(f=>f.id+' '+f.type+(f.text?' "'+f.text+'"':'')).join(', '))}.</span>`+(s.notes&&s.notes.length?`<pre style="margin:2px 0 0;white-space:pre-wrap">${esc(s.notes.join('\n'))}</pre>`:''));
+        if(s.phase==='measured'){ const m=s.measure; aiLog(`<span class="${m.score>=97?'ok':'bad'}">Measured against the spec: ${m.score==null?'—':m.score.toFixed(1)+' %'} match`+
+          ` · ${(m.missing/1000).toFixed(2)} cm³ not cut · ${(m.extra/1000).toFixed(2)} cm³ cut that should stay.</span>`); }
         if(s.phase==='progress'){ S.aiLive.lastP=s; aiLiveRender(s); aiLiveProgram(aiPartial(s.text)); }
         if(s.phase==='checked'){ const r=s.report;
           aiLog(r.ok?`<span class="ok">Checked: ${r.moves} moves, no errors, no crashes${r.warns.length?', '+r.warns.length+' warning(s)':''}.</span>`
@@ -16626,15 +17360,20 @@ For tilted machining use CYCL DEF 19.0 WORKING PLANE / CYCL DEF 19.1 A+.. B+.. C
     if(modify){ nm=beforePgm; S.pgm=beforePgm; S.text=before; raw.value=before; if(S.mode!=='edit') setMode('edit'); edit(res.src,0,'AI CHANGED '+nm+' — CTRL+Z UNDOES IT'); }
     else nm=addPgm((res.report.name||'AI_PART'),res.src,{open:true});
     download(nm,new Blob([listing(res.src)],{type:'text/plain'}),'AI-GEN');
-    aiLog(`<span class="${res.report.ok?'ok':'bad'}">${res.report.ok?(modify?'Changed':'Saved'):'Done — still has problems, see Checks'} ${modify?'':'as '}${esc(nm)} · also saved to TNC-SIMULATOR/AI-GEN.</span> Cost about $${(res.cost||0).toFixed(4)} · ${Math.round((Date.now()-S.aiLive.t0)/1000)} s.`);
+    aiLog(`<span class="${res.report.ok?'ok':'bad'}">${res.report.ok?(modify?'Changed':'Saved'):'Done — still has problems, see Checks'} ${modify?'':'as '}${esc(nm)} · also saved to TNC-SIMULATOR/AI-GEN.</span>${res.measure&&res.measure.score!=null?' Best match '+res.measure.score.toFixed(1)+' %.':''} Cost about $${(res.cost||0).toFixed(4)} · ${Math.round((Date.now()-S.aiLive.t0)/1000)} s.`);
     if(res.report.ok){ setMode('test'); reset(); if(S.speed===0) setSpeed(16,true); start(); }         // and it runs
   } else { S.pgm=beforePgm; S.text=pg()[beforePgm]; raw.value=S.text; compile(); }
   if(S.aiLive){ S.aiLive.done=true; S.aiLive.lastP=null; aiLiveRender(); }
   aiAbort=null;
 }
 /* thinking effort and the answer cap: a budget guard for slow reasoning models */
-function aiThink(){ return local.get('tnc426.aithink')||'low'; }
-function aiMaxTok(){ return +(local.get('tnc426.aimaxtok')||12000); }
+function aiThink(){ return local.get('tnc426.aithink')||'low'; }   // measured: low + plan/measure is as accurate and minutes faster than medium
+function aiMaxTok(){ return +(local.get('tnc426.aimaxtok')||32000); }
+/* refinement rounds after the first program: each one sends the checks and the measured misses / gouges back */
+function aiRounds(){ const v=local.get('tnc426.airounds'); return v==null||v===''?3:Math.max(0,Math.min(6,+v)); }
+/* the program's real cut against the model's part spec (TNC_PART) */
+function measureProgram(spec,src){ if(!window.TNC_PART) return null; const m=M(); let r;
+  try{ r=m.run(src); if(r.errors.length) return null; return TNC_PART.compare(spec,r,m.expand(r)); }catch(e){ return null; } }
 
 /* ---------- NEW PROGRAM ---------- */
 function openNew(which){
@@ -16753,10 +17492,12 @@ function aiModelUI(){
   if($('ai-think')){ mpMount($('ai-mp')); return; }
   const mp=document.createElement('div'); mp.id='ai-mp'; mp.style.marginTop='16px';
   const box=document.createElement('div'); box.className='fgrid'; box.style.marginTop='12px';
-  box.innerHTML=`<label class="fld"><span>THINKING (REASONING MODELS)</span><select id="ai-think"><option value="off">Off — fastest, cheapest</option><option value="low">Low (recommended)</option><option value="medium">Medium</option><option value="high">High — slow, can cost more</option></select></label>
-    <label class="fld"><span>MAX ANSWER TOKENS (BUDGET GUARD)</span><input id="ai-maxtok" inputmode="numeric" value="12000"></label>`;
+  box.innerHTML=`<label class="fld"><span>THINKING (REASONING MODELS)</span><select id="ai-think"><option value="off">Off — fastest, cheapest</option><option value="low">Low (recommended)</option><option value="medium">Medium — slower</option><option value="high">High — slow, can cost more</option></select></label>
+    <label class="fld"><span>MAX ANSWER TOKENS PER REQUEST (THINKING COUNTS)</span><input id="ai-maxtok" inputmode="numeric" value="32000"></label>
+    <label class="fld"><span>MEASURE &amp; REFINE ROUNDS</span><select id="ai-rounds"><option value="0">0 — first answer only</option><option value="1">1</option><option value="2">2</option><option value="3">3 (recommended)</option><option value="4">4</option><option value="6">6 — slow</option></select></label>`;
   const ta=$('ai-prompt').closest('.fld'); ta.parentNode.insertBefore(box,ta.nextSibling); ta.parentNode.insertBefore(mp,box);
   $('ai-think').value=aiThink(); $('ai-think').onchange=()=>{ local.set('tnc426.aithink',$('ai-think').value); };
+  $('ai-rounds').value=String(aiRounds()); $('ai-rounds').onchange=()=>{ local.set('tnc426.airounds',$('ai-rounds').value); };
   $('ai-maxtok').value=aiMaxTok(); $('ai-maxtok').addEventListener('keydown',e=>e.stopPropagation());
   $('ai-maxtok').onchange=()=>{ const v=Math.round(+$('ai-maxtok').value); if(v>=1000&&v<=200000) local.set('tnc426.aimaxtok',v); else { say('MAX TOKENS 1000–200000'); $('ai-maxtok').value=aiMaxTok(); } };
   mpMount(mp);
@@ -17098,14 +17839,16 @@ if($('b-tools')) $('b-tools').onclick=()=>act('tt');
 
 /* ================= header menus: + NEW · LESSONS · AI ================= */
 let menuEl=null;
-function closeMenu(){ if(menuEl){ menuEl.remove(); menuEl=null; } }
+function closeMenu(){ if(menuEl){ const b=$(menuEl.dataset.for); if(b) b.setAttribute('aria-expanded','false'); menuEl.remove(); menuEl=null; } }
 function openMenu(btn,items){
   if(menuEl&&menuEl.dataset.for===btn.id){ closeMenu(); return; } closeMenu();
   const m=document.createElement('div'); m.className='hmenu'; m.setAttribute('role','menu'); m.dataset.for=btn.id;
   m.innerHTML=items.map((it,i)=>it.head?`<div class="mh">${esc(it.head)}</div>`:`<button role="menuitem" data-i="${i}">${esc(it.label)}</button>`).join('');
   document.body.appendChild(m); const r=btn.getBoundingClientRect();
-  m.style.left=Math.min(r.left,innerWidth-m.offsetWidth-8)+'px'; m.style.top=(r.bottom+4)+'px';
-  m.onclick=e=>{ const b=e.target.closest('[data-i]'); if(!b) return; const it=items[+b.dataset.i]; closeMenu(); it.act(); };
+  m.style.left=Math.max(8,Math.min(r.left,innerWidth-m.offsetWidth-8))+'px';
+  m.style.top=(r.bottom+4+m.offsetHeight>innerHeight-8&&r.top>innerHeight/2?Math.max(8,r.top-4-m.offsetHeight):r.bottom+4)+'px';
+  btn.setAttribute('aria-expanded','true');
+  m.onclick=e=>{ const b=e.target.closest('[data-i]'); if(!b) return; const it=items[+b.dataset.i]; closeMenu(); closeDrawer(true); it.act(); };
   m.addEventListener('keydown',e=>{ e.stopPropagation(); const bs=[...m.querySelectorAll('button')], i=bs.indexOf(document.activeElement);
     if(e.key==='ArrowDown'){ e.preventDefault(); (bs[i+1]||bs[0]).focus(); } else if(e.key==='ArrowUp'){ e.preventDefault(); (bs[i-1]||bs[bs.length-1]).focus(); }
     else if(e.key==='Escape'){ e.preventDefault(); closeMenu(); btn.focus(); } });
@@ -17136,7 +17879,7 @@ if(Object.keys(MACHINES).length>1){
 }
 
 /* ================= modes, toggles, keyboard ================= */
-function setMode(m){ if(m!=='edit'){ if(S.wiz) wizCancel(); S.pick=null; } S.mode=m;
+function setMode(m){ if(m!=='edit'){ if(S.wiz) wizCancel(); S.pick=null; } S.mode=m; document.body.dataset.mode=m;
   const tps=$('tp-state'); if(tps) tps.textContent={edit:'1 PRG EDIT · soft keys write blocks · Y CYCL DEF · W TOOL CALL',test:'2 TEST · SPACE = NC START / STOP',single:'3 SINGLE-BLOCK · SPACE = next block · ↑↓ moves the machine',full:'4 FULL-RUN · SPACE = NC START / STOP'}[m]||''; [...document.querySelectorAll('.mode')].forEach(b=>b.setAttribute('aria-pressed',b.dataset.m===m));
   if(!S.mgt) renderSK(); if(m==='edit'){ S.running=false; setState('EDITING'); } else setState('READY'); writePrefs(); }
 $('modes').addEventListener('click',e=>{ const b=e.target.closest('.mode'); if(b) setMode(b.dataset.m); });
@@ -17168,6 +17911,9 @@ addEventListener('keydown',e=>{
   if(!$('boot').hidden){ e.preventDefault(); dismissBoot(); return; }
   if(S.aiLive&&!S.aiLive.done&&!openModalEl){ if(k==='Escape'&&aiAbort){ e.preventDefault(); aiAbort.abort(); } return; }
   if(openModalEl){ if(k==='Escape'){ e.preventDefault(); closeModal(); } return; }
+  if(drawerOpen()){ if(k==='Escape'){ e.preventDefault(); closeDrawer(); } return; }
+  if(e.target.closest&&e.target.closest('[role=tablist]')&&/^(Arrow|Home$|End$)/.test(k)) return;
+  if((k==='Enter'||k===' ')&&e.target.matches&&e.target.matches('button:focus-visible,a:focus-visible,summary:focus-visible,[role=tab]:focus-visible')) return;
   if(mod&&k.toLowerCase()==='s'){ e.preventDefault(); saveH(); return; }
   if(mod&&k.toLowerCase()==='o'){ e.preventDefault(); loadFromDisk(); return; }
   if(S.wiz){ if(e.target!==dlgIn) dlgIn.focus(); if(wizKey(e)) e.preventDefault(); return; }
@@ -17217,11 +17963,134 @@ addEventListener('keydown',e=>{
   }
 });
 
-/* ================= mobile panes ================= */
-const mainEl=document.querySelector('.main');
-function showPane(p){ if(!matchMedia('(max-width:900px)').matches) return; mainEl.dataset.pane=p;
-  [...$('mtabs').children].forEach(b=>b.setAttribute('aria-selected',b.dataset.pane===p)); requestAnimationFrame(resize); }
-$('mtabs').addEventListener('click',e=>{ const b=e.target.closest('button'); if(b) showPane(b.dataset.pane); });
+/* ================= phones: workspaces, drawer, dock, swipes =================
+ * At ≤ 900 px the three columns become three workspaces (Program · Graphics · Status) in the page's
+ * own vertical scroll, picked by the tab bar or a horizontal swipe. The soft keys (and the block line
+ * in PRG EDIT) move into a dock fixed at the bottom so NC START / STOP / RESET are reachable from every
+ * workspace; rows of more than 8 keys page like the control's soft-key row switch. The header keeps the
+ * modes, the program, the run state and the check count; DEV, + NEW, LESSONS, AI, HELP, FOCUS and the
+ * profile go into a drawer (MENU). Nodes are moved, never copied: one id, one handler, one state.
+ * Wide screens are untouched. */
+/* var + lookups, not const: these run from functions that may fire before this point of the file has executed */
+var PHONE=matchMedia('(max-width:900px)');
+function isPhone(){ return matchMedia('(max-width:900px)').matches; }
+var mainEl=document.querySelector('.main');
+function paneNow(){ return document.querySelector('.main').dataset.pane||'gfx'; }
+var PANES=['pgm','gfx','side'], paneScroll={};
+function paneTabs(){ return [...$('mtabs').querySelectorAll('[role=tab]')]; }
+function showPane(p,how){ how=how||{}; if(!isPhone()||!PANES.includes(p)) return;
+  if(p==='side'&&S.focusView) p='gfx';
+  const was=paneNow(); if(was!==p) paneScroll[was]=scrollY;
+  mainEl.dataset.pane=p;
+  paneTabs().forEach(b=>{ const on=b.dataset.pane===p; b.setAttribute('aria-selected',on); b.tabIndex=on?0:-1; });
+  if(was!==p) scrollTo(0,paneScroll[p]||0);
+  if(how.focus) $('mt-'+p).focus();
+  requestAnimationFrame(resize); }
+$('mtabs').addEventListener('click',e=>{ const b=e.target.closest('[role=tab]'); if(b) showPane(b.dataset.pane); });
+/* Program → Graphics → Status: the neighbour in a direction, or null at the ends */
+function paneStep(d){ const vis=PANES.filter(p=>!(p==='side'&&S.focusView)); const i=vis.indexOf(paneNow())+d; return vis[i]||null; }
+
+/* tab lists (workspaces, status, help, DEV): arrow keys / Home / End move and select (WAI-ARIA tabs, automatic activation) */
+document.addEventListener('keydown',e=>{ const list=e.target.closest&&e.target.closest('[role=tablist]'); if(!list||e.altKey||e.ctrlKey||e.metaKey) return;
+  const tabs=[...list.querySelectorAll('[role=tab]')].filter(t=>t.offsetParent!==null), i=tabs.indexOf(e.target); if(i<0) return;
+  const j={ArrowRight:i+1,ArrowLeft:i-1,Home:0,End:tabs.length-1}[e.key]; if(j==null) return;
+  e.preventDefault(); e.stopPropagation(); const t=tabs[(j+tabs.length)%tabs.length]; t.focus(); t.click(); });
+/* roving tabindex: only the selected tab is in the Tab order */
+function rove(list){ const tabs=[...list.querySelectorAll('[role=tab]')]; if(!tabs.some(t=>t.getAttribute('aria-selected')==='true')) return;
+  tabs.forEach(t=>t.tabIndex=t.getAttribute('aria-selected')==='true'?0:-1); }
+document.querySelectorAll('[role=tablist]').forEach(l=>{ rove(l); new MutationObserver(()=>rove(l)).observe(l,{subtree:true,attributes:true,attributeFilter:['aria-selected']}); });
+
+/* header: program · state, and the check count as a button that opens the checks */
+function hdrStat(){ const el=$('hdr-stat'); if(!el) return; const t=S.pgm+'|'+setState.last; if(el.dataset.t===t) return; el.dataset.t=t;
+  el.innerHTML=`<b>${esc(S.pgm)}</b> · ${esc(setState.last||'')}`; }
+var lastChecks=null;
+function checksBadge(nErr,nCrash,nWarn){
+  const bad=nErr+nCrash, n=bad+nWarn, tt=x=>window.TNC_I18N?TNC_I18N.t(x):x;
+  const txt=n?(bad?bad+' '+tt(bad===1?'chk.error':'chk.errors'):'')+(bad&&nWarn?' · ':'')+(nWarn?nWarn+' '+tt(nWarn===1?'chk.warning':'chk.warnings'):''):tt('chk.clear');
+  const he=$('hdr-err'); he.className='hdr-m hdr-err'+(bad?' bad':nWarn?' warn':'');
+  $('hdr-err-t').textContent=n?(bad?'⚠ '+bad:'! '+nWarn):'✓'; he.setAttribute('aria-label',tt('panel.checks')+': '+txt);
+  const bd=$('mt-badge'); bd.hidden=!n; bd.className='tbadge'+(bad?'':' warn'); bd.textContent=n?String(n):''; bd.setAttribute('aria-label',txt);
+  const key=nErr+'/'+nCrash+'/'+nWarn; if(lastChecks!==null&&key!==lastChecks) announce(tt('panel.checks')+': '+txt); lastChecks=key; }
+$('hdr-err').onclick=()=>{ if(isPhone()) showPane('side'); setSideTab('diag'); const el=$('elist'); if(el) el.scrollIntoView({block:'nearest'}); };
+
+/* polite announcements: state changes and check counts only — never coordinates, frames or scrubbing */
+function announce(msg){ const el=$('sr-live'); if(!el||!msg) return; clearTimeout(announce._t);
+  announce._t=setTimeout(()=>{ el.textContent=''; requestAnimationFrame(()=>{ el.textContent=msg; }); },350); }
+
+/* soft keys on phones: 8 at a time (2 × 4), ◀ ▶ switch the row */
+var skPage=0, skSig='';
+function pageSK(){ const sks=$('sks'), keys=[...sks.children], pager=$('skpager'), rows=Math.ceil(keys.length/8);
+  const sig=keys.map(k=>k.dataset.a).join('|'); if(sig!==skSig){ skSig=sig; skPage=0; }
+  if(!isPhone()||rows<2){ keys.forEach(k=>k.hidden=false); pager.hidden=true; return; }
+  skPage=Math.min(skPage,rows-1); keys.forEach((k,i)=>k.hidden=Math.floor(i/8)!==skPage);
+  pager.hidden=false; $('sk-page').textContent=(window.TNC_I18N?TNC_I18N.t('sk.row'):'Row')+' '+(skPage+1)+' / '+rows; }
+$('sk-prev').onclick=()=>{ const rows=Math.ceil(sks.children.length/8); skPage=(skPage-1+rows)%rows; pageSK(); };
+$('sk-next').onclick=()=>{ const rows=Math.ceil(sks.children.length/8); skPage=(skPage+1)%rows; pageSK(); };
+
+/* the drawer (phones): a modal dialog — focus inside, the rest inert, Esc / scrim / swipe right close it */
+var hmore=$('hmore'), scrim=$('scrim');
+function drawerOpen(){ return $('hmore').classList.contains('open'); }
+function openDrawer(){ if(!isPhone()||drawerOpen()) return; closeMenu();
+  hmore.setAttribute('role','dialog'); hmore.setAttribute('aria-modal','true'); hmore.classList.add('open'); scrim.hidden=false;
+  $('b-menu').setAttribute('aria-expanded','true'); drawerInert(true); $('hmore-x').focus(); }
+function closeDrawer(quiet){ if(!drawerOpen()) return; const hmore=$('hmore'), scrim=$('scrim'); hmore.classList.remove('open'); scrim.hidden=true; drawerInert(false);
+  $('b-menu').setAttribute('aria-expanded','false'); closeMenu(); if(!quiet) $('b-menu').focus(); }
+function drawerInert(on){ [document.querySelector('.main'),$('mtabs'),$('dock'),...[...document.querySelector('.bar').children].filter(c=>c!==hmore)].forEach(el=>{ if(el) el.inert=on; }); }
+$('b-menu').onclick=openDrawer; $('hmore-x').onclick=()=>closeDrawer(); scrim.onclick=()=>closeDrawer();
+hmore.addEventListener('keydown',e=>{ if(!drawerOpen()) return;
+  if(e.key==='Escape'){ e.preventDefault(); e.stopPropagation(); closeDrawer(); return; }
+  if(e.key!=='Tab') return; const f=[...hmore.querySelectorAll('button')].filter(b=>!b.hidden&&b.offsetParent!==null); if(!f.length) return;
+  if(e.shiftKey&&document.activeElement===f[0]){ e.preventDefault(); f[f.length-1].focus(); }
+  else if(!e.shiftKey&&document.activeElement===f[f.length-1]){ e.preventDefault(); f[0].focus(); } });
+/* drawer buttons that open a dialog or start something close the drawer first (menus stay on top of it) */
+['b-dev','b-help','b-prof','b-focus'].forEach(id=>{ const b=$(id); if(b) b.addEventListener('click',()=>closeDrawer(true),true); });
+
+/* swipes: left / right on a workspace switches workspace; right on the drawer closes it.
+ * Passive listeners only (vertical scroll and pinch zoom are never blocked). Ignored when the touch
+ * starts on the 3-D view, a slider, a text field, the soft keys or anything that scrolls sideways,
+ * when two fingers are down, while zoomed in, or when text is selected. A swipe only ever navigates. */
+function swipeable(el,root){
+  for(let n=el;n&&n!==root;n=n.parentElement){
+    if(n.matches('canvas,input,textarea,select,[contenteditable],.sks,.skpager,.dlg,.tp,.ghost')) return false;
+    if(n.scrollWidth>n.clientWidth+2){ const ox=getComputedStyle(n).overflowX; if(ox==='auto'||ox==='scroll') return false; } }
+  return true; }
+function onSwipe(root,fn){ let s0=null;
+  root.addEventListener('touchstart',e=>{ s0=null; if(e.touches.length!==1||!isPhone()) return;
+    if(window.visualViewport&&visualViewport.scale>1.05) return; if(!swipeable(e.target,root)) return;
+    const t=e.touches[0]; s0={x:t.clientX,y:t.clientY,t:performance.now(),dead:false}; },{passive:true});
+  root.addEventListener('touchmove',e=>{ if(!s0) return; if(e.touches.length!==1){ s0=null; return; }
+    const t=e.touches[0], dx=t.clientX-s0.x, dy=t.clientY-s0.y; if(Math.abs(dy)>30&&Math.abs(dy)>Math.abs(dx)) s0.dead=true; },{passive:true});
+  root.addEventListener('touchcancel',()=>{ s0=null; },{passive:true});
+  root.addEventListener('touchend',e=>{ if(!s0||s0.dead) { s0=null; return; } const t=e.changedTouches[0], dx=t.clientX-s0.x, dy=t.clientY-s0.y, dt=performance.now()-s0.t; s0=null;
+    const sel=getSelection&&getSelection(); if(sel&&!sel.isCollapsed&&String(sel).trim()) return;
+    if(Math.abs(dx)>=Math.max(64,innerWidth*.18)&&Math.abs(dx)>Math.abs(dy)*2&&dt<2500) fn(dx<0?1:-1); },{passive:true}); }
+onSwipe(mainEl,d=>{ if(drawerOpen()||openModalEl) return; const p=paneStep(d); if(p) showPane(p); });
+onSwipe(hmore,d=>{ if(d<0) closeDrawer(); });
+
+/* layout follows the breakpoint: dock in or out, ARIA roles on the workspaces, canvas size */
+const pgmCol=document.querySelector('.col-pgm'), dlgEl=document.querySelector('.col-pgm .dlg');
+function layout(){ const phone=isPhone(), dock=$('dock'), act=document.activeElement;
+  const parts=[dlgEl,$('skpath'),sks,$('skpager')];
+  if(phone&&parts[0].parentElement!==dock) parts.forEach(n=>dock.appendChild(n));
+  if(!phone&&parts[0].parentElement===dock) parts.forEach(n=>pgmCol.appendChild(n));
+  if(act&&act!==document.activeElement&&act.isConnected) try{ act.focus({preventScroll:true}); }catch(e){}
+  PANES.forEach(p=>{ const sec=$('ws-'+p); if(phone){ sec.setAttribute('role','tabpanel'); sec.setAttribute('aria-labelledby','mt-'+p); sec.removeAttribute('aria-label'); }
+    else { sec.removeAttribute('role'); sec.removeAttribute('aria-labelledby'); sec.setAttribute('aria-label',{pgm:'Program',gfx:'Test graphics',side:'Status'}[p]); } });
+  if(phone){ hmore.removeAttribute('aria-labelledby'); hmore.setAttribute('aria-labelledby','hmore-t'); showPane(paneNow()); }
+  else { closeDrawer(true); hmore.removeAttribute('role'); hmore.removeAttribute('aria-modal'); hmore.removeAttribute('aria-labelledby'); }
+  pageSK(); measure(); requestAnimationFrame(resize); }
+/* CSS sizes: dock height, tab-bar height, and how much of the screen the software keyboard covers */
+function measure(){ const r=document.documentElement.style, d=$('dock'), tb=$('mtabs');
+  r.setProperty('--dock-h',(isPhone()?d.offsetHeight:0)+'px'); r.setProperty('--tabs-h',(isPhone()?tb.offsetHeight:0)+'px');
+  const vv=window.visualViewport; if(vv){ r.setProperty('--vvh',vv.height+'px'); r.setProperty('--vvt',vv.offsetTop+'px');
+    r.setProperty('--kb',Math.max(0,Math.round(innerHeight-vv.height-vv.offsetTop))+'px'); } }
+new ResizeObserver(measure).observe($('dock'));
+if(window.visualViewport){ visualViewport.addEventListener('resize',measure); visualViewport.addEventListener('scroll',measure); }
+PHONE.addEventListener('change',layout);
+/* a field that gets focus inside a dialog or the dock stays above the software keyboard */
+document.addEventListener('focusin',e=>{ if(!isPhone()) return; const t=e.target; if(!t.matches||!t.matches('input,textarea,select')) return;
+  if(t.closest('.modal,.dock')) setTimeout(()=>{ measure(); if(t.closest('.modal')) t.scrollIntoView({block:'nearest'}); },300); });
+layout();
 
 /* ================= boot screen ================= */
 function dismissBoot(){ $('boot').hidden=true; sess.set(BOOT_SS,'1'); if(PROF&&!PROF.name) openProfile(); }
@@ -17258,6 +18127,7 @@ function tick(now){
     const b=S.res.blocks[S.cursor];
     $('ovl-l').innerHTML=`PGM <b style="color:var(--cyan)">${esc(S.pgm)}</b><br>BLOCK <b>${b&&b.n!=null?b.n:'--'}</b> / ${(S.res.blocks.filter(x=>x.n!=null).pop()||{n:0}).n}<br>`+
       `BLANK <b>${fmt(ST.x1-ST.x0)}×${fmt(ST.y1-ST.y0)}×${fmt(ST.z1-ST.z0)}</b> mm`;
+    hdrStat();
     $('ovl-r').innerHTML=`${S.view} · ${S.speed?S.speed+'×':'MAX'}<br>${fmtT(S.t)} / ${fmtT(S.total)}<br>OVR <b style="color:var(--amber)">${S.ovr}%</b>`; }
   controls.update();
   if(CO) try{ CO.update(); }catch(e){}

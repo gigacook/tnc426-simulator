@@ -58,7 +58,31 @@ var TNC_I18N = (function () {
       'title.newprogram': 'New program',
       'title.help': 'Help',
       'title.profile': 'Profile',
-      'title.dev': 'DEV'
+      'title.dev': 'DEV',
+      /* shell: phones (workspaces, drawer, dock) and accessible names */
+      'btn.menu': 'Menu',
+      'btn.close': 'Close',
+      'drawer.title': 'Menu',
+      'aria.modes': 'Operating mode',
+      'aria.workspace': 'Workspace',
+      'aria.dock': 'Soft keys',
+      'aria.canvas': '3-D test graphics: blank, tool and tool path',
+      'ws.program': 'Program',
+      'ws.graphics': 'Graphics',
+      'ws.status': 'Status',
+      'mode.edit.s': 'PRG EDIT',
+      'mode.test.s': 'TEST',
+      'mode.single.s': 'SINGLE',
+      'mode.full.s': 'FULL',
+      'sk.prev': 'Previous soft-key row',
+      'sk.next': 'Next soft-key row',
+      'sk.row': 'Row',
+      'hdr.errdesc': 'Opens the checks in the Status workspace',
+      'chk.clear': 'all clear',
+      'chk.error': 'error',
+      'chk.errors': 'errors',
+      'chk.warning': 'warning',
+      'chk.warnings': 'warnings'
     },
     sv: {
       /* unofficial Swedish -- see file header */
@@ -100,7 +124,30 @@ var TNC_I18N = (function () {
       'title.newprogram': 'Nytt program',
       'title.help': 'Hjälp',
       'title.profile': 'Profil',
-      'title.dev': 'UTV'
+      'title.dev': 'UTV',
+      'btn.menu': 'Meny',
+      'btn.close': 'Stäng',
+      'drawer.title': 'Meny',
+      'aria.modes': 'Driftläge',
+      'aria.workspace': 'Arbetsyta',
+      'aria.dock': 'Funktionstangenter',
+      'aria.canvas': '3D-testgrafik: ämne, verktyg och verktygsbana',
+      'ws.program': 'Program',
+      'ws.graphics': 'Grafik',
+      'ws.status': 'Status',
+      'mode.edit.s': 'REDIGERA',
+      'mode.test.s': 'TEST',
+      'mode.single.s': 'ENKEL',
+      'mode.full.s': 'HEL',
+      'sk.prev': 'Föregående rad funktionstangenter',
+      'sk.next': 'Nästa rad funktionstangenter',
+      'sk.row': 'Rad',
+      'hdr.errdesc': 'Öppnar kontrollerna i arbetsytan Status',
+      'chk.clear': 'inga fel',
+      'chk.error': 'fel',
+      'chk.errors': 'fel',
+      'chk.warning': 'varning',
+      'chk.warnings': 'varningar'
     }
   };
 
@@ -185,6 +232,7 @@ var TNC_I18N = (function () {
     lang = l;
     api.lang = l;
     try { if (typeof localStorage !== 'undefined') localStorage.setItem(LS_KEY, l); } catch (e) {}
+    if (typeof document !== 'undefined' && document.documentElement) document.documentElement.lang = l;
     applyDom();
   }
 

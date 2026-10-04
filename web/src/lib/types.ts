@@ -9,6 +9,8 @@ export interface Info {
   interpreter: string | null;
   machines: Machine[];
   needs_setup: boolean;
+  /** Desktop app (local mode): one operator, signed in by the app itself; there is no password to sign back in with. */
+  local?: boolean;
   signup: boolean;
   ai: {
     enabled: boolean;

@@ -1,0 +1,38 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "TNC 426 Simulator",
+  "version": "0.1.0",
+  "identifier": "io.github.gigacook.tnc426simulator",
+  "build": {
+    "frontendDist": "../splash",
+    "beforeDevCommand": { "script": "node desktop/prepare-assets.mjs", "cwd": "../.." },
+    "beforeBuildCommand": { "script": "node desktop/prepare-assets.mjs", "cwd": "../.." }
+  },
+  "app": {
+    "withGlobalTauri": false,
+    "windows": [],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'",
+      "capabilities": []
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "category": "Education",
+    "shortDescription": "HEIDENHAIN TNC 426/430 Klartext simulator",
+    "longDescription": "Writes, checks and simulates HEIDENHAIN TNC 426/430 Klartext programs with live material removal. Not affiliated with HEIDENHAIN.",
+    "license": "MIT",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "resources": {
+      "../../web/dist/": "web/",
+      "../../index.html": "sim/index.html"
+    }
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "name": "tnc426-simulator-tools",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Build + QA tooling for the single-file simulator (build.py), the Tauri 2 shell (desktop/) and the browser regression suite (tests/ui/). Not shipped.",
+  "license": "MIT",
+  "scripts": {
+    "build:sim": "python3 build.py",
+    "test:manual": "node tests/manual.js",
+    "test:ui": "node tests/ui/run.mjs",
+    "tauri": "tauri"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
+    "@tauri-apps/cli": "2.12.1",
+    "esbuild": "0.28.2",
+    "playwright": "1.56.1",
+    "three": "0.186.1",
+    "three.quarks": "0.17.1"
+  }
+}

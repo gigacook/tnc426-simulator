@@ -26,6 +26,7 @@ export function Account() {
         </p>
       </section>
 
+      {!info?.local && (
       <section className="card">
         <h3>Password</h3>
         <form
@@ -50,6 +51,7 @@ export function Account() {
           {pw.isSuccess && <div className="ok-text">Changed. Your other sessions were signed out.</div>}
         </form>
       </section>
+      )}
 
       <section className="card">
         <h3>AI program generation</h3>

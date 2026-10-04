@@ -1,0 +1,33 @@
+[package]
+name = "tnc-desktop"
+description = "TNC 426/430 simulator desktop app: Tauri 2 shell around the web app + simulator, served in-process by tnc-server"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+rust-version = "1.90"
+
+[lib]
+name = "tnc_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.5", features = [] }
+
+[dependencies]
+# the SAME server crate the standalone server runs: router, SQLite, accounts, QuickJS interpreter
+tnc-server = { path = "../../server/crates/tnc-server" }
+tauri = { version = "2.12", features = [] }
+tauri-plugin-single-instance = "2.5"
+tauri-plugin-opener = "2.7"
+tokio = { version = "1", features = ["rt-multi-thread", "net", "sync", "time", "macros"] }
+anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+url = "2"
+
+[profile.release]
+lto = "thin"
+strip = true
+codegen-units = 1

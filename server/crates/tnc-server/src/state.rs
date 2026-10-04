@@ -16,6 +16,8 @@ pub struct AppState {
     pub http: reqwest::Client,
     pub limiter: Arc<Limiter>,
     pub models_cache: Arc<Mutex<Option<(Instant, bytes::Bytes)>>>,
+    /// One-time sign-in links (SHA-256 of the token -> user id, issued at), see `local.rs`.
+    pub sign_in_links: Arc<Mutex<HashMap<String, (String, Instant)>>>,
 }
 
 impl AppState {
@@ -41,6 +43,7 @@ impl AppState {
             http,
             limiter: Arc::new(Limiter::default()),
             models_cache: Arc::new(Mutex::new(None)),
+            sign_in_links: Arc::new(Mutex::new(HashMap::new())),
         })
     }
 }

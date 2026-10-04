@@ -37,8 +37,9 @@ pub struct Config {
     pub ai_models: Vec<String>,
     #[arg(long, env = "TNC_AI_DEFAULT_MODEL", default_value = "deepseek/deepseek-v4.1-flash")]
     pub ai_default_model: String,
-    /// Upper bound on max_tokens per request.
-    #[arg(long, env = "TNC_AI_MAX_TOKENS", default_value_t = 16000)]
+    /// Upper bound on max_tokens per request. Reasoning models spend part of it thinking: too low and the
+    /// program is cut off (the simulator then asks for the rest, which costs another request).
+    #[arg(long, env = "TNC_AI_MAX_TOKENS", default_value_t = 64000)]
     pub ai_max_tokens: u64,
     /// Per user per calendar month, in US$ as OpenRouter reports it.
     #[arg(long, env = "TNC_AI_MONTHLY_BUDGET_USD", default_value_t = 5.0)]
@@ -46,6 +47,17 @@ pub struct Config {
     /// Interpreter threads.
     #[arg(long, env = "TNC_ENGINE_WORKERS", default_value_t = 2)]
     pub engine_workers: usize,
+    /// Comma-separated `Host` header values to answer (e.g. `127.0.0.1:8427,localhost:8427`); anything
+    /// else gets 421. Empty = any host. The desktop shell sets it: a loopback server must not answer a
+    /// DNS-rebinding page that resolved some other name to 127.0.0.1.
+    #[arg(long, env = "TNC_ALLOWED_HOSTS", default_value = "", value_delimiter = ',')]
+    pub allowed_hosts: Vec<String>,
+    /// A Content-Security-Policy header for every response (plus nosniff / no-referrer). Unset = none.
+    #[arg(long, env = "TNC_CSP")]
+    pub csp: Option<String>,
+    /// Local mode (the desktop shell): one operator, signed in by a one-time link, no sign-out.
+    #[arg(skip)]
+    pub local_mode: bool,
 }
 
 impl Config {
@@ -57,6 +69,9 @@ impl Config {
     }
     pub fn ai_enabled(&self) -> bool {
         self.openrouter_api_key.as_deref().is_some_and(|k| !k.trim().is_empty())
+    }
+    pub fn allowed_hosts(&self) -> Vec<String> {
+        self.allowed_hosts.iter().map(|s| s.trim().to_ascii_lowercase()).filter(|s| !s.is_empty()).collect()
     }
     pub fn ai_models(&self) -> Vec<String> {
         self.ai_models.iter().map(|s| s.trim().to_owned()).filter(|s| !s.is_empty()).collect()
@@ -76,9 +91,12 @@ impl Config {
             openrouter_base: "https://openrouter.ai/api/v1".into(),
             ai_models: vec![],
             ai_default_model: "deepseek/deepseek-v4.1-flash".into(),
-            ai_max_tokens: 16000,
+            ai_max_tokens: 64000,
             ai_monthly_budget_usd: 5.0,
             engine_workers: 1,
+            allowed_hosts: vec![],
+            csp: None,
+            local_mode: false,
         }
     }
 }

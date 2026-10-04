@@ -541,7 +541,7 @@ function stepBlock(){                                   // NC START in SINGLE-BL
   S.k=k+1; S.cursor=S.k<E.length?E[S.k]:Math.max(0,S.res.blocks.length-1); S.execB=S.cursor; markRows(true); flowHighlight(); traceFor(S.cursor);
   setState(S.k>=E.length?'PROGRAM END':'SINGLE BLOCK');
 }
-function setState(s){ $('run-state').textContent=s; }
+function setState(s){ $('run-state').textContent=s; if(s!==setState.last){ setState.last=s; hdrStat(); announce(s); } }
 
 /* ================= alarms ================= */
 const alarmEl=$('alarm'); let alarmT=0;
@@ -561,6 +561,7 @@ function showAlarm(kind,title,text,ms){
   alarmEl.innerHTML=`<b>${esc(title)}</b><span>${esc(text)}</span><button type="button" aria-label="Acknowledge">CE</button>`;
   alarmEl.querySelector('button').onclick=()=>hideAlarm();
   clearTimeout(alarmT); if(ms) alarmT=setTimeout(()=>hideAlarm(kind),ms);
+  if(isPhone()&&paneNow()!=='gfx') say(title+' · '+text);
 }
 function hideAlarm(kind){ if(kind&&!alarmEl.classList.contains(kind)) return; alarmEl.hidden=true; }
 
@@ -594,7 +595,8 @@ function markRows(scroll){
   const fset=new Set(S.focus||[]);
   for(let i=0;i<rows.length;i++) rows[i].classList.toggle('focus', fset.size>0 && fset.has(S.res.blocks[i].n) && !S.res.blocks[i].indent);
   if(scroll!==false){ const el=rows[S.cursor]; if(el){ const r=el.offsetTop, h=crt.clientHeight;
-    if(r<crt.scrollTop+12||r>crt.scrollTop+h-30) crt.scrollTop=r-h/2; } }
+    if(isPhone()){ if(paneNow()==='pgm') el.scrollIntoView({block:'nearest'}); }
+    else if(r<crt.scrollTop+12||r>crt.scrollTop+h-30) crt.scrollTop=r-h/2; } }
   if(!S.running) traceFor(S.cursor);
   if(S.flowView) flowHighlight();
 }
@@ -624,6 +626,7 @@ function renderChecks(){
                ...ev.map(e=>({cls:e.sev==='crash'?'':e.sev,t:e.t,block:e.block,msg:e.msg}))];
   const nCrash=ev.filter(e=>e.sev==='crash').length, nWarn=ev.filter(e=>e.sev==='warn').length;
   $('errc').textContent=errs.length+nCrash+nWarn?`${errs.length} err · ${nCrash} crash · ${nWarn} warn`:'all clear';
+  checksBadge(errs.length,nCrash,nWarn);
   const tr=m=>window.TNC_I18N?TNC_I18N.tr(m):m;
   $('elist').innerHTML=items.length?items.map((x,i)=>`<div class="${x.cls}" data-k="${i}">BLOCK ${nOf(x.block)} &nbsp;${esc(tr(x.msg))}</div>`).join('')
     :'<div class="ok">PROGRAM CHECKED · NO ERRORS · NO CRASHES</div>';
@@ -694,7 +697,7 @@ function skClass(a){ const on=(a==='rawt'&&S.raw)||(a==='flow'&&S.flowView)||(a=
   return (a==='start'||(a==='step'&&S.mode==='single'))?' go':(a==='stop'?' stop':(on?' on':'')); }
 function renderSK(){ const tr=window.TNC_I18N?(x=>TNC_I18N.tr(x)):(x=>x);
   sks.innerHTML=skRows().map(([l,a])=>{ const k=skKey(a); return `<button class="sk${skClass(a)}" data-a="${esc(a)}">${esc(tr(l.replace(/\n/g,' '))===l.replace(/\n/g,' ')?l:tr(l.replace(/\n/g,' '))).replace(/\n/g,'<br>')}${k?`<small class="kh">${esc(k)}</small>`:''}</button>`; }).join('');
-  renderPath(); }
+  pageSK(); renderPath(); }
 function renderPath(){
   const el=$('skpath'); if(!el) return; let path=null, back='';
   if(S.wiz){ path=['PROGRAM',S.wiz.spec.title,'QUESTION '+(S.wiz.i+1)+' / '+S.wiz.spec.steps.length]; back='DEL (ESC) = ABORT · END = FINISH'; }
@@ -1049,9 +1052,25 @@ $('coach-next').onclick=()=>{ if(S.lesson.i>=S.lesson.steps.length-1){ endLesson
 
 /* ================= modals ================= */
 let openModalEl=null;
-function openModal(id){ closeModal(); const m=$(id); m.hidden=false; openModalEl=m; S.running=false;
+let modalReturn=null;
+function openModal(id){ const back=openModalEl?modalReturn:document.activeElement; closeModal(true); closeDrawer(true); closeMenu();
+  const m=$(id); m.hidden=false; openModalEl=m; modalReturn=back; S.running=false; setInert(true);
   const f=m.querySelector('[data-close]'); f&&f.focus(); }
-function closeModal(){ if(openModalEl){ openModalEl.hidden=true; openModalEl=null; } }
+function closeModal(keep){ if(!openModalEl) return; openModalEl.hidden=true; openModalEl=null; setInert(false);
+  if(keep) return; const r=modalReturn; modalReturn=null; restoreFocus(r); }
+/* background of a modal: not clickable, not focusable, not read */
+function setInert(on){ ['.app','#scrim'].forEach(q=>{ const el=document.querySelector(q); if(el) el.inert=on; }); }
+function restoreFocus(el){ if(!el||el===document.body) return;
+  const ok=el.isConnected&&(el.checkVisibility?el.checkVisibility({visibilityProperty:true}):el.offsetParent!==null)&&!el.closest('[inert]');
+  const t=ok?el:(isPhone()&&$('b-menu').offsetParent?$('b-menu'):null); if(t) try{ t.focus({preventScroll:true}); }catch(e){} }
+/* Tab stays inside an open modal (WAI-ARIA dialog pattern) */
+document.addEventListener('keydown',e=>{ if(e.key!=='Tab'||!openModalEl) return;
+  const card=openModalEl.querySelector('.mcard')||openModalEl;
+  const f=[...card.querySelectorAll('button,[href],input,select,textarea,summary,[tabindex]:not([tabindex="-1"])')].filter(x=>!x.disabled&&x.offsetParent!==null);
+  if(!f.length) return; const first=f[0], lastF=f[f.length-1];
+  if(!card.contains(document.activeElement)){ e.preventDefault(); first.focus(); }
+  else if(e.shiftKey&&document.activeElement===first){ e.preventDefault(); lastF.focus(); }
+  else if(!e.shiftKey&&document.activeElement===lastF){ e.preventDefault(); first.focus(); } },true);
 document.querySelectorAll('.modal').forEach(m=>{
   m.addEventListener('click',e=>{ if(e.target===m||e.target.closest('[data-close]')) closeModal(); });
 });
@@ -1204,19 +1223,27 @@ async function aiGenerate(){
   if(!AI){ flog('<span class="bad">The AI module is not in this build.</span>'); return; }
   if(!key){ flog('<span class="bad">No key yet.</span> Open <b>AI setup</b> first — it takes five minutes.'); return; }
   if(prompt.length<8){ flog('<span class="bad">Describe the part in a sentence or two.</span>'); return; }
-  const mc=M().machine, sys=(AI.system?AI.system(mtools()):AI.FALLBACK_SYSTEM)+(mc?`\n\nTHIS MACHINE (${M().label}): spindle max S${mc.sMax}, feed max F${mc.fMax}, rotary axes B ${mc.limits.B.join('..')} deg and A ${mc.limits.A.join('..')} deg (swivel head; B+ tilts the tip to X+, A+ to Y+).
+  const plan=!!window.TNC_PART&&S.aiMode!=='modify', mc=M().machine, hA=window.TNC_TOOLS3D&&TNC_TOOLS3D.holderStack?TNC_TOOLS3D.holderStack(3):100;
+  const sys=(AI.system?AI.system(mtools(),{plan,holderA:hA,sMax:mc&&mc.sMax}):AI.FALLBACK_SYSTEM)+(mc?`\n\nTHIS MACHINE (${M().label}): spindle max S${mc.sMax}, feed max F${mc.fMax}, rotary axes B ${mc.limits.B.join('..')} deg and A ${mc.limits.A.join('..')} deg (swivel head; B+ tilts the tip to X+, A+ to Y+).
 For tilted machining use CYCL DEF 19.0 WORKING PLANE / CYCL DEF 19.1 A+.. B+.. C+0 (it also positions the head); reset with 19.1 A+0 B+0 C+0. Never use M128.`:'');
   const modify=S.aiMode==='modify', before=S.text, beforePgm=S.pgm;
   const full=modify?'Here is the current program:\n```klartext\n'+S.text+'\n```\nChange it as follows: '+prompt+'\nKeep everything else as it is. Return the COMPLETE changed program.':prompt;
   closeModal(); if(S.editing) endEdit(false); if(S.mgt) closeMgt(); if(S.tt) closeTT();
   aiLiveOpen(); S.aiLive.mode=modify?'modify':'new'; aiAbort=new AbortController(); showPane('gfx');
-  aiLog(`<span class="dim">${esc(getModel())} · thinking ${esc(aiThink())} · max ${aiMaxTok()} tokens · ${esc(M().label)}</span>`);
+  aiLog(`<span class="dim">${esc(getModel())} · thinking ${esc(aiThink())} · max ${aiMaxTok()} tokens · ${plan?'plan + measure, ':''}${aiRounds()} refine round(s) · ${esc(M().label)}</span>`);
   let res=null;
   try{
-    res=await AI.generate({key,model:getModel(),prompt:full,system:sys,verify:verifyProgram,signal:aiAbort.signal,maxRepairs:1,
+    res=await AI.generate({key,model:getModel(),prompt:full,system:sys,tools:mtools(),verify:verifyProgram,measure:measureProgram,plan,rounds:aiRounds(),signal:aiAbort.signal,
       reasoning:aiThink()==='default'?undefined:aiThink(), maxTokens:aiMaxTok(),
       onStep:s=>{
-        if(s.phase==='request'){ S.aiLive.reqs.push(s.body); aiLog(s.attempt?'<b>Round 2</b> — the simulator\'s errors went back to the model for one repair (see Request).':'<b>Round 1</b> — request sent (see Request).'); }
+        if(s.phase==='request'){ S.aiLive.reqs.push(s.body); aiLog(s.stage==='plan'?'<b>Plan</b> — the model describes the finished part first (see Request).'
+          :s.attempt?`<b>Round ${s.attempt+1}</b> — the checks${plan?' and the measured result':''} went back to the model (see Request).`:'<b>Program</b> — request sent (see Request).'); }
+        if(s.phase==='failed') aiLog(`<span class="bad">Refinement stopped (${esc(s.error)}) — keeping the best program so far.</span>`);
+        if(s.phase==='continued') aiLog(s.network?`<span class="dim">Connection problem (${esc(s.error||'')}) — trying once more.</span>`:s.retry?`<span class="dim">Only thinking fit in the token limit — asked again with ${s.maxTokens} tokens.</span>`:`<span class="dim">The answer hit the token limit — asked for the rest (${s.n}).</span>`);
+        if(s.phase==='planned') aiLog(s.error?`<span class="bad">No usable part spec (${esc(s.error)}) — writing without measuring.</span>`
+          :`<span class="ok">${s.revised?'Spec revised':'Spec'}: ${s.spec.features.length} feature(s) — ${esc(s.spec.features.map(f=>f.id+' '+f.type+(f.text?' "'+f.text+'"':'')).join(', '))}.</span>`+(s.notes&&s.notes.length?`<pre style="margin:2px 0 0;white-space:pre-wrap">${esc(s.notes.join('\n'))}</pre>`:''));
+        if(s.phase==='measured'){ const m=s.measure; aiLog(`<span class="${m.score>=97?'ok':'bad'}">Measured against the spec: ${m.score==null?'—':m.score.toFixed(1)+' %'} match`+
+          ` · ${(m.missing/1000).toFixed(2)} cm³ not cut · ${(m.extra/1000).toFixed(2)} cm³ cut that should stay.</span>`); }
         if(s.phase==='progress'){ S.aiLive.lastP=s; aiLiveRender(s); aiLiveProgram(aiPartial(s.text)); }
         if(s.phase==='checked'){ const r=s.report;
           aiLog(r.ok?`<span class="ok">Checked: ${r.moves} moves, no errors, no crashes${r.warns.length?', '+r.warns.length+' warning(s)':''}.</span>`
@@ -1228,15 +1255,20 @@ For tilted machining use CYCL DEF 19.0 WORKING PLANE / CYCL DEF 19.1 A+.. B+.. C
     if(modify){ nm=beforePgm; S.pgm=beforePgm; S.text=before; raw.value=before; if(S.mode!=='edit') setMode('edit'); edit(res.src,0,'AI CHANGED '+nm+' — CTRL+Z UNDOES IT'); }
     else nm=addPgm((res.report.name||'AI_PART'),res.src,{open:true});
     download(nm,new Blob([listing(res.src)],{type:'text/plain'}),'AI-GEN');
-    aiLog(`<span class="${res.report.ok?'ok':'bad'}">${res.report.ok?(modify?'Changed':'Saved'):'Done — still has problems, see Checks'} ${modify?'':'as '}${esc(nm)} · also saved to TNC-SIMULATOR/AI-GEN.</span> Cost about $${(res.cost||0).toFixed(4)} · ${Math.round((Date.now()-S.aiLive.t0)/1000)} s.`);
+    aiLog(`<span class="${res.report.ok?'ok':'bad'}">${res.report.ok?(modify?'Changed':'Saved'):'Done — still has problems, see Checks'} ${modify?'':'as '}${esc(nm)} · also saved to TNC-SIMULATOR/AI-GEN.</span>${res.measure&&res.measure.score!=null?' Best match '+res.measure.score.toFixed(1)+' %.':''} Cost about $${(res.cost||0).toFixed(4)} · ${Math.round((Date.now()-S.aiLive.t0)/1000)} s.`);
     if(res.report.ok){ setMode('test'); reset(); if(S.speed===0) setSpeed(16,true); start(); }         // and it runs
   } else { S.pgm=beforePgm; S.text=pg()[beforePgm]; raw.value=S.text; compile(); }
   if(S.aiLive){ S.aiLive.done=true; S.aiLive.lastP=null; aiLiveRender(); }
   aiAbort=null;
 }
 /* thinking effort and the answer cap: a budget guard for slow reasoning models */
-function aiThink(){ return local.get('tnc426.aithink')||'low'; }
-function aiMaxTok(){ return +(local.get('tnc426.aimaxtok')||12000); }
+function aiThink(){ return local.get('tnc426.aithink')||'low'; }   // measured: low + plan/measure is as accurate and minutes faster than medium
+function aiMaxTok(){ return +(local.get('tnc426.aimaxtok')||32000); }
+/* refinement rounds after the first program: each one sends the checks and the measured misses / gouges back */
+function aiRounds(){ const v=local.get('tnc426.airounds'); return v==null||v===''?3:Math.max(0,Math.min(6,+v)); }
+/* the program's real cut against the model's part spec (TNC_PART) */
+function measureProgram(spec,src){ if(!window.TNC_PART) return null; const m=M(); let r;
+  try{ r=m.run(src); if(r.errors.length) return null; return TNC_PART.compare(spec,r,m.expand(r)); }catch(e){ return null; } }
 
 /* ---------- NEW PROGRAM ---------- */
 function openNew(which){
@@ -1355,10 +1387,12 @@ function aiModelUI(){
   if($('ai-think')){ mpMount($('ai-mp')); return; }
   const mp=document.createElement('div'); mp.id='ai-mp'; mp.style.marginTop='16px';
   const box=document.createElement('div'); box.className='fgrid'; box.style.marginTop='12px';
-  box.innerHTML=`<label class="fld"><span>THINKING (REASONING MODELS)</span><select id="ai-think"><option value="off">Off — fastest, cheapest</option><option value="low">Low (recommended)</option><option value="medium">Medium</option><option value="high">High — slow, can cost more</option></select></label>
-    <label class="fld"><span>MAX ANSWER TOKENS (BUDGET GUARD)</span><input id="ai-maxtok" inputmode="numeric" value="12000"></label>`;
+  box.innerHTML=`<label class="fld"><span>THINKING (REASONING MODELS)</span><select id="ai-think"><option value="off">Off — fastest, cheapest</option><option value="low">Low (recommended)</option><option value="medium">Medium — slower</option><option value="high">High — slow, can cost more</option></select></label>
+    <label class="fld"><span>MAX ANSWER TOKENS PER REQUEST (THINKING COUNTS)</span><input id="ai-maxtok" inputmode="numeric" value="32000"></label>
+    <label class="fld"><span>MEASURE &amp; REFINE ROUNDS</span><select id="ai-rounds"><option value="0">0 — first answer only</option><option value="1">1</option><option value="2">2</option><option value="3">3 (recommended)</option><option value="4">4</option><option value="6">6 — slow</option></select></label>`;
   const ta=$('ai-prompt').closest('.fld'); ta.parentNode.insertBefore(box,ta.nextSibling); ta.parentNode.insertBefore(mp,box);
   $('ai-think').value=aiThink(); $('ai-think').onchange=()=>{ local.set('tnc426.aithink',$('ai-think').value); };
+  $('ai-rounds').value=String(aiRounds()); $('ai-rounds').onchange=()=>{ local.set('tnc426.airounds',$('ai-rounds').value); };
   $('ai-maxtok').value=aiMaxTok(); $('ai-maxtok').addEventListener('keydown',e=>e.stopPropagation());
   $('ai-maxtok').onchange=()=>{ const v=Math.round(+$('ai-maxtok').value); if(v>=1000&&v<=200000) local.set('tnc426.aimaxtok',v); else { say('MAX TOKENS 1000–200000'); $('ai-maxtok').value=aiMaxTok(); } };
   mpMount(mp);
@@ -1700,14 +1734,16 @@ if($('b-tools')) $('b-tools').onclick=()=>act('tt');
 
 /* ================= header menus: + NEW · LESSONS · AI ================= */
 let menuEl=null;
-function closeMenu(){ if(menuEl){ menuEl.remove(); menuEl=null; } }
+function closeMenu(){ if(menuEl){ const b=$(menuEl.dataset.for); if(b) b.setAttribute('aria-expanded','false'); menuEl.remove(); menuEl=null; } }
 function openMenu(btn,items){
   if(menuEl&&menuEl.dataset.for===btn.id){ closeMenu(); return; } closeMenu();
   const m=document.createElement('div'); m.className='hmenu'; m.setAttribute('role','menu'); m.dataset.for=btn.id;
   m.innerHTML=items.map((it,i)=>it.head?`<div class="mh">${esc(it.head)}</div>`:`<button role="menuitem" data-i="${i}">${esc(it.label)}</button>`).join('');
   document.body.appendChild(m); const r=btn.getBoundingClientRect();
-  m.style.left=Math.min(r.left,innerWidth-m.offsetWidth-8)+'px'; m.style.top=(r.bottom+4)+'px';
-  m.onclick=e=>{ const b=e.target.closest('[data-i]'); if(!b) return; const it=items[+b.dataset.i]; closeMenu(); it.act(); };
+  m.style.left=Math.max(8,Math.min(r.left,innerWidth-m.offsetWidth-8))+'px';
+  m.style.top=(r.bottom+4+m.offsetHeight>innerHeight-8&&r.top>innerHeight/2?Math.max(8,r.top-4-m.offsetHeight):r.bottom+4)+'px';
+  btn.setAttribute('aria-expanded','true');
+  m.onclick=e=>{ const b=e.target.closest('[data-i]'); if(!b) return; const it=items[+b.dataset.i]; closeMenu(); closeDrawer(true); it.act(); };
   m.addEventListener('keydown',e=>{ e.stopPropagation(); const bs=[...m.querySelectorAll('button')], i=bs.indexOf(document.activeElement);
     if(e.key==='ArrowDown'){ e.preventDefault(); (bs[i+1]||bs[0]).focus(); } else if(e.key==='ArrowUp'){ e.preventDefault(); (bs[i-1]||bs[bs.length-1]).focus(); }
     else if(e.key==='Escape'){ e.preventDefault(); closeMenu(); btn.focus(); } });
@@ -1738,7 +1774,7 @@ if(Object.keys(MACHINES).length>1){
 }
 
 /* ================= modes, toggles, keyboard ================= */
-function setMode(m){ if(m!=='edit'){ if(S.wiz) wizCancel(); S.pick=null; } S.mode=m;
+function setMode(m){ if(m!=='edit'){ if(S.wiz) wizCancel(); S.pick=null; } S.mode=m; document.body.dataset.mode=m;
   const tps=$('tp-state'); if(tps) tps.textContent={edit:'1 PRG EDIT · soft keys write blocks · Y CYCL DEF · W TOOL CALL',test:'2 TEST · SPACE = NC START / STOP',single:'3 SINGLE-BLOCK · SPACE = next block · ↑↓ moves the machine',full:'4 FULL-RUN · SPACE = NC START / STOP'}[m]||''; [...document.querySelectorAll('.mode')].forEach(b=>b.setAttribute('aria-pressed',b.dataset.m===m));
   if(!S.mgt) renderSK(); if(m==='edit'){ S.running=false; setState('EDITING'); } else setState('READY'); writePrefs(); }
 $('modes').addEventListener('click',e=>{ const b=e.target.closest('.mode'); if(b) setMode(b.dataset.m); });
@@ -1770,6 +1806,9 @@ addEventListener('keydown',e=>{
   if(!$('boot').hidden){ e.preventDefault(); dismissBoot(); return; }
   if(S.aiLive&&!S.aiLive.done&&!openModalEl){ if(k==='Escape'&&aiAbort){ e.preventDefault(); aiAbort.abort(); } return; }
   if(openModalEl){ if(k==='Escape'){ e.preventDefault(); closeModal(); } return; }
+  if(drawerOpen()){ if(k==='Escape'){ e.preventDefault(); closeDrawer(); } return; }
+  if(e.target.closest&&e.target.closest('[role=tablist]')&&/^(Arrow|Home$|End$)/.test(k)) return;
+  if((k==='Enter'||k===' ')&&e.target.matches&&e.target.matches('button:focus-visible,a:focus-visible,summary:focus-visible,[role=tab]:focus-visible')) return;
   if(mod&&k.toLowerCase()==='s'){ e.preventDefault(); saveH(); return; }
   if(mod&&k.toLowerCase()==='o'){ e.preventDefault(); loadFromDisk(); return; }
   if(S.wiz){ if(e.target!==dlgIn) dlgIn.focus(); if(wizKey(e)) e.preventDefault(); return; }
@@ -1819,11 +1858,134 @@ addEventListener('keydown',e=>{
   }
 });
 
-/* ================= mobile panes ================= */
-const mainEl=document.querySelector('.main');
-function showPane(p){ if(!matchMedia('(max-width:900px)').matches) return; mainEl.dataset.pane=p;
-  [...$('mtabs').children].forEach(b=>b.setAttribute('aria-selected',b.dataset.pane===p)); requestAnimationFrame(resize); }
-$('mtabs').addEventListener('click',e=>{ const b=e.target.closest('button'); if(b) showPane(b.dataset.pane); });
+/* ================= phones: workspaces, drawer, dock, swipes =================
+ * At ≤ 900 px the three columns become three workspaces (Program · Graphics · Status) in the page's
+ * own vertical scroll, picked by the tab bar or a horizontal swipe. The soft keys (and the block line
+ * in PRG EDIT) move into a dock fixed at the bottom so NC START / STOP / RESET are reachable from every
+ * workspace; rows of more than 8 keys page like the control's soft-key row switch. The header keeps the
+ * modes, the program, the run state and the check count; DEV, + NEW, LESSONS, AI, HELP, FOCUS and the
+ * profile go into a drawer (MENU). Nodes are moved, never copied: one id, one handler, one state.
+ * Wide screens are untouched. */
+/* var + lookups, not const: these run from functions that may fire before this point of the file has executed */
+var PHONE=matchMedia('(max-width:900px)');
+function isPhone(){ return matchMedia('(max-width:900px)').matches; }
+var mainEl=document.querySelector('.main');
+function paneNow(){ return document.querySelector('.main').dataset.pane||'gfx'; }
+var PANES=['pgm','gfx','side'], paneScroll={};
+function paneTabs(){ return [...$('mtabs').querySelectorAll('[role=tab]')]; }
+function showPane(p,how){ how=how||{}; if(!isPhone()||!PANES.includes(p)) return;
+  if(p==='side'&&S.focusView) p='gfx';
+  const was=paneNow(); if(was!==p) paneScroll[was]=scrollY;
+  mainEl.dataset.pane=p;
+  paneTabs().forEach(b=>{ const on=b.dataset.pane===p; b.setAttribute('aria-selected',on); b.tabIndex=on?0:-1; });
+  if(was!==p) scrollTo(0,paneScroll[p]||0);
+  if(how.focus) $('mt-'+p).focus();
+  requestAnimationFrame(resize); }
+$('mtabs').addEventListener('click',e=>{ const b=e.target.closest('[role=tab]'); if(b) showPane(b.dataset.pane); });
+/* Program → Graphics → Status: the neighbour in a direction, or null at the ends */
+function paneStep(d){ const vis=PANES.filter(p=>!(p==='side'&&S.focusView)); const i=vis.indexOf(paneNow())+d; return vis[i]||null; }
+
+/* tab lists (workspaces, status, help, DEV): arrow keys / Home / End move and select (WAI-ARIA tabs, automatic activation) */
+document.addEventListener('keydown',e=>{ const list=e.target.closest&&e.target.closest('[role=tablist]'); if(!list||e.altKey||e.ctrlKey||e.metaKey) return;
+  const tabs=[...list.querySelectorAll('[role=tab]')].filter(t=>t.offsetParent!==null), i=tabs.indexOf(e.target); if(i<0) return;
+  const j={ArrowRight:i+1,ArrowLeft:i-1,Home:0,End:tabs.length-1}[e.key]; if(j==null) return;
+  e.preventDefault(); e.stopPropagation(); const t=tabs[(j+tabs.length)%tabs.length]; t.focus(); t.click(); });
+/* roving tabindex: only the selected tab is in the Tab order */
+function rove(list){ const tabs=[...list.querySelectorAll('[role=tab]')]; if(!tabs.some(t=>t.getAttribute('aria-selected')==='true')) return;
+  tabs.forEach(t=>t.tabIndex=t.getAttribute('aria-selected')==='true'?0:-1); }
+document.querySelectorAll('[role=tablist]').forEach(l=>{ rove(l); new MutationObserver(()=>rove(l)).observe(l,{subtree:true,attributes:true,attributeFilter:['aria-selected']}); });
+
+/* header: program · state, and the check count as a button that opens the checks */
+function hdrStat(){ const el=$('hdr-stat'); if(!el) return; const t=S.pgm+'|'+setState.last; if(el.dataset.t===t) return; el.dataset.t=t;
+  el.innerHTML=`<b>${esc(S.pgm)}</b> · ${esc(setState.last||'')}`; }
+var lastChecks=null;
+function checksBadge(nErr,nCrash,nWarn){
+  const bad=nErr+nCrash, n=bad+nWarn, tt=x=>window.TNC_I18N?TNC_I18N.t(x):x;
+  const txt=n?(bad?bad+' '+tt(bad===1?'chk.error':'chk.errors'):'')+(bad&&nWarn?' · ':'')+(nWarn?nWarn+' '+tt(nWarn===1?'chk.warning':'chk.warnings'):''):tt('chk.clear');
+  const he=$('hdr-err'); he.className='hdr-m hdr-err'+(bad?' bad':nWarn?' warn':'');
+  $('hdr-err-t').textContent=n?(bad?'⚠ '+bad:'! '+nWarn):'✓'; he.setAttribute('aria-label',tt('panel.checks')+': '+txt);
+  const bd=$('mt-badge'); bd.hidden=!n; bd.className='tbadge'+(bad?'':' warn'); bd.textContent=n?String(n):''; bd.setAttribute('aria-label',txt);
+  const key=nErr+'/'+nCrash+'/'+nWarn; if(lastChecks!==null&&key!==lastChecks) announce(tt('panel.checks')+': '+txt); lastChecks=key; }
+$('hdr-err').onclick=()=>{ if(isPhone()) showPane('side'); setSideTab('diag'); const el=$('elist'); if(el) el.scrollIntoView({block:'nearest'}); };
+
+/* polite announcements: state changes and check counts only — never coordinates, frames or scrubbing */
+function announce(msg){ const el=$('sr-live'); if(!el||!msg) return; clearTimeout(announce._t);
+  announce._t=setTimeout(()=>{ el.textContent=''; requestAnimationFrame(()=>{ el.textContent=msg; }); },350); }
+
+/* soft keys on phones: 8 at a time (2 × 4), ◀ ▶ switch the row */
+var skPage=0, skSig='';
+function pageSK(){ const sks=$('sks'), keys=[...sks.children], pager=$('skpager'), rows=Math.ceil(keys.length/8);
+  const sig=keys.map(k=>k.dataset.a).join('|'); if(sig!==skSig){ skSig=sig; skPage=0; }
+  if(!isPhone()||rows<2){ keys.forEach(k=>k.hidden=false); pager.hidden=true; return; }
+  skPage=Math.min(skPage,rows-1); keys.forEach((k,i)=>k.hidden=Math.floor(i/8)!==skPage);
+  pager.hidden=false; $('sk-page').textContent=(window.TNC_I18N?TNC_I18N.t('sk.row'):'Row')+' '+(skPage+1)+' / '+rows; }
+$('sk-prev').onclick=()=>{ const rows=Math.ceil(sks.children.length/8); skPage=(skPage-1+rows)%rows; pageSK(); };
+$('sk-next').onclick=()=>{ const rows=Math.ceil(sks.children.length/8); skPage=(skPage+1)%rows; pageSK(); };
+
+/* the drawer (phones): a modal dialog — focus inside, the rest inert, Esc / scrim / swipe right close it */
+var hmore=$('hmore'), scrim=$('scrim');
+function drawerOpen(){ return $('hmore').classList.contains('open'); }
+function openDrawer(){ if(!isPhone()||drawerOpen()) return; closeMenu();
+  hmore.setAttribute('role','dialog'); hmore.setAttribute('aria-modal','true'); hmore.classList.add('open'); scrim.hidden=false;
+  $('b-menu').setAttribute('aria-expanded','true'); drawerInert(true); $('hmore-x').focus(); }
+function closeDrawer(quiet){ if(!drawerOpen()) return; const hmore=$('hmore'), scrim=$('scrim'); hmore.classList.remove('open'); scrim.hidden=true; drawerInert(false);
+  $('b-menu').setAttribute('aria-expanded','false'); closeMenu(); if(!quiet) $('b-menu').focus(); }
+function drawerInert(on){ [document.querySelector('.main'),$('mtabs'),$('dock'),...[...document.querySelector('.bar').children].filter(c=>c!==hmore)].forEach(el=>{ if(el) el.inert=on; }); }
+$('b-menu').onclick=openDrawer; $('hmore-x').onclick=()=>closeDrawer(); scrim.onclick=()=>closeDrawer();
+hmore.addEventListener('keydown',e=>{ if(!drawerOpen()) return;
+  if(e.key==='Escape'){ e.preventDefault(); e.stopPropagation(); closeDrawer(); return; }
+  if(e.key!=='Tab') return; const f=[...hmore.querySelectorAll('button')].filter(b=>!b.hidden&&b.offsetParent!==null); if(!f.length) return;
+  if(e.shiftKey&&document.activeElement===f[0]){ e.preventDefault(); f[f.length-1].focus(); }
+  else if(!e.shiftKey&&document.activeElement===f[f.length-1]){ e.preventDefault(); f[0].focus(); } });
+/* drawer buttons that open a dialog or start something close the drawer first (menus stay on top of it) */
+['b-dev','b-help','b-prof','b-focus'].forEach(id=>{ const b=$(id); if(b) b.addEventListener('click',()=>closeDrawer(true),true); });
+
+/* swipes: left / right on a workspace switches workspace; right on the drawer closes it.
+ * Passive listeners only (vertical scroll and pinch zoom are never blocked). Ignored when the touch
+ * starts on the 3-D view, a slider, a text field, the soft keys or anything that scrolls sideways,
+ * when two fingers are down, while zoomed in, or when text is selected. A swipe only ever navigates. */
+function swipeable(el,root){
+  for(let n=el;n&&n!==root;n=n.parentElement){
+    if(n.matches('canvas,input,textarea,select,[contenteditable],.sks,.skpager,.dlg,.tp,.ghost')) return false;
+    if(n.scrollWidth>n.clientWidth+2){ const ox=getComputedStyle(n).overflowX; if(ox==='auto'||ox==='scroll') return false; } }
+  return true; }
+function onSwipe(root,fn){ let s0=null;
+  root.addEventListener('touchstart',e=>{ s0=null; if(e.touches.length!==1||!isPhone()) return;
+    if(window.visualViewport&&visualViewport.scale>1.05) return; if(!swipeable(e.target,root)) return;
+    const t=e.touches[0]; s0={x:t.clientX,y:t.clientY,t:performance.now(),dead:false}; },{passive:true});
+  root.addEventListener('touchmove',e=>{ if(!s0) return; if(e.touches.length!==1){ s0=null; return; }
+    const t=e.touches[0], dx=t.clientX-s0.x, dy=t.clientY-s0.y; if(Math.abs(dy)>30&&Math.abs(dy)>Math.abs(dx)) s0.dead=true; },{passive:true});
+  root.addEventListener('touchcancel',()=>{ s0=null; },{passive:true});
+  root.addEventListener('touchend',e=>{ if(!s0||s0.dead) { s0=null; return; } const t=e.changedTouches[0], dx=t.clientX-s0.x, dy=t.clientY-s0.y, dt=performance.now()-s0.t; s0=null;
+    const sel=getSelection&&getSelection(); if(sel&&!sel.isCollapsed&&String(sel).trim()) return;
+    if(Math.abs(dx)>=Math.max(64,innerWidth*.18)&&Math.abs(dx)>Math.abs(dy)*2&&dt<2500) fn(dx<0?1:-1); },{passive:true}); }
+onSwipe(mainEl,d=>{ if(drawerOpen()||openModalEl) return; const p=paneStep(d); if(p) showPane(p); });
+onSwipe(hmore,d=>{ if(d<0) closeDrawer(); });
+
+/* layout follows the breakpoint: dock in or out, ARIA roles on the workspaces, canvas size */
+const pgmCol=document.querySelector('.col-pgm'), dlgEl=document.querySelector('.col-pgm .dlg');
+function layout(){ const phone=isPhone(), dock=$('dock'), act=document.activeElement;
+  const parts=[dlgEl,$('skpath'),sks,$('skpager')];
+  if(phone&&parts[0].parentElement!==dock) parts.forEach(n=>dock.appendChild(n));
+  if(!phone&&parts[0].parentElement===dock) parts.forEach(n=>pgmCol.appendChild(n));
+  if(act&&act!==document.activeElement&&act.isConnected) try{ act.focus({preventScroll:true}); }catch(e){}
+  PANES.forEach(p=>{ const sec=$('ws-'+p); if(phone){ sec.setAttribute('role','tabpanel'); sec.setAttribute('aria-labelledby','mt-'+p); sec.removeAttribute('aria-label'); }
+    else { sec.removeAttribute('role'); sec.removeAttribute('aria-labelledby'); sec.setAttribute('aria-label',{pgm:'Program',gfx:'Test graphics',side:'Status'}[p]); } });
+  if(phone){ hmore.removeAttribute('aria-labelledby'); hmore.setAttribute('aria-labelledby','hmore-t'); showPane(paneNow()); }
+  else { closeDrawer(true); hmore.removeAttribute('role'); hmore.removeAttribute('aria-modal'); hmore.removeAttribute('aria-labelledby'); }
+  pageSK(); measure(); requestAnimationFrame(resize); }
+/* CSS sizes: dock height, tab-bar height, and how much of the screen the software keyboard covers */
+function measure(){ const r=document.documentElement.style, d=$('dock'), tb=$('mtabs');
+  r.setProperty('--dock-h',(isPhone()?d.offsetHeight:0)+'px'); r.setProperty('--tabs-h',(isPhone()?tb.offsetHeight:0)+'px');
+  const vv=window.visualViewport; if(vv){ r.setProperty('--vvh',vv.height+'px'); r.setProperty('--vvt',vv.offsetTop+'px');
+    r.setProperty('--kb',Math.max(0,Math.round(innerHeight-vv.height-vv.offsetTop))+'px'); } }
+new ResizeObserver(measure).observe($('dock'));
+if(window.visualViewport){ visualViewport.addEventListener('resize',measure); visualViewport.addEventListener('scroll',measure); }
+PHONE.addEventListener('change',layout);
+/* a field that gets focus inside a dialog or the dock stays above the software keyboard */
+document.addEventListener('focusin',e=>{ if(!isPhone()) return; const t=e.target; if(!t.matches||!t.matches('input,textarea,select')) return;
+  if(t.closest('.modal,.dock')) setTimeout(()=>{ measure(); if(t.closest('.modal')) t.scrollIntoView({block:'nearest'}); },300); });
+layout();
 
 /* ================= boot screen ================= */
 function dismissBoot(){ $('boot').hidden=true; sess.set(BOOT_SS,'1'); if(PROF&&!PROF.name) openProfile(); }
@@ -1860,6 +2022,7 @@ function tick(now){
     const b=S.res.blocks[S.cursor];
     $('ovl-l').innerHTML=`PGM <b style="color:var(--cyan)">${esc(S.pgm)}</b><br>BLOCK <b>${b&&b.n!=null?b.n:'--'}</b> / ${(S.res.blocks.filter(x=>x.n!=null).pop()||{n:0}).n}<br>`+
       `BLANK <b>${fmt(ST.x1-ST.x0)}×${fmt(ST.y1-ST.y0)}×${fmt(ST.z1-ST.z0)}</b> mm`;
+    hdrStat();
     $('ovl-r').innerHTML=`${S.view} · ${S.speed?S.speed+'×':'MAX'}<br>${fmtT(S.t)} / ${fmtT(S.total)}<br>OVR <b style="color:var(--amber)">${S.ovr}%</b>`; }
   controls.update();
   if(CO) try{ CO.update(); }catch(e){}

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Bundle shell + libraries + modules into one standalone HTML.
+"""Bundle shell + libraries + modules into one standalone HTML. All files are UTF-8 (explicit: Windows defaults to cp1252).
 
   python3 build.py          -> index.html        (public, pushed; never contains a key)
                             -> index.local.html  (only if private/.env has OPENROUTER_API_KEY; gitignored)
@@ -16,14 +16,17 @@ def vendor():
     """three + addons + three.quarks as one classic script (window.THREE, window.QUARKS)."""
     out = cache / f'three-vendor-{T_VER}.js'
     if not out.exists():
-        import subprocess
-        esb = d / '.tools' / 'node_modules' / '.bin' / 'esbuild'
-        if not esb.exists():
-            sys.exit('build: esbuild missing — run: (cd .tools && npm i three@%s three.quarks@0.17.1 esbuild@0.28.2)' % T_VER)
+        import subprocess, os
+        # root package.json (npm ci) first; the older gitignored .tools/ layout still works
+        for nm in (d / 'node_modules', d / '.tools' / 'node_modules'):
+            esb = nm / '.bin' / ('esbuild.cmd' if os.name == 'nt' else 'esbuild')
+            if esb.exists(): break
+        else:
+            sys.exit('build: esbuild missing — run: npm ci   (in the repo root; pins three@%s three.quarks@0.17.1 esbuild@0.28.2)' % T_VER)
         subprocess.run([str(esb), str(src / 'vendor' / 'three-entry.mjs'), '--bundle', '--format=iife', '--minify',
-                        '--legal-comments=none', '--log-level=warning', f'--outfile={out}'], check=True, cwd=d / '.tools',
-                       env=dict(__import__('os').environ, NODE_PATH=str(d / '.tools' / 'node_modules')))
-    return out.read_text()
+                        '--legal-comments=none', '--log-level=warning', f'--outfile={out}'], check=True, cwd=nm.parent,
+                       env=dict(os.environ, NODE_PATH=str(nm)))
+    return out.read_text(encoding='utf-8')
 
 # (cache file, url, label) — fetched once into .libcache/
 LIBS = [
@@ -46,6 +49,7 @@ MODULES = [
     ('materials.js', 'Materials'),
     ('look.js',      'Look: environment, antialiasing'),
     ('profile.js',   'User profile storage'),
+    ('part.js',      'Part spec: target geometry, lettering, measured comparison (AI loop)'),
     ('ai.js',        'AI program generation (OpenRouter)'),
     ('bridge.js',    'Bridge to the TNC server and web app (inactive without a server)'),
     ('viz.js',       'View aids: axis vectors, click to pick'),
@@ -62,7 +66,7 @@ def lib(name, url):
     f = cache / name
     if not f.exists():
         f.write_bytes(urllib.request.urlopen(url).read())
-    return f.read_text()
+    return f.read_text(encoding='utf-8')
 
 def tag(label, src):
     if '</script' in src.lower():
@@ -73,12 +77,12 @@ def env_key():
     # private/.env (gitignored folder) first, then a root .env
     for f in (d / 'private' / '.env', d / '.env'):
         if not f.exists(): continue
-        for line in f.read_text().splitlines():
+        for line in f.read_text(encoding='utf-8').splitlines():
             m = re.match(r'\s*OPENROUTER_API_KEY\s*=\s*["\']?([^"\'\s#]+)', line)
             if m: return m.group(1)
     return None
 
-shell = (src / 'sim-shell.html').read_text()
+shell = (src / 'sim-shell.html').read_text(encoding='utf-8')
 split = '<div class="app">'
 head, body = shell.split(split, 1)
 body = split + body
@@ -88,12 +92,12 @@ scripts += ''.join(tag(label, lib(n, u)) for n, u, label in LIBS)
 for name, var in TEXTS:
     f = d / name
     if f.exists():
-        scripts += tag('text: ' + name, f'window.{var} = {json.dumps(f.read_text())};')
+        scripts += tag('text: ' + name, f'window.{var} = {json.dumps(f.read_text(encoding="utf-8"))};')
 included = []
 for name, label in MODULES:
     f = src / name
     if f.exists():
-        scripts += tag(label, f.read_text()); included.append(name)
+        scripts += tag(label, f.read_text(encoding='utf-8')); included.append(name)
 
 def page(extra=''):
     return f"""<!DOCTYPE html>
@@ -114,11 +118,11 @@ doc = page()
 key = env_key()
 if key and key in doc:
     sys.exit('build: the OpenRouter key leaked into the public build — aborting')
-(d / 'index.html').write_text(doc)
+(d / 'index.html').write_text(doc, encoding='utf-8', newline='\n')
 print(f'built index.html  {len(doc):,} bytes  modules: {" ".join(included)}')
 
 if key:
     local = page(tag('local-only key from .env — never commit this file',
                      f'window.TNC_AI_LOCAL_KEY = {json.dumps(key)};'))
-    (d / 'index.local.html').write_text(local)
+    (d / 'index.local.html').write_text(local, encoding='utf-8', newline='\n')
     print(f'built index.local.html  {len(local):,} bytes  (with .env key — gitignored)')

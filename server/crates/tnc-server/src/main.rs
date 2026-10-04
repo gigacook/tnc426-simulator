@@ -69,12 +69,11 @@ async fn serve(cfg: Config) -> anyhow::Result<()> {
         if st.cfg.ai_enabled() { "via OpenRouter" } else { "off (no OPENROUTER_API_KEY)" },
     );
     let listener = tokio::net::TcpListener::bind(bind).await?;
-    axum::serve(listener, tnc_server::router(st))
-        .with_graceful_shutdown(async {
-            let _ = tokio::signal::ctrl_c().await;
-            tracing::info!("shutting down");
-        })
-        .await?;
+    tnc_server::serve(listener, st, async {
+        let _ = tokio::signal::ctrl_c().await;
+        tracing::info!("shutting down");
+    })
+    .await?;
     Ok(())
 }
 

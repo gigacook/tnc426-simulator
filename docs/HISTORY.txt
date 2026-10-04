@@ -438,6 +438,44 @@ NOT VERIFIED:
     single-file simulator has.
 
 
+v0.9  2026-10-03  DESKTOP APP, PHONES, AI THAT IS MEASURED
+---------------------------------------------------------------------
+WHAT SHIPPED:
+  - Desktop app (desktop/, Tauri 2): the server's own crate runs inside
+    the app on 127.0.0.1, SQLite in the app-data folder, the operator is
+    signed in by a one-time link, no separate server. Built and launched
+    on Linux (deb, rpm, AppImage); macOS and Windows only via CI.
+  - Phones: three workspaces (Program, Graphics, Status) with tabs and
+    swipes, the soft keys in a bottom dock paged 8 at a time like the
+    control, everything else behind MENU. Desktop layout unchanged.
+  - Accessibility pass: dialogs trap and return focus, tabs work with the
+    keyboard, shortcuts no longer steal Enter/Space from buttons, run state
+    and check counts are announced, landmarks and labels.
+  - AI: the tool table goes in as constraints, the model plans the part
+    first (a spec - the "interim 3-D model"), lettering comes from the
+    simulator's own stroke font, and the program is machined and measured
+    against the spec in mm; the misses go back for up to 3 rounds. Token
+    limits raised and cut-off answers continued.
+  - A tracked browser test suite (tests/ui/run.mjs) and a CI workflow.
+
+HIGHS:
+  - The measurement found what "kind of the shape" meant: on the plate
+    test the old pipeline milled the pocket walls and left the middle
+    standing (73.8 % match); the new loop cleared it (100 %).
+
+LOWS:
+  - The old QA suite (.tools/qa) was never in git; it is replaced, not
+    restored. WebKit and real phones are still untested.
+  - Medium reasoning on DeepSeek thought through a 32k budget twice
+    before writing (10 minutes for one part); low reasoning plus the
+    measurement loop is as accurate and is now the default.
+  - The first loop threw away a 96 % program when a later refinement
+    timed out; fixed (best program kept, idle timeout, network retry).
+
+NOT VERIFIED:
+  - No physical iPhone / Android test, no screen reader on a device.
+  - macOS / Windows desktop builds; the CI workflow has not run yet.
+
 BY THE NUMBERS (2026-09-30)
 -----------------------------
   Live version:              v0.8 plus the fullstack Rust server + React
